@@ -1,5 +1,5 @@
 // Captures the install-dialog screenshots in public/screenshots/ from the running production
-// build (pnpm build && STATIC_DIR=dist node server/index.js). Uses generated gradient "photos" in
+// build (pnpm build && pnpm preview --port 4180). Uses generated gradient "photos" in
 // the browser's private storage, so no real photo ends up in the repo.
 // Usage: node scripts/capture-screenshots.mjs [baseUrl]
 import { chromium } from "@playwright/test"
