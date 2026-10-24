@@ -196,7 +196,7 @@
 | F10 | Nama file anti-tabrakan                            | Shipped      | `_1`, `_2`, …                                                        |
 | F11 | Undo (maks 20)                                     | Shipped      | Hanya sesi berjalan                                                  |
 | F12 | Lompat ke belum disortir (`U`)                     | Shipped      | Dengan wraparound dan state "semua tersortir"                        |
-| F13 | Kelola folder tujuan + validasi nama               | Shipped      | Hapus folder tanpa konfirmasi (lihat [Bagian 20](#20-risiko-keterbatasan-dan-known-issues)) |
+| F13 | Kelola folder tujuan + validasi nama               | Shipped      | Hapus folder meminta konfirmasi, tetapi isi folder tetap terhapus dari disk (lihat [Bagian 20](#20-risiko-keterbatasan-dan-known-issues)) |
 | F14 | Multi-select dan batch sort                        | Shipped      | 1 batch = 1 entri undo                                               |
 | F15 | Filmstrip dan grid (lazy, infinite scroll)         | Shipped      | v2.1.0 / v2.2.0                                                      |
 | F16 | Zoom, pan, loupe                                   | Shipped      | Loupe hanya desktop                                                  |
@@ -303,7 +303,7 @@ Mode disimpan di DB dan dipilih lewat tab di `FolderManager`.
 - **Validasi nama** (`folder-name.utils.ts`) menolak: kosong setelah trim; > 200 karakter; `.` atau `..`; karakter `\ / : * ? " < > |`; karakter kontrol U+0000–U+001F; berakhir titik atau spasi; nama perangkat Windows `CON`, `PRN`, `AUX`, `NUL`, `COM1–9`, `LPT1–9` (dengan atau tanpa ekstensi). Spasi dan tanda hubung boleh.
 - Pintasan `1`–`9` diberikan ke 9 folder pertama; folder ke-10 dan seterusnya tanpa pintasan (klik saja). Nomor pintasan **tidak diatur ulang** setelah penghapusan.
 - 9 warna siklus: red, blue, green, yellow, purple, pink, indigo, orange, teal (kelas `bg-*-500`, teks putih).
-- **Menghapus folder** menjalankan `removeEntry(name, {recursive:true})`: folder **beserta seluruh isinya** terhapus dari disk, **tanpa dialog konfirmasi**. Pemetaan dan entri undo folder itu ikut dibuang.
+- **Menghapus folder** menjalankan `removeEntry(name, {recursive:true})`: folder **beserta seluruh isinya** terhapus dari disk. Tombol hapus membuka dialog konfirmasi dulu (fokus awal pada "Keep folder"); tidak bisa di-undo setelah dikonfirmasi. Pemetaan dan entri undo folder itu ikut dibuang.
 - Saat resume, folder yang tercatat tapi hilang di disk dilewati dengan toast "Folder X tidak ditemukan, dilewati", dan pemetaannya dibuang.
 
 ### 6.11 Multi-select dan batch sort (F14)
@@ -315,7 +315,7 @@ Mode disimpan di DB dan dipilih lewat tab di `FolderManager`.
 ### 6.12 Filmstrip dan grid (F15)
 
 - **Single view:** `ContentViewer` + `Filmstrip` (ScrollArea horizontal, otomatis memusatkan foto saat ini).
-- **Grid:** `PAGE_SIZE = 60`, ditambah via IntersectionObserver (`rootMargin` 300 px). Kolom: 3 (default), 4 (sm), 5 (md), 6 (lg), 8 (xl). Tinggi tetap 72 dvh di bawah `lg`; di desktop mengisi kanvas. Klik thumbnail membuka single view.
+- **Grid:** `PAGE_SIZE = 60`, ditambah via IntersectionObserver (`rootMargin` 300 px). Kolom: 3 (default), 4 (sm), 5 (md), 6 (lg), 8 (xl). Tinggi tetap 72 dvh di bawah `lg`; di desktop mengisi kanvas. Klik thumbnail membuka single view. Saat grid dibuka kembali, ia di-scroll ke foto yang sedang aktif (hanya viewport grid, bukan halaman).
 - Thumbnail: lencana warna folder bila tersortir, ring aksen 2 px bila saat ini atau terpilih (kotak centang di pojok membedakan; ring fokus dua-tona terpisah); placeholder ikon + label format untuk video / non-previewable.
 
 ### 6.13 Zoom, pan, loupe (F16)
@@ -882,7 +882,7 @@ Semua item wajib mempertahankan "tanpa upload, tanpa telemetri, local-first".
 
 ### 18.3 Usulan dari analisis ini (belum disetujui)
 
-1. Tambahkan konfirmasi sebelum menghapus folder tujuan, atau ubah menjadi "lepas dari daftar" tanpa menghapus isi disk.
+1. ~~Tambahkan konfirmasi sebelum menghapus folder tujuan~~ (selesai: dialog konfirmasi). Yang tersisa: ubah menjadi "lepas dari daftar" tanpa menghapus isi disk.
 2. Cadangkan DB lama sebelum di-reset karena korup/versi beda.
 3. Tambahkan switch "Reduce motion" di dalam app dan pemilih aksen (butuh dialog Pengaturan); jalankan axe/Lighthouse pada Welcome dan Editor.
 4. Biarkan pengaturan Tema menyediakan opsi "sistem" dan mengikuti perubahan OS.
@@ -911,7 +911,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 
 | #   | Item                                                                                                                                                    | Dampak / mitigasi saat ini                                                              | Tingkat   |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------- |
-| R1  | **Menghapus folder tujuan = `removeEntry(recursive:true)` tanpa konfirmasi** — isi (file yang sudah disortir) ikut terhapus dari disk                    | Risiko kehilangan data; bertentangan dengan prinsip "aksi destruktif harus bisa di-undo" | **Tinggi** |
+| R1  | **Menghapus folder tujuan = `removeEntry(recursive:true)`** (kini dengan dialog konfirmasi, tetap tidak bisa di-undo) — isi (file yang sudah disortir) ikut terhapus dari disk                    | Risiko kehilangan data; bertentangan dengan prinsip "aksi destruktif harus bisa di-undo" | **Tinggi** |
 | R2  | DB korup / versi beda **ditimpa tanpa backup**                                                                                                          | Progres lama hilang                                                                      | Sedang    |
 | R3  | Undo hanya untuk sesi berjalan (20 entri, memori)                                                                                                       | Setelah reload sortir lama tak bisa dibalik                                              | Sedang    |
 | R4  | Sortir ulang foto yang sudah tersortir meninggalkan salinan lama                                                                                        | Duplikat di folder sebelumnya                                                            | Rendah    |
@@ -988,7 +988,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 
 **Mengapa preview RAW lama atau buram?** Aplikasi mengambil JPEG tertanam terbesar; bila kecil (< 800 px) dan file ≤ 80 MB, dicoba dekode libraw (maks 20 detik). Sisanya memakai preview kecil.
 
-**Apa yang terjadi bila saya menghapus folder tujuan?** Folder **dan isinya** dihapus dari disk tanpa konfirmasi. Hati-hati.
+**Apa yang terjadi bila saya menghapus folder tujuan?** Folder **dan isinya** dihapus dari disk setelah kamu mengonfirmasi di dialog. Tidak bisa dibatalkan.
 
 **Bisakah saya memakainya offline?** Ya, setelah dimuat sekali sebagai PWA. Pemrosesan file selalu lokal.
 

@@ -59,7 +59,9 @@ Button (`default` = the one primary action, `secondary`, `ghost`, `outline`, `de
 Activity indicator (`ActivityIndicator`, top bar left of Close project): spinner while reading or saving, green check when saved, red cross when failed, next to the message ("Moving x…", "x done", idle "Saved"). Desktop always shows the message; phones keep the icon and show the message only while there is one (a success clears after 3 s), and the top bar wordmark slides up and fades out meanwhile to make room (it returns when the message clears). A failure stays until clicked or until the next operation starts. Sort, undo, save and project-reading messages (status icon `file`/`db`) use it instead of toasts.
 
 Toasts (`StatusIndicator`, everything else: folder validation, folder created/deleted, shortcut changes, recents): bottom-right (top-centre on phones), two live regions (polite, assertive for errors), never take focus, pause on hover/focus, errors stay until dismissed, a duplicate is shown once.
-Destructive or leave-the-page confirmations are in-app dialogs, never `window.confirm`.
+Destructive or leave-the-page confirmations are in-app dialogs, never `window.confirm`: deleting a sort folder (which deletes its files from disk) and leaving the workspace both ask first, with the safe choice focused. A dialog may open from inside a sheet; closing it leaves the sheet open.
+A rejected folder name is explained under its field (`aria-invalid`, `aria-describedby`) and stays in the field; it is not also sent as a toast. Between 768 and 1023 px the toasts sit above the 72 px action bar (96 px from the bottom); from 1024 px they sit above the 28 px status bar.
+With no sort folder yet, the phone/tablet action bar shows one button, *Add a folder*, that opens the folders sheet.
 
 ## 5. Brand
 

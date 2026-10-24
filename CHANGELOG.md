@@ -23,6 +23,15 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **A sort that fired twice ran twice.** Key auto-repeat or a double tap on a folder button copied or
+  moved the same photo again: Copy logged two operations (and the second undo failed), Cut ended
+  in a failed state. A photo already being sorted is now skipped, for single and batch sorts.
+- **Escape in a nested dialog closed the dialog behind it.** React bubbles `close` through the
+  component tree; `Dialog` now only reacts to its own `close`.
+- **The filmstrip scrolled the whole page.** Centring the current photo used `scrollIntoView`, which
+  also scrolled `main`, so the viewer jumped on every step when the strip was below the fold. It
+  now scrolls the strip only.
+- **Recent Log keys.** Operations of one batch could share a timestamp, giving duplicate React keys.
 - **Service worker error in `pnpm dev`.** The console showed "The script has an unsupported MIME type
   ('text/html')" because the dev server has no `/sw.js` and answered with `index.html`. The service
   worker is now registered in production builds only (production serves `sw.js` as JavaScript).
@@ -43,6 +52,22 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **Next and previous photos are decoded ahead of time.** While you look at a photo, the viewer
+  warms the decode of its neighbours, so stepping with the arrow keys or Space shows the next image
+  without the loading skeleton. Video and RAW are skipped.
+- **Deleting a sort folder asks first.** The trash button opens a confirmation (it deletes the folder
+  and every file inside it from disk, which cannot be undone). The safe choice, *Keep folder*,
+  has focus. Documented as risk R1 in PRODUCT_KNOWLEDGE.
+- **A rejected folder name is explained under the field.** The name stays in the input (it used to
+  be cleared), the field is marked invalid and linked to the message, and no toast repeats it.
+- **No folder yet on a phone or tablet.** The empty middle of the bottom action bar is now an
+  *Add a folder* button that opens the folders sheet.
+- **Toasts clear the action bar between 768 and 1023 px.** They used to overlap its buttons.
+- **The canvas fills the screen below 1024 px**, removing a second background tone under the filmstrip.
+- **The Changelog tab shows a spinner while it loads** and, if its chunk cannot be downloaded, an
+  inline message instead of replacing the whole workspace with the route error page.
+- **The grid opens on the current photo.** Switching from the single view back to the grid scrolls
+  it to the photo you were on instead of the top.
 - **Status indicator in the top bar.** File activity (sorting, undo, saving, reading a project) now
   reports in an indicator left of Close project instead of toasts and the footer: a spinner while
   reading or saving, a green check when saved, a red cross when it failed, beside the message
