@@ -212,6 +212,7 @@
   "settings.tab.appearance": "Tampilan",
   "settings.tab.about": "Tentang",
   "settings.tab.changelog": "Changelog",
+  "settings.changelogFailed": "Changelog gagal dimuat. Muat ulang aplikasi untuk mencoba lagi.",
   "settings.theme": "Tema",
   "settings.themeLight": "Terang",
   "settings.themeDark": "Gelap",

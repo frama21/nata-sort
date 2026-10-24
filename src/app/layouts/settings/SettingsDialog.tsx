@@ -12,13 +12,28 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/shared/components/ui/dialog"
+import { Spinner } from "@/shared/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
 import { WithTooltip } from "@/shared/components/ui/tooltip"
 import { AboutTab } from "./AboutTab"
 import { AppearanceTab } from "./AppearanceTab"
 
 // Loaded on first open of the tab: it carries CHANGELOG.md and the virtual-list library.
-const ChangelogTimeline = lazy(() => import("./ChangelogTimeline").then(m => ({ default: m.ChangelogTimeline })))
+// A chunk that fails to download degrades to a message here instead of throwing into the route's
+// error boundary, which would replace the whole workspace (and close the open project).
+const ChangelogUnavailable = () => {
+  const { t } = useTranslation()
+  return (
+    <p role="alert" className="text-sm text-muted-foreground">
+      {t("settings.changelogFailed")}
+    </p>
+  )
+}
+const ChangelogTimeline = lazy(() =>
+  import("./ChangelogTimeline")
+    .then(m => ({ default: m.ChangelogTimeline }))
+    .catch(() => ({ default: ChangelogUnavailable }))
+)
 
 const TABS = ["shortcuts", "appearance", "about", "changelog"] as const
 type SettingsTab = (typeof TABS)[number]
@@ -84,7 +99,13 @@ export const SettingsDialog = () => {
               <AboutTab />
             </TabsContent>
             <TabsContent value="changelog" className="h-full py-5 pr-3 pl-5 sm:py-6 sm:pl-6">
-              <Suspense fallback={null}>
+              <Suspense
+                fallback={
+                  <div className="grid h-full place-items-center">
+                    <Spinner />
+                  </div>
+                }
+              >
                 <ChangelogTimeline />
               </Suspense>
             </TabsContent>

@@ -213,6 +213,7 @@
   "settings.tab.appearance": "Appearance",
   "settings.tab.about": "About",
   "settings.tab.changelog": "Changelog",
+  "settings.changelogFailed": "The changelog could not be loaded. Reload the app to try again.",
   "settings.theme": "Theme",
   "settings.themeLight": "Light",
   "settings.themeDark": "Dark",
