@@ -1,5 +1,6 @@
 import * as React from "react"
 
+import { placeFloating, type FloatingSide } from "@/shared/lib/floating"
 import { cn } from "@/shared/lib/utils"
 
 // Tooltip shown on hover and keyboard focus of the wrapped control, linked to it
@@ -8,50 +9,9 @@ import { cn } from "@/shared/lib/utils"
 // is computed on open: preferred side first, flipped when it doesn't fit, then
 // clamped to the viewport. Escape dismisses it.
 
-type TooltipSide = "top" | "bottom" | "left" | "right"
+type TooltipSide = FloatingSide
 
-const GAP = 8
 const MARGIN = 8
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max))
-
-/** Top-left (viewport coords) for a tooltip of size `tip` next to `anchor`. */
-function place(anchor: DOMRect, tip: DOMRect, side: TooltipSide) {
-  const vw = document.documentElement.clientWidth
-  const vh = document.documentElement.clientHeight
-  const room = {
-    top: anchor.top - GAP - MARGIN,
-    bottom: vh - anchor.bottom - GAP - MARGIN,
-    left: anchor.left - GAP - MARGIN,
-    right: vw - anchor.right - GAP - MARGIN
-  }
-  const vertical = side === "top" || side === "bottom"
-  const need = vertical ? tip.height : tip.width
-  const opposite: Record<TooltipSide, TooltipSide> = { top: "bottom", bottom: "top", left: "right", right: "left" }
-  // Keep the preferred side if it fits; otherwise use the opposite one when it fits, else the roomier of the two.
-  const final =
-    room[side] >= need
-      ? side
-      : room[opposite[side]] >= need || room[opposite[side]] > room[side]
-        ? opposite[side]
-        : side
-
-  const centerX = anchor.left + anchor.width / 2 - tip.width / 2
-  const centerY = anchor.top + anchor.height / 2 - tip.height / 2
-  const left =
-    final === "left"
-      ? anchor.left - GAP - tip.width
-      : final === "right"
-        ? anchor.right + GAP
-        : clamp(centerX, MARGIN, vw - tip.width - MARGIN)
-  const top =
-    final === "top"
-      ? anchor.top - GAP - tip.height
-      : final === "bottom"
-        ? anchor.bottom + GAP
-        : clamp(centerY, MARGIN, vh - tip.height - MARGIN)
-  return { left, top }
-}
 
 interface WithTooltipProps {
   label: React.ReactNode
@@ -77,7 +37,7 @@ function WithTooltip({ label, side = "top", children, className }: WithTooltipPr
 
     tip.showPopover?.()
     const reposition = () => {
-      const { left, top } = place(anchor.getBoundingClientRect(), tip.getBoundingClientRect(), side)
+      const { left, top } = placeFloating(anchor.getBoundingClientRect(), tip.getBoundingClientRect(), side)
       tip.style.left = `${left}px`
       tip.style.top = `${top}px`
     }
