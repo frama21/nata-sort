@@ -7,11 +7,8 @@ test("unknown URLs show the not-found page with a way home", async ({ page }) =>
   await expect(page).toHaveURL("/")
 })
 
-test("main navigation is built from feature routes", async ({ page }) => {
+test("the main navigation is hidden while there is only one view", async ({ page }) => {
   await page.goto("/")
-  const nav = page.getByRole("navigation", { name: "Main navigation" })
-  await expect(nav.getByRole("link", { name: "Sort" })).toHaveAttribute("aria-current", "page")
-  await nav.getByRole("link", { name: "Help" }).click()
-  await expect(page).toHaveURL("/help")
-  await expect(nav.getByRole("link", { name: "Help" })).toHaveAttribute("aria-current", "page")
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Help" })).toBeVisible()
 })

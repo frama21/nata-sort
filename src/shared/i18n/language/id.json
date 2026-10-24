@@ -105,8 +105,8 @@
 
   "mobile.sortToAria": "Sortir ke {name}",
 
-  "shortcuts.title": "Pintasan Keyboard",
-  "shortcuts.description": "Percepat menyortir dengan pintasan berikut.",
+  "shortcuts.title": "Bantuan",
+  "shortcuts.description": "Pintasan keyboard dan cara NATA menjaga filemu tetap aman.",
   "shortcuts.sortToFolder": "Sortir foto ke folder (klik badge folder untuk ubah pintasan)",
   "shortcuts.navPhotos": "Foto sebelumnya / selanjutnya",
   "shortcuts.nextPhoto": "Foto selanjutnya",
@@ -114,7 +114,12 @@
   "shortcuts.undo": "Batalkan (undo) aksi terakhir",
   "shortcuts.selectAll": "Pilih / batal pilih semua (mode grid)",
   "shortcuts.rangeSelect": "Pilih / batal pilih rentang (grid / filmstrip)",
-  "shortcuts.triggerAria": "Pintasan keyboard",
+  "shortcuts.triggerAria": "Bantuan",
+  "shortcuts.tabShortcuts": "Pintasan",
+  "shortcuts.tabAbout": "Tentang",
+  "shortcuts.tabChangelog": "Perubahan",
+  "changelog.unreleased": "Belum dirilis",
+  "changelog.aria": "Riwayat perubahan",
   "shortcuts.footer": "Di perangkat sentuh, geser kiri/kanan untuk berpindah foto. Ctrl menjadi ⌘ di macOS. Pintasan diabaikan saat mengetik di kolom teks.",
 
   "theme.toggle": "Ganti tema",
@@ -201,7 +206,6 @@
   "sorter.leaveGo": "Tinggalkan",
 
   "nav.sorter": "Sortir",
-  "nav.help": "Bantuan",
   "nav.skip": "Lewati ke konten",
   "nav.primary": "Navigasi utama",
   "route.loading": "Memuat halaman…",
@@ -212,7 +216,6 @@
   "route.error.fallback": "Halaman gagal dimuat.",
   "route.reload": "Muat ulang",
   "sorter.leaveConfirm": "Keluar dari halaman ini akan menutup folder yang sedang disortir. Progres sudah tersimpan. Lanjutkan?",
-  "help.title": "Bantuan",
   "help.privacy.title": "Privasi",
   "help.privacy.body": "Semua file diproses di browsermu. Tidak ada yang diunggah, dan aplikasi tidak mengirim data ke server mana pun.",
   "help.browser.title": "Persyaratan browser",
@@ -221,7 +224,5 @@
   "help.progress.body": "Folder sortir, pemetaan foto, mode salin/pindah, dan log operasi disimpan di file nata-photo-db.json di dalam folder yang kamu buka. Hapus file itu untuk memulai dari awal.",
   "help.safety.title": "Keamanan file",
   "help.safety.body": "Mode default adalah Salin, jadi file asli tidak tersentuh. File tidak pernah ditimpa: nama yang sudah ada mendapat akhiran _1, _2, dan seterusnya. Sortir terakhir bisa dibatalkan dengan Ctrl/Cmd+Z.",
-  "help.shortcuts.title": "Pintasan keyboard",
-  "help.shortcuts.body": "Buka folder, lalu tekan tombol ? di bilah atas untuk melihat semua pintasan.",
   "shortcuts.click": "+ Klik"
 }

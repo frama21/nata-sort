@@ -105,8 +105,8 @@
 
   "mobile.sortToAria": "Sort to {name}",
 
-  "shortcuts.title": "Keyboard Shortcuts",
-  "shortcuts.description": "Speed up sorting with these shortcuts.",
+  "shortcuts.title": "Help",
+  "shortcuts.description": "Keyboard shortcuts and how NATA keeps your files safe.",
   "shortcuts.sortToFolder": "Sort photo into a folder (click a folder badge to change its shortcut)",
   "shortcuts.navPhotos": "Previous / next photo",
   "shortcuts.nextPhoto": "Next photo",
@@ -114,7 +114,12 @@
   "shortcuts.undo": "Undo the last action",
   "shortcuts.selectAll": "Select / deselect all (grid mode)",
   "shortcuts.rangeSelect": "Select / deselect a range (grid / filmstrip)",
-  "shortcuts.triggerAria": "Keyboard shortcuts",
+  "shortcuts.triggerAria": "Help",
+  "shortcuts.tabShortcuts": "Shortcuts",
+  "shortcuts.tabAbout": "About",
+  "shortcuts.tabChangelog": "Changelog",
+  "changelog.unreleased": "Unreleased",
+  "changelog.aria": "Changelog",
   "shortcuts.footer": "On touch devices, swipe left/right to move between photos. Ctrl becomes ⌘ on macOS. Shortcuts are ignored while typing in a text field.",
 
   "theme.toggle": "Toggle theme",
@@ -201,7 +206,6 @@
   "sorter.leaveGo": "Leave",
 
   "nav.sorter": "Sort",
-  "nav.help": "Help",
   "nav.skip": "Skip to content",
   "nav.primary": "Main navigation",
   "route.loading": "Loading page…",
@@ -212,7 +216,6 @@
   "route.error.fallback": "The page failed to load.",
   "route.reload": "Reload",
   "sorter.leaveConfirm": "Leaving this page closes the folder being sorted. Progress is already saved. Continue?",
-  "help.title": "Help",
   "help.privacy.title": "Privacy",
   "help.privacy.body": "All files are processed in your browser. Nothing is uploaded, and the app sends no data to any server.",
   "help.browser.title": "Browser requirements",
@@ -221,7 +224,5 @@
   "help.progress.body": "Sort folders, photo mappings, copy/move mode, and the operation log are saved in nata-photo-db.json inside the folder you open. Delete that file to start over.",
   "help.safety.title": "File safety",
   "help.safety.body": "The default mode is Copy, so original files are untouched. Files are never overwritten: an existing name gets a _1, _2, … suffix. The last sort can be undone with Ctrl/Cmd+Z.",
-  "help.shortcuts.title": "Keyboard shortcuts",
-  "help.shortcuts.body": "Open a folder, then press the ? button in the top bar to see every shortcut.",
   "shortcuts.click": "+ Click"
 }

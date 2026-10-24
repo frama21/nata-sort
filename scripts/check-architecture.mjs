@@ -16,6 +16,7 @@ const walk = dir =>
   })
 
 const resolveImport = (from, spec) => {
+  if (spec.includes("?")) return null // Vite asset query (e.g. `?raw`), not a module
   let base
   if (spec.startsWith("@/")) base = join(SRC, spec.slice(2))
   else if (spec.startsWith(".")) base = resolve(dirname(from), spec)

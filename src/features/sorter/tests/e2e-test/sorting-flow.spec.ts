@@ -78,9 +78,9 @@ test("arrow keys in the mode tabs switch tabs without changing the photo", async
 })
 
 test("shortcuts are ignored while the shortcuts dialog is open", async ({ page }) => {
-  const trigger = page.getByRole("button", { name: "Keyboard shortcuts" })
+  const trigger = page.getByRole("button", { name: "Help" })
   await trigger.click()
-  const dialog = page.getByRole("dialog", { name: "Keyboard Shortcuts" })
+  const dialog = page.getByRole("dialog", { name: "Help" })
   await expect(dialog).toBeVisible()
 
   await page.keyboard.press("1")
@@ -94,15 +94,20 @@ test("shortcuts are ignored while the shortcuts dialog is open", async ({ page }
   await expect(trigger).toBeFocused()
 })
 
-test("leaving mid-session asks for confirmation", async ({ page }) => {
-  await page.getByRole("link", { name: "Help" }).click()
-  const dialog = page.getByRole("dialog", { name: "Leave this page?" })
-  await expect(dialog).toBeVisible()
-  await dialog.getByRole("button", { name: "Stay" }).click()
-  await expect(page).toHaveURL("/")
-  await expect(page.getByRole("img", { name: "photo_1.png" })).toBeVisible()
+test("the help dialog has Shortcuts, About and Changelog tabs", async ({ page }) => {
+  await page.getByRole("button", { name: "Help" }).click()
+  const dialog = page.getByRole("dialog", { name: "Help" })
+  await expect(dialog.getByRole("tab", { name: "Shortcuts" })).toHaveAttribute("aria-selected", "true")
+  await expect(dialog.getByText("Undo the last action")).toBeVisible()
+  await dialog.getByRole("tab", { name: "About" }).click()
+  await expect(dialog.getByRole("heading", { name: "Privacy" })).toBeVisible()
+  await expect(dialog.getByText(/nata-photo-db\.json/)).toBeVisible()
 
-  await page.getByRole("link", { name: "Help" }).click()
-  await page.getByRole("dialog", { name: "Leave this page?" }).getByRole("button", { name: "Leave" }).click()
-  await expect(page).toHaveURL("/help")
+  await dialog.getByRole("tab", { name: "Changelog" }).click()
+  const timeline = dialog.getByRole("region", { name: "Changelog" })
+  await expect(timeline.getByRole("heading", { name: "Unreleased" })).toBeVisible()
+  // Virtualized: the oldest release is not mounted until scrolled to.
+  await expect(timeline.getByRole("heading", { name: "v1.1.0" })).toHaveCount(0)
+  await timeline.evaluate(el => el.scrollTo({ top: el.scrollHeight }))
+  await expect(timeline.getByRole("heading", { name: "v1.1.0" })).toBeVisible()
 })
