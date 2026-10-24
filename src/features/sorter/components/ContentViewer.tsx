@@ -157,20 +157,21 @@ export const ContentViewer = ({
   return (
     <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface-raised lg:flex-1">
       <div className="relative flex min-h-0 flex-1 flex-col select-none">
-        <div className="flex shrink-0 items-start justify-between gap-2 px-4 py-3">
-          <div className="flex flex-col gap-2 min-w-0">
-            <span className="truncate text-sm font-medium">{photo.name}</span>
-            <div className="flex flex-row flex-wrap gap-2 items-center">
-              <Badge variant="secondary">{photo.format.label}</Badge>
-              {currentFolder ? (
-                <Badge className={cn("text-white", currentFolder.color)}>
-                  <Check className="w-3 h-3" />
-                  {currentFolder.name}
-                </Badge>
-              ) : (
-                <Badge variant="outline">{t("viewer.notSorted")}</Badge>
-              )}
-            </div>
+        <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3">
+          <span className="min-w-0 flex-1 truncate text-sm font-medium" title={photo.name}>
+            {photo.name}
+          </span>
+          {/* Sort status above the file type, both on the right. */}
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {currentFolder ? (
+              <Badge className={cn("max-w-40 text-white", currentFolder.color)}>
+                <Check className="w-3 h-3" />
+                <span className="truncate">{currentFolder.name}</span>
+              </Badge>
+            ) : (
+              <Badge variant="outline">{t("viewer.notSorted")}</Badge>
+            )}
+            <Badge variant="secondary">{photo.format.label}</Badge>
           </div>
         </div>
 
