@@ -1,33 +1,19 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
-import "@/app/styles/globals.css"
+import "./styles/globals.css"
 import "@/shared/i18n" // initialize i18next (side-effectful) before first render
-import { ThemeProvider } from "@/app/providers"
-import ErrorBoundary from "@/app/providers"
-import App from "./App.tsx"
+import { registerPwa } from "@/shared/stores/pwa.store"
+import { App } from "./App"
 
-// This is a single-view app with no routes. Normalize any deep link or tampered
-// URL (e.g. /admin, /foo/bar) back to "/" so the app only ever runs at its root.
-if (window.location.pathname !== "/") {
-  window.history.replaceState(null, "", "/")
-}
+// Service worker + install events (production only; see pwa.store.ts). A new version waits for
+// the user to accept it in the update banner (registerType: "prompt").
+registerPwa()
 
-// Register the PWA service worker. The generated SW uses skipWaiting +
-// clientsClaim (registerType: "autoUpdate"), so it self-updates on reload.
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(err => {
-      console.error("[PWA] Service worker registration failed:", err)
-    })
-  })
-}
+const root = document.getElementById("root")
+if (!root) throw new Error('Missing <div id="root"> in index.html')
 
-createRoot(document.getElementById("root")!).render(
+createRoot(root).render(
   <StrictMode>
-    <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <App />
-      </ThemeProvider>
-    </ErrorBoundary>
+    <App />
   </StrictMode>
 )

@@ -37,7 +37,12 @@ i18n
     }
   })
 
-/** Module-level translate for non-React code (services, class components). */
+/**
+ * Module-level translate for non-React code (services, class components).
+ * @param key Flat, dot-namespaced translation key.
+ * @param params Values for `{name}` placeholders.
+ * @returns The translated string in the active language.
+ */
 export const t = (key: string, params?: Record<string, string | number>): string => i18n.t(key, params)
 
 export type { Language }

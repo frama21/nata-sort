@@ -1,6 +1,6 @@
-# Software Design — Nata Photo
+# Software Design — NATA
 
-The design decisions and rationale behind Nata Photo, a 100% client-side photo
+The design decisions and rationale behind NATA, a 100% client-side photo
 & video sorter that runs entirely in a Chromium browser. This document explains
 *why* the code is shaped the way it is, not just what it does.
 
@@ -31,7 +31,7 @@ Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
 ## 1. Design goals & constraints
 
-Nata Photo exists to do one thing well: let a photographer flip through the
+NATA exists to do one thing well: let a photographer flip through the
 top-level images and videos in a local folder, in the order they were taken, and
 fan them out into destination sub-folders with single-key shortcuts — without
 any file ever leaving the machine.
@@ -41,12 +41,12 @@ any file ever leaving the machine.
 | # | Goal | How it shapes the design |
 |---|------|--------------------------|
 | G1 | **Privacy by construction** — nothing is uploaded, ever. | No backend for user data, no telemetry, no network egress. Everything runs against the [File System Access API](https://developer.mozilla.org/docs/Web/API/File_System_Access_API). |
-| G2 | **Fast, keyboard-driven sorting.** | Keys `1`–`9` assign folders; `Space`/arrows navigate; `U` jumps to the next unsorted; `Ctrl/Cmd+Z` undoes. See [`ContentViewer.tsx`](../src/features/content-viewer/ui/ContentViewer.tsx). |
+| G2 | **Fast, keyboard-driven sorting.** | Keys `1`–`9` assign folders; `Space`/arrows navigate; `U` jumps to the next unsorted; `Ctrl/Cmd+Z` undoes. See [`ContentViewer.tsx`](../src/features/sorter/components/ContentViewer.tsx). |
 | G3 | **Chronological review.** | Files are ordered by capture date (EXIF / QuickTime), not by name or filesystem order. |
 | G4 | **Safe file operations.** | Copy is the default; collisions never overwrite; every sort is undoable. |
 | G5 | **Resilient sessions.** | Work survives a reload: state is auto-persisted to a JSON DB *inside* the opened folder. |
-| G6 | **Broad format support.** | Standard raster, RAW (12 vendors), SVG, video, ICO, HEIC — see [`fileFormats.ts`](../src/shared/config/fileFormats.ts). |
-| G7 | **Installable & offline.** | PWA with a Workbox service worker precaching JS/CSS/HTML/WASM. |
+| G6 | **Broad format support.** | Standard raster, RAW (12 vendors), SVG, video, ICO, HEIC — see [`fileFormats.ts`](../src/features/media/config/file-formats.ts). |
+| G7 | **Installable & offline.** | PWA with a Workbox service worker precaching JS/CSS/HTML/WASM; updates wait for the user (a slim bar under the top bar, Reload / Later); install lives in Settings → About. |
 
 ### 1.2 Constraints
 
@@ -88,8 +88,8 @@ any file ever leaving the machine.
   load — every fallible subsystem degrades gracefully and returns a safe default.
 - **Untrusted-input mindset for local data too.** The DB file and user-entered
   folder names are treated as untrusted (they live in a folder anyone with write
-  access can tamper with). See [`dbService.ts`](../src/shared/services/dbService.ts) and
-  [`safeName.ts`](../src/shared/lib/safeName.ts).
+  access can tamper with). See [`dbService.ts`](../src/features/sorter/services/project-db.service.ts) and
+  [`safeName.ts`](../src/features/sorter/utils/folder-name.utils.ts).
 - **Stable keys over positional indices.** File *names* — not array positions —
   anchor every persisted relationship.
 - **Serializable state, ephemeral handles.** Anything written to disk holds no
@@ -109,7 +109,7 @@ Uploading photos to sort them is a privacy and bandwidth non-starter, and it
 would require a server, storage, and a trust relationship.
 
 **Decision.** Process everything in the browser via the File System Access API.
-The only server that exists is a tiny static file host (see [ADR-11](#adr-11--single-container-nodehelmet-static-server-nginx-removed))
+The only server that exists is a tiny static file host (see [ADR-12](#adr-12--single-container-nginx-configured-in-the-dockerfile-node-24-build-stage-only))
 that ships the app bundle and never receives user files.
 
 **Rationale.**
@@ -140,11 +140,11 @@ current index, folders, the sort mapping, move mode, the operation log, an undo
 stack, RAW preview URLs, decode/metadata queues, and a set of directory handles.
 
 **Decision.** Concentrate all of it in a single controller hook,
-[`useFileSystem.ts`](../src/features/file-system/model/useFileSystem.ts) (~860 lines), which owns state
+[`useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts) (~860 lines), which owns state
 via `useState`, side-effect-only data via `useRef`, and orchestration via
 `useEffect`/`useCallback`. [`App.tsx`](../src/app/App.tsx) is a thin composition layer
 that wires the hook's outputs into presentational components. The *only* global
-store is [`statusStore.ts`](../src/shared/store/statusStore.ts) (Zustand), used
+store is [`statusStore.ts`](../src/shared/stores/status.store.ts) (Zustand), used
 exclusively for transient toast notifications.
 
 **Rationale.**
@@ -186,7 +186,7 @@ same way. Array indices (`PhotoFile.id`, `currentIndex`) are treated as
 *ephemeral view state* only.
 
 ```ts
-// src/shared/types/index.ts
+// src/features/sorter/types/sorter.types.ts
 export interface SortedMapping {
   [photoKey: string]: string; // fileName -> folderId
 }
@@ -203,7 +203,7 @@ export interface SortedMapping {
 **Alternatives considered.**
 - *Index-based keys* — rejected: breaks the moment the list re-sorts or a file is
   removed; the DB `2.0` schema bump exists precisely to move away from this
-  (see the `DB_VERSION` comment in [`dbService.ts`](../src/shared/services/dbService.ts)).
+  (see the `DB_VERSION` comment in [`dbService.ts`](../src/features/sorter/services/project-db.service.ts)).
 - *Content hash keys* — rejected: hashing every file on open is expensive and
   unnecessary for a single-folder, name-unique namespace.
 
@@ -228,7 +228,7 @@ the live `FileSystemFileHandle` on each record for convenience.
 `timestamp`, and **no handles or `File` objects**.
 
 ```ts
-// src/shared/types/index.ts — "Intentionally holds NO FileSystem handles ...
+// src/features/sorter/types/sorter.types.ts — "Intentionally holds NO FileSystem handles ...
 // so it survives JSON.stringify intact."
 export interface SortOperation {
   photoName: string; folderId: string; folderName: string;
@@ -237,7 +237,7 @@ export interface SortOperation {
 ```
 
 **Rationale.**
-- The operation log is persisted into `nata-photo-db.json`; a handle cannot be
+- The operation log is persisted into `.nata-sort-db.json`; a handle cannot be
   serialized to JSON and would silently corrupt the record.
 - Keeping handles out of the log means the log can never leak a live capability
   or a stale reference — a security-relevant property (the log stores *what
@@ -259,13 +259,13 @@ negligible cost for a large gain in robustness.
 ### ADR-5 — Single-writer DB promise chain
 
 **Context.** Every mutation (assign, undo, folder add/remove, mode change,
-metadata cache) is a **read-modify-write** of the same `nata-photo-db.json`.
+metadata cache) is a **read-modify-write** of the same `.nata-sort-db.json`.
 Holding down a `1`–`9` shortcut fires assignments faster than a write completes.
 Concurrent read-modify-writes interleave and silently drop updates
 (last-writer-wins on a stale read).
 
 **Decision.** Funnel **all** DB writes through one serialized promise chain in
-[`dbService.ts`](../src/shared/services/dbService.ts). Every public DB function wraps its
+[`dbService.ts`](../src/features/sorter/services/project-db.service.ts). Every public DB function wraps its
 body in `enqueue()`.
 
 ```ts
@@ -309,7 +309,7 @@ shipped version — flaky (see [ADR-9](#adr-9--the-libraw-worker-patch)). But
 almost every camera embeds a full- or near-full-resolution JPEG preview inside
 the RAW.
 
-**Decision.** In [`rawDecoder.ts`](../src/shared/services/rawDecoder.ts), prefer the
+**Decision.** In [`rawDecoder.ts`](../src/features/media/services/raw-decoder.service.ts), prefer the
 **largest embedded JPEG preview**; only fall back to a full libraw decode when no
 *sharp* preview (≥ `SHARP_PREVIEW_MIN_WIDTH` = 800 px) exists, and skip the full
 decode entirely for files over `MAX_FULL_DECODE_BYTES` (80 MB).
@@ -355,7 +355,7 @@ files chronologically. Reading every full file up front would be prohibitively
 slow and memory-heavy.
 
 **Decision.** Extract metadata in three tiers:
-1. **Header-only reads.** [`exifService.ts`](../src/shared/services/exifService.ts) reads
+1. **Header-only reads.** [`exifService.ts`](../src/features/media/services/metadata.service.ts) reads
    only the first `MAX_HEADER_BYTES` (2 MB) of images before parsing with
    ExifReader; video uses a chunked reader.
 2. **On-open capture-date pass, bounded-concurrency.** `loadDirectory` runs up to
@@ -392,7 +392,7 @@ decoded RAW gets its own object/data URL. Object URLs pin their backing blob in
 memory until explicitly revoked — a classic browser memory leak when navigating
 large folders or re-opening directories.
 
-**Decision.** Own the full lifecycle in [`useFileSystem.ts`](../src/features/file-system/model/useFileSystem.ts):
+**Decision.** Own the full lifecycle in [`useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts):
 create URLs on load, **revoke on reload and on unmount** via `revokeAllUrls()`,
 and revoke-then-recreate on demand when an `<img>` fails to decode
 (`recreatePreviewUrl`). The RAW decoder also revokes any superseded embedded
@@ -435,7 +435,7 @@ value is stored under `.error`. The mismatch throws *"n is not a function"* insi
 hangs indefinitely.
 
 **Decision.** Monkey-patch each `LibRaw` instance's worker at construction time in
-[`rawDecoder.ts`](../src/shared/services/rawDecoder.ts) via `patchLibRawWorker()`,
+[`rawDecoder.ts`](../src/features/media/services/raw-decoder.service.ts) via `patchLibRawWorker()`,
 re-binding `onmessage`/`onerror` to settle the pending promise correctly, and
 layer three more guards on top: a 20 s `withTimeout`, an all-white-output
 sanity check, and `worker.terminate()` in a `finally` so decoding many RAWs
@@ -499,7 +499,9 @@ outcome.
 
 ---
 
-### ADR-11 — Single-container Node/helmet static server (nginx removed)
+### ADR-11 — Single-container Node/helmet static server (nginx removed) — SUPERSEDED by [ADR-12](#adr-12--single-container-nginx-configured-in-the-dockerfile-node-24-build-stage-only)
+
+> **SUPERSEDED.** Kept for history. `server/` has been deleted and nginx is back, configured inside the `Dockerfile`.
 
 **Context.** The app is static assets, but they must be served with a strict CSP,
 cross-origin isolation (COOP/COEP/CORP — required for the WASM/worker pipeline),
@@ -536,23 +538,55 @@ container is hardened at the compose layer (read-only rootfs + tmpfs, `cap_drop:
 ALL`, `no-new-privileges`, `init: true`, CPU/memory limits, log rotation). Details
 in [SECURITY.md](SECURITY.md).
 
+### ADR-12 — Single-container nginx configured in the Dockerfile (Node 24 build stage only)
+
+**Context.** ADR-11 replaced nginx with a small Express + helmet server. That added
+a second dependency tree (`server/package.json`, its own lockfile) and a `server-deps`
+image stage, and Node appeared in three `FROM` lines (`node:22-slim`, twice
+`node:22-alpine`) for what is, at runtime, a static file host.
+
+**Decision.** Keep the single container, but serve it with the unprivileged
+`nginxinc/nginx-unprivileged:stable-alpine` image. The whole nginx config (security
+headers, `$cache_control` map, SPA fallback, 405 for non-GET/HEAD, `/healthz`) is a
+heredoc in the [`Dockerfile`](../Dockerfile), so the repo's only deploy files are
+`Dockerfile` and `docker-compose.yml`. Node appears **once**: the build stage on
+`node:24-alpine` with pnpm 12.8.1 via corepack. `server/` is deleted.
+
+**Rationale.**
+- No runtime dependencies to audit: the final image holds nginx and `dist` only.
+- One file to read for the build and the serving behavior; no separate lockfile.
+- The exact header set from [SECURITY.md](SECURITY.md) is unchanged, now emitted by
+  `add_header ... always` at server level.
+
+**Alternatives considered.**
+- *Keep Express + helmet (ADR-11)* — rejected: extra package, lockfile, and stage for
+  behavior nginx provides natively.
+- *Mount an `nginx.conf` from the repo* — rejected: the requirement is a repo with
+  only `Dockerfile` and `docker-compose.yml`.
+
+**Trade-offs.** nginx drops inherited `add_header` as soon as a `location` declares
+its own, so headers are declared once at server level and per-path `Cache-Control`
+comes from a map (without `always`, so 404s are never `immutable`). Stock nginx has
+no brotli (gzip only). HSTS is sent on every response; browsers only honour it over
+HTTPS. `TRUST_PROXY`, `PORT`, `HOST` and `STATIC_DIR` no longer exist.
+
 ---
 
 ## 4. Design patterns used
 
 | Pattern | Where | Purpose |
 |---------|-------|---------|
-| **Controller Hook** | [`useFileSystem.ts`](../src/features/file-system/model/useFileSystem.ts) | One hook owns state + orchestration; components stay presentational. See [ADR-2](#adr-2--hook-as-controller-instead-of-a-heavier-state-library). |
+| **Controller Hook** | [`useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts) | One hook owns state + orchestration; components stay presentational. See [ADR-2](#adr-2--hook-as-controller-instead-of-a-heavier-state-library). |
 | **Service layer / Facade** | `services/{dbService,exifService,rawDecoder}.ts` | Encapsulate persistence, metadata, and RAW decode behind narrow, testable APIs. |
 | **Strategy** | `decodeRawImage` (embedded-first vs. full decode) | Pick the decode strategy by preview availability and file size. |
-| **Registry / Table-driven config** | [`fileFormats.ts`](../src/shared/config/fileFormats.ts) `PHOTO_FORMATS` | Format support is data, not branching logic — extension→config lookup tables. |
+| **Registry / Table-driven config** | [`fileFormats.ts`](../src/features/media/config/file-formats.ts) `PHOTO_FORMATS` | Format support is data, not branching logic — extension→config lookup tables. |
 | **Producer/consumer queue** | `writeChain` in dbService; `rawDecodeQueueRef`/`metaQueueRef` in the hook | Serialize writes; dedupe in-flight decode/extract work. |
 | **Command + Memento (undo)** | `UndoEntry` stack + `undoLastOperation` | Each sort records enough to reverse itself; undo replays the inverse operation. |
 | **Guard / Sanitizer** | `sanitizeState`, `safeRecord`, `validateFolderName` | Normalize untrusted input at the boundary; see [SECURITY.md](SECURITY.md). |
 | **Adapter** | `moveFileHandle` | Uses native `handle.move()` when present, else copy-then-delete. |
 | **Debounce** | `persistMetadata` (lodash.debounce, 1500 ms) | Coalesce metadata-cache writes during navigation. |
 | **Bounded concurrency (worker pool)** | capture-date pass in `loadDirectory` | Up to 8 cooperating async workers sharing a cursor. |
-| **Observer store** | [`statusStore.ts`](../src/shared/store/statusStore.ts) (Zustand) | Transient toasts triggerable from outside React. |
+| **Observer store** | [`statusStore.ts`](../src/shared/stores/status.store.ts) (Zustand) | Transient toasts triggerable from outside React. |
 | **Error Boundary** | `ErrorBoundary` in [`main.tsx`](../src/app/main.tsx) | Contain render-time crashes below the theme provider. |
 
 ---
@@ -728,7 +762,7 @@ comparator falls back from to `file.lastModified` — see [§5.1](#51-chronologi
 
 ## 6. Concurrency & race-condition handling
 
-Nata Photo has three concurrency hotspots, each handled explicitly:
+NATA has three concurrency hotspots, each handled explicitly:
 
 1. **Rapid mutations → the DB write chain.** Holding a shortcut key fires
    assignments faster than a JSON write completes. All writes are serialized
@@ -795,7 +829,7 @@ the app or block the user:
 ## 8. Extensibility: adding a new format
 
 Format support is **table-driven** — the registry
-[`fileFormats.ts`](../src/shared/config/fileFormats.ts) is the single place to extend.
+[`fileFormats.ts`](../src/features/media/config/file-formats.ts) is the single place to extend.
 
 **To add a format:**
 1. Add an entry to `PHOTO_FORMATS` with its `extensions`, optional `mimeTypes`,

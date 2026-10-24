@@ -30,3 +30,8 @@ dist-ssr
 firebase-debug.log
 
 .claude
+graphify-out
+
+# Playwright
+playwright-report
+test-results

@@ -1,2 +1,2 @@
-export { default } from "./ErrorBoundary"
+export { AppProviders } from "./AppProviders"
 export { ThemeProvider, useTheme } from "./ThemeProvider"

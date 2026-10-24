@@ -1,6 +1,6 @@
 # System Architecture
 
-The end-to-end design of **Nata Photo** — a 100% client-side photo & video sorter that runs entirely in a Chromium browser, backed by a single hardened static-file container for delivery.
+The end-to-end design of **NATA** — a 100% client-side photo & video sorter that runs entirely in a Chromium browser, backed by a single hardened static-file container for delivery.
 
 Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
@@ -10,7 +10,7 @@ Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
 ## 1. Overview & guiding principles
 
-Nata Photo is a **single-page application (SPA)** that reads, previews, orders, and re-files the user's local photos and videos **without ever uploading them**. All file access happens through the browser's [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) (`window.showDirectoryPicker`); all decoding, metadata extraction, and sorting logic runs on the user's own machine. The only server involved is a tiny static-file host that ships the compiled bundle — it never sees a single photo.
+NATA is a **single-page application (SPA)** that reads, previews, orders, and re-files the user's local photos and videos **without ever uploading them**. All file access happens through the browser's [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) (`window.showDirectoryPicker`); all decoding, metadata extraction, and sorting logic runs on the user's own machine. The only server involved is a tiny static-file host that ships the compiled bundle — it never sees a single photo.
 
 The architecture is shaped by a handful of non-negotiable principles.
 
@@ -35,7 +35,7 @@ graph TB
 
     subgraph browser["Chromium browser (Chrome / Edge / Opera)"]
         direction TB
-        spa["Nata Photo SPA<br/>React 19 + TypeScript"]
+        spa["NATA SPA<br/>React 19 + TypeScript"]
         wasm["WASM workers<br/>libraw-wasm · mediainfo.js"]
         sw["Service Worker<br/>(Workbox precache)"]
         spa --- wasm
@@ -46,7 +46,7 @@ graph TB
         direction TB
         media["Top-level images & videos"]
         subfolders["Sort sub-folders 1..9"]
-        db[("nata-photo-db.json")]
+        db[(".nata-sort-db.json")]
     end
 
     subgraph edge["Public edge (optional)"]
@@ -54,8 +54,8 @@ graph TB
     end
 
     subgraph container["Single Docker container"]
-        server["Node + Express + helmet<br/>static server (:8080)"]
-        dist["/public (compiled SPA + WASM)"]
+        server["nginx (unprivileged)<br/>static server (:8080)"]
+        dist["/usr/share/nginx/html (compiled SPA + WASM)"]
         server --- dist
     end
 
@@ -76,74 +76,56 @@ graph TB
 
 ## 3. Module & component map
 
-The `src` tree follows **Feature-Sliced Design (FSD)**: four layers — `app` (bootstrap, providers, styles), `pages` (the presentation/routing layer that composes features into screens), `features` (one folder per user-facing capability), and `shared` (framework-agnostic building blocks). The dependency rule is one-directional: `app` → `pages` → `features` → `shared`; `shared` imports nothing above it. Each slice exposes a public API via an `index.ts` barrel, so consumers import `@/features/stats`, never a deep internal path.
-
-```text
-src/
-├── app/                          # composition layer — wires everything together
-│   ├── main.tsx                  # bootstrap + i18n init + service-worker register
-│   ├── App.tsx                   # app shell: navbar + error banner + page router
-│   ├── providers/                # ThemeProvider, ErrorBoundary (+ barrel)
-│   ├── styles/globals.css        # OKLCH design tokens, fonts, motion, a11y
-│   └── assets/
-├── pages/                        # presentation layer — one folder per screen
-│   ├── welcome/                  # start screen (pick-folder call-to-action)
-│   └── editor/                   # the sorting workspace (viewer + sidebar + bars)
-├── features/                     # 1 folder = 1 feature (each with an index.ts barrel)
-│   ├── file-system/model/        # useFileSystem — the CONTROLLER hook (~900 LOC)
-│   ├── content-viewer/           # ui/ + lib/useZoomPan + constants.ts (loupe)
-│   ├── folder-manager/  filmstrip/  grid-view/  metadata-panel/
-│   ├── operation-log/  stats/  batch-actions/  mobile-actions/
-│   ├── shortcuts/  theme-toggle/  language-toggle/  status-indicator/  progress/  navbar/
-│   └── grid-view/constants.ts    # feature-local constants (e.g. PAGE_SIZE)
-└── shared/                       # reused across features, no business logic
-    ├── ui/                       # shadcn/Radix primitives + PanelHeader, Thumbnail, tooltip
-    ├── services/                 # dbService, exifService, rawDecoder (stateless IO)
-    ├── lib/                      # utils (cn), safeName, shortcut (validation)
-    ├── store/                    # statusStore (Zustand toasts)
-    ├── config/                   # fileFormats registry
-    ├── constants/                # cross-cutting constants (FOLDER_COLORS, RESERVED_SHORTCUT_KEYS…)
-    ├── i18n/                     # i18next setup + language/{en,id}.json
-    └── types/                    # domain types + libraw.d.ts
-```
+The `src` tree is organized by responsibility: an entry point, a single view, a controller hook, stateless services, pure config/lib helpers, a small store, and shared types.
 
 ```mermaid
 graph TD
-    main["app/main.tsx<br/>bootstrap + SW register"]
-    App["app/App.tsx<br/>single view / composition"]
-    hook["features/file-system<br/>CONTROLLER (~860 LOC)"]
+    main["main.tsx<br/>bootstrap + SW register"]
+    App["App.tsx<br/>single view / composition"]
+    hook["hooks/useFileSystem.ts<br/>CONTROLLER (~860 LOC)"]
 
-    subgraph feat["features/* (UI slices)"]
-        viewer["content-viewer"]
-        folders["folder-manager"]
-        panels["metadata-panel / stats / operation-log / …"]
-        chrome["navbar / status-indicator / theme-toggle"]
+    subgraph services["services/ (stateless)"]
+        db["dbService.ts<br/>persistence"]
+        exif["exifService.ts<br/>metadata + date parsing"]
+        raw["rawDecoder.ts<br/>RAW preview pipeline"]
     end
 
-    subgraph services["shared/services (stateless)"]
-        db["dbService"]
-        exif["exifService"]
-        raw["rawDecoder"]
+    subgraph libcfg["config / lib / stores / types"]
+        fmt["config/fileFormats.ts<br/>format registry"]
+        safe["lib/safeName.ts<br/>folder-name validation"]
+        utils["lib/utils.ts<br/>cn()"]
+        store["stores/statusStore.ts<br/>Zustand toasts"]
+        types["types/index.ts<br/>domain types"]
     end
 
-    subgraph sharedlib["shared/ (config · lib · store · constants · types · ui)"]
-        fmt["config/fileFormats"]
-        safe["lib/safeName"]
-        store["store/statusStore"]
-        consts["constants"]
-        types["types"]
-        prim["ui/* (shadcn primitives)"]
+    subgraph ui["components/"]
+        viewer["ContentViewer"]
+        folders["FolderManager"]
+        meta["MetadataPanel"]
+        log["OperationLog"]
+        stats["Stats"]
+        progress["ProgressBar"]
+        mobile["MobileActionBar"]
+        navbar["app/Navbar + StatusIndicator"]
+        theme["ThemeProvider / ThemeMode / ErrorBoundary"]
+        prim["shared/components/ui/* (in-house primitives)"]
     end
 
     main --> App
     App --> hook
-    App --> feat
-    hook --> db & exif & raw & fmt & safe & store & consts & types
+    App --> ui
+    hook --> db
+    hook --> exif
+    hook --> raw
+    hook --> fmt
+    hook --> safe
+    hook --> store
+    hook --> types
     raw --> types
     exif --> fmt
     db --> store
-    feat --> prim
-    feat --> store
+    viewer --> store
+    ui --> prim
 
     classDef ctrl fill:#0b3d2e,stroke:#34d399,color:#e5e7eb;
     class hook ctrl;
@@ -155,14 +137,14 @@ graph TD
 
 ## 4. Runtime React tree
 
-`src/app/main.tsx` normalizes any non-`/` path back to `/` (this is a single-view app with no router, so a deep link or tampered URL is rewritten with `history.replaceState`), then registers the generated service worker (`/sw.js`) on `window`'s `load` event, and finally mounts the tree:
+`src/app/main.tsx` calls `registerPwa()` ([`pwa.store.ts`](../src/shared/stores/pwa.store.ts)), which registers the generated service worker (`/sw.js`) after the page has loaded, then mounts the tree:
 
 ```mermaid
 graph TD
     root["createRoot(#root)"]
     strict["React.StrictMode"]
     eb["ErrorBoundary"]
-    tp["ThemeProvider<br/>defaultTheme=dark · storageKey=vite-ui-theme"]
+    tp["ThemeProvider<br/>defaultTheme=dark · storageKey=nata-sort-theme"]
     app["App"]
 
     root --> strict --> eb --> tp --> app
@@ -180,24 +162,26 @@ graph TD
 
 - **`StrictMode`** double-invokes effects in development; the controller's effects are written to tolerate this (idempotent decode/metadata queues guarded by `Set` refs, and blob-URL revocation on cleanup).
 - **`ErrorBoundary`** catches render-time exceptions and shows a recoverable error UI instead of a blank page.
-- **`ThemeProvider`** manages the light/dark/system theme (default dark, persisted under `localStorage["vite-ui-theme"]`), toggling the `.dark` class that drives the OKLCH design tokens in `globals.css`.
-- **`App`** renders one of two macro-states: the **empty state** (a single "Pilih Folder Foto" call to action) when `photos.length === 0`, or the **workspace** (12-column desktop grid / stacked mobile layout with the fixed bottom `MobileActionBar`) once a folder is loaded.
+- **`ThemeProvider`** manages the light/dark/system theme (default dark, persisted under `localStorage["nata-sort-theme"]`), toggling the `.dark` class that drives the OKLCH design tokens in `globals.css`.
+- **`App`** renders one of two macro-states: the **empty state** (a single "Choose Photo Folder" call to action) when `photos.length === 0`, or the **workspace** (12-column desktop grid / stacked mobile layout with the fixed bottom `MobileActionBar`) once a folder is loaded.
 
 ---
 
 ## 5. State management
 
-Nata Photo keeps three distinct kinds of state, each in exactly one place. Understanding the split is the key to the whole app.
+NATA keeps three distinct kinds of state, each in exactly one place. Understanding the split is the key to the whole app.
 
 ### 5.1 The three state homes
 
 | State kind | Home | Lifetime | Examples |
 | --- | --- | --- | --- |
-| **Live application state** | [`useFileSystem`](../src/features/file-system/model/useFileSystem.ts) hook (React state + refs) | The mounted session | `photos`, `currentIndex`, `folders`, `sortedPhotos`, `moveMode`, `operations`, `undoStack`, `rawPreviewUrls`, `metadataByKey` |
-| **Transient UI feedback** | [`statusStore`](../src/shared/store/statusStore.ts) (Zustand) | Seconds (auto-expires) | Loading/success/error toasts shown in the navbar |
-| **Durable project state** | `nata-photo-db.json` (on disk, via [`dbService`](../src/shared/services/dbService.ts)) | Across reloads/sessions | Folders, per-file sort mapping, mode, `currentIndex`, operation log, metadata cache, stats |
+| **Live application state** | [`useFileSystem`](../src/features/sorter/hooks/useFileSystem.ts) hook (React state + refs) | The mounted session | `photos`, `currentIndex`, `folders`, `sortedPhotos`, `moveMode`, `operations`, `undoStack`, `rawPreviewUrls`, `metadataByKey` |
+| **Open-project flag (top bar)** | [`useProjectStore`](../src/shared/stores/project.store.ts) (Zustand): project name + `close` callback, set by `SorterPage` while a project is open | While a project is open | Lets the navbar show "Close project" without owning the session |
+| **Recent projects** | [`recent-projects.service.ts`](../src/features/sorter/services/recent-projects.service.ts) (IndexedDB, directory handles) | Across reloads, per browser profile | Start-screen list; separate from the project DB |
+| **Transient UI feedback** | [`statusStore`](../src/shared/stores/status.store.ts) (Zustand) | Seconds (auto-expires) | Toasts (icon `folder`) and, for file activity (icon `file`/`db`), the top bar `ActivityIndicator`; `save.store` counts in-flight user-visible project writes ("Saving…") and `shared/lib/activity.ts` derives the phase (failed > loading > saving > saved) |
+| **Durable project state** | `.nata-sort-db.json` (on disk, via [`dbService`](../src/features/sorter/services/project-db.service.ts)) | Across reloads/sessions | Folders, per-file sort mapping, mode, `currentIndex`, operation log, metadata cache, stats |
 
-The `useFileSystem` hook is the **controller** in an MVC-ish sense: `App` and its children are the view, the services are the model/IO layer, and the hook wires them together and owns all mutable session state. It is `~860` lines and is the single most important module to read: [src/features/file-system/model/useFileSystem.ts](../src/features/file-system/model/useFileSystem.ts).
+The `useFileSystem` hook is the **controller** in an MVC-ish sense: `App` and its children are the view, the services are the model/IO layer, and the hook wires them together and owns all mutable session state. It is `~860` lines and is the single most important module to read: [src/features/sorter/hooks/useFileSystem.ts](../src/features/sorter/hooks/useFileSystem.ts).
 
 ### 5.2 Why Zustand only for toasts
 
@@ -235,7 +219,7 @@ sequenceDiagram
     participant DB as dbService
     participant EX as exifService
 
-    U->>A: click "Pilih Folder Foto"
+    U->>A: click "Choose Photo Folder"
     A->>H: loadDirectory()
     H->>FS: window.showDirectoryPicker()
     FS-->>U: native folder-permission prompt
@@ -243,7 +227,7 @@ sequenceDiagram
     FS-->>H: root dirHandle
     H->>H: revoke old blob URLs, reset queues/undo
     H->>DB: initProjectDatabase(dirHandle)
-    DB->>FS: read/create nata-photo-db.json
+    DB->>FS: read/create .nata-sort-db.json
     DB-->>H: CompleteProjectState (folders, mapping, cache, ...)
     loop dirHandle.values() (top-level only)
         H->>FS: getFile() for each supported image/video
@@ -284,7 +268,7 @@ sequenceDiagram
     end
     H->>H: update sortedPhotos, operations, undoStack (max 20), currentIndex++
     H->>DB: updateDatabaseAfterOperation(...)  %% enqueued write
-    DB->>FS: read-modify-write nata-photo-db.json
+    DB->>FS: read-modify-write .nata-sort-db.json
     H-->>A: state updates → advance to next photo
 ```
 
@@ -320,11 +304,11 @@ The services are **stateless, framework-free modules** (no React) that the contr
 
 ### 7.1 `dbService.ts` — persistence
 
-[src/shared/services/dbService.ts](../src/shared/services/dbService.ts). Owns `nata-photo-db.json` (schema `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`). Public surface: `initProjectDatabase`, `updateDatabaseAfterOperation`, `updateDatabaseFolders`, `updateDatabaseMode`, `updateDatabaseMetadata`, `loadProjectState`. All writes go through `enqueue()`/`writeChain`. The load path validates shape + version, then runs `sanitizeState()` which strips prototype-pollution keys (`__proto__`/`constructor`/`prototype`) via `safeRecord()` into `Object.create(null)` maps, bounds every collection (`MAX_SORTED_ENTRIES`/`MAX_METADATA_ENTRIES` = 100 000, `MAX_FOLDERS` = 1 000, operations sliced to 50), and coerces `moveMode`/`currentIndex` to safe defaults. A missing, corrupt, or version-mismatched file returns `null` (reset) with a visible warning — it never throws.
+[src/features/sorter/services/project-db.service.ts](../src/features/sorter/services/project-db.service.ts). Owns `.nata-sort-db.json` (schema `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`). Public surface: `initProjectDatabase`, `updateDatabaseAfterOperation`, `updateDatabaseFolders`, `updateDatabaseMode`, `updateDatabaseMetadata`, `loadProjectState`. All writes go through `enqueue()`/`writeChain`. The load path validates shape + version, then runs `sanitizeState()` which strips prototype-pollution keys (`__proto__`/`constructor`/`prototype`) via `safeRecord()` into `Object.create(null)` maps, bounds every collection (`MAX_SORTED_ENTRIES`/`MAX_METADATA_ENTRIES` = 100 000, `MAX_FOLDERS` = 1 000, operations sliced to 50), and coerces `moveMode`/`currentIndex` to safe defaults. A missing, corrupt, or version-mismatched file returns `null` (reset) with a visible warning — it never throws.
 
 ### 7.2 `exifService.ts` — metadata & chronology
 
-[src/shared/services/exifService.ts](../src/shared/services/exifService.ts). `extractMetadata(file)` dispatches on category:
+[src/features/media/services/metadata.service.ts](../src/features/media/services/metadata.service.ts). `extractMetadata(file)` dispatches on category:
 
 - **Images**: reads only the first `MAX_HEADER_BYTES` (2 MB) slice and parses with `ExifReader` (`expanded: true`) — camera make/model, lens, ISO, shutter, aperture, focal length, capture date, dimensions, megapixels.
 - **Video**: uses `mediainfo.js` `analyzeData` with a chunked reader — duration, fps, codecs, bitrate, dimensions, and phone-recording QuickTime date/camera tags.
@@ -333,12 +317,12 @@ It also exports `parseCaptureDate` (the chronological sort key) and the display 
 
 ### 7.3 `rawDecoder.ts` — RAW preview
 
-[src/shared/services/rawDecoder.ts](../src/shared/services/rawDecoder.ts). `decodeRawImage(file)` returns an object URL or `null`. Full detail in [§12](#12-previewdecoding-pipeline).
+[src/features/media/services/raw-decoder.service.ts](../src/features/media/services/raw-decoder.service.ts). `decodeRawImage(file)` returns an object URL or `null`. Full detail in [§12](#12-previewdecoding-pipeline).
 
 ### 7.4 Supporting config & lib (not services, but IO-adjacent)
 
-- [config/fileFormats.ts](../src/shared/config/fileFormats.ts) — the format registry (`PHOTO_FORMATS`) with `extensions`, `mimeTypes`, `label`, `category` (`standard | raw | vector | video | other`), and `previewable`; plus `isSupportedImage`, `isPreviewable`, `getFileFormatInfo`. HEIC/HEIF is marked **non-previewable** because Chromium cannot decode it in `<img>`.
-- [lib/safeName.ts](../src/shared/lib/safeName.ts) — `validateFolderName()` rejects path separators, Windows-reserved punctuation, ASCII control chars, `"."`/`".."`, reserved device names (`CON`/`PRN`/`AUX`/`NUL`/`COM1-9`/`LPT1-9`), trailing dot/space, and names > 200 chars. Defense-in-depth on top of the File System Access API's own path-segment rejection.
+- [config/fileFormats.ts](../src/features/media/config/file-formats.ts) — the format registry (`PHOTO_FORMATS`) with `extensions`, `mimeTypes`, `label`, `category` (`standard | raw | vector | video | other`), and `previewable`; plus `isSupportedImage`, `isPreviewable`, `getFileFormatInfo`. HEIC/HEIF is marked **non-previewable** because Chromium cannot decode it in `<img>`.
+- [lib/safeName.ts](../src/features/sorter/utils/folder-name.utils.ts) — `validateFolderName()` rejects path separators, Windows-reserved punctuation, ASCII control chars, `"."`/`".."`, reserved device names (`CON`/`PRN`/`AUX`/`NUL`/`COM1-9`/`LPT1-9`), trailing dot/space, and names > 200 chars. Defense-in-depth on top of the File System Access API's own path-segment rejection.
 - [lib/utils.ts](../src/shared/lib/utils.ts) — `cn()` (clsx + tailwind-merge).
 
 ---
@@ -369,7 +353,7 @@ Because the API is Chromium-only, `loadDirectory` guards on `"showDirectoryPicke
 
 ## 9. Persistence architecture (single-writer promise chain)
 
-The durable project state is one file, `nata-photo-db.json`, written **inside the opened folder**. Its shape (`CompleteProjectState`) holds: `version`, `folders[]`, `sortedPhotos` (keyed by **file name**), `moveMode`, `currentIndex`, `operations[]` (max 50), an optional `metadataCache`, `stats`, and a `timestamp`.
+The durable project state is one file, `.nata-sort-db.json`, written **inside the opened folder**. Its shape (`CompleteProjectState`) holds: `version`, `folders[]`, `sortedPhotos` (keyed by **file name**), `moveMode`, `currentIndex`, `operations[]` (max 50), an optional `metadataCache`, `stats`, and a `timestamp`.
 
 The central design decision is the **single-writer promise chain**:
 
@@ -391,7 +375,7 @@ The **load path is defensive** because the file is untrusted input (it lives in 
 
 ## 10. Domain data model
 
-The core types ([src/shared/types/index.ts](../src/shared/types/index.ts)) draw a hard line between **session objects** (which hold handles and `File`s) and **persistable records** (which hold none).
+The core types ([src/features/sorter/types/sorter.types.ts](../src/features/sorter/types/sorter.types.ts)) draw a hard line between **session objects** (which hold handles and `File`s) and **persistable records** (which hold none).
 
 ```mermaid
 classDiagram
@@ -445,11 +429,11 @@ classDiagram
 
 `App.tsx` is the only view module; everything else under `components/` is presentational and prop-driven.
 
-- **Layout**: a sticky, backdrop-blurred `Navbar` (logo, "Nata Photo", version, `StatusIndicator`, theme toggle). Main content is a container; on `lg` it becomes a 12-column grid — `ContentViewer` spans **8 columns**, the sticky sidebar (`top-24`) spans **4 columns** and holds `FolderManager`, `MetadataPanel`, `OperationLog`, `Stats`. On mobile everything stacks and a fixed bottom `MobileActionBar` shows prev/next plus one colored button per folder.
+- **Layout**: a flat 48 px `Navbar` (mark + "NATA", main views — hidden while there is only one —, close project, and one help/settings button that opens the Settings dialog: Shortcuts, Appearance (theme, language), About, Changelog) over a full-height `main`; the toast region (`StatusIndicator`) floats bottom-right. On `lg` (≥ 1024 px) `EditorView` is three panels plus a 28 px `StatusBar`: a 248 px folders panel (`FolderManager`), the canvas (view toggle, `ContentViewer` / `GridView`, `Filmstrip`) and a 320 px details panel (`MetadataPanel`, `OperationLog`, `Stats`); each panel scrolls on its own. Below `lg` it is one column, the two panels open as sheets (`DialogContent side="left" | "bottom"`, rendered once via `useMediaQuery`), and a fixed 72 px `MobileActionBar` shows prev/next plus one colored button per folder. See [UI-Design.md](UI-Design.md).
 - **Keyboard & touch** (in `ContentViewer`): `←/→` navigate, `Space` = next, `1`–`9` assign to the matching folder, `U` = jump to next unsorted, `Ctrl/Cmd+Z` = undo. Shortcuts are **ignored while typing** in an `input`/`textarea`/`contentEditable`. Mobile swipe uses a 50 px threshold.
 - **States**: empty (pick-folder), loading (spinner + progress text), viewer (image / video / RAW-decoding / preview-unavailable), all-sorted (green alert), error (`Alert` / `ErrorBoundary`). Transient feedback is via the status-store toasts.
-- **Design tokens**: `src/app/styles/globals.css` in OKLCH, light on `:root`, dark on `.dark`, radius scale derived from `--radius: 0.625rem`. UI primitives are shadcn/Radix (style `radix-nova`, neutral base) with lucide icons.
-- **Accessibility**: aria-labels on nav/folder buttons, an sr-only theme-toggle label, full keyboard operation, and a focus-visible ring (`outline-ring/50`).
+- **Design tokens**: `src/app/styles/globals.css` in OKLCH, light on `:root`, dark on `.dark`, radius scale derived from `--radius: 0.625rem`. UI primitives are in-house components (native `<dialog>`, ARIA tabs, popover tooltip; no Radix/shadcn) with lucide icons. All user-facing text goes through i18next (`src/shared/i18n`, English + Indonesian).
+- **Accessibility**: aria-labels on nav/folder buttons, labelled radio groups for theme and language in Settings, full keyboard operation, and a focus-visible ring (`outline-ring/50`).
 
 The UI copy is **Indonesian** (`lang="id"`); the code, comments, README, and this document are English.
 
@@ -499,22 +483,25 @@ Beyond the initial capture-date pass, full metadata is extracted **lazily** for 
 
 ## 13. Build & bundling
 
-The build is **Vite 8 (rolldown)** with three plugins ([vite.config.ts](../vite.config.ts)):
+The build is **Vite 8 (rolldown)** with three plugins plus a small inline one ([vite.config.ts](../vite.config.ts)):
 
 - **`@vitejs/plugin-react`** — React 19 + fast refresh.
 - **`@tailwindcss/vite`** — Tailwind CSS v4.
 - **`vite-plugin-pwa`** (Workbox) — the offline service worker.
+- **Boot splash** — `index.html` ships an inline `<style>` and a static `.boot` block inside `#root`; React replaces it on first render, and `RouteLoading` (the `HydrateFallback`) renders the same markup through `BootSplash`, so the loading screen is continuous from first paint.
+- **`preload-sorter-page`** (inline) — `/` is the only page and its chunk is lazy, so the plugin adds `<link rel="modulepreload">` for `SorterPage` and its imports to `index.html`; the chunk downloads in parallel with the entry instead of after it runs. Same-origin, so no CSP change.
 
 **Aliasing**: `@` → `src`. **Build script**: `tsc -b && vite build` → `/app/dist`. Output is **content-hashed** assets under `/assets/*` (immutable, cache-forever) plus non-hashed entry files (`index.html`, `sw.js`, manifest, icons) that must always revalidate — the static server enforces exactly this split (see [§14](#14-deployment-architecture)).
 
 **PWA / service worker:**
 
-- `registerType: "autoUpdate"` (skipWaiting + clientsClaim) so the app self-updates on reload.
-- `injectRegister: false` — the SW is registered **manually** in `main.tsx` so **no inline `<script>`** is injected, keeping the strict CSP intact (no `'unsafe-inline'` for scripts).
-- Workbox precaches `js,css,html,wasm,svg,png,ico,woff2` with `maximumFileSizeToCacheInBytes = 4 MB` to cover the ~1.3 MB libraw WASM, `cleanupOutdatedCaches`, and `navigateFallback: /index.html`.
-- Manifest: `display: standalone`, theme/background `#0a0f1a`, 192 & 512 icons, Indonesian name "Nata Photo — Sortir Foto & Video Lokal".
+- `registerType: "prompt"` — a new SW **waits** (no `skipWaiting`/`clientsClaim`) until the user presses **Reload** in `UpdateBanner`, which posts `SKIP_WAITING` and reloads that tab once on `controllerchange`. Other tabs keep their version. Reload is disabled while a project write is in flight (`save.store`).
+- `injectRegister: false` — registration lives in `pwa.store.ts` using the native `navigator.serviceWorker` API (no `workbox-window` dependency, and **no inline `<script>`**, keeping the strict CSP intact). That store is the single owner of PWA state (waiting update, install event, installed flag); the offline-ready message goes through the existing toast store, which de-duplicates.
+- Install: the `beforeinstallprompt` event is kept and used by the **Install app** button in Settings → About; browsers without it get a generic hint. The app never shows an install prompt on its own (the event is not `preventDefault`ed, so Chrome may show its own dismissible hint).
+- Workbox precaches `js,css,html,wasm,svg,png,ico,woff2` with `maximumFileSizeToCacheInBytes = 4 MB` to cover the ~1.3 MB libraw WASM, `cleanupOutdatedCaches`, and `navigateFallback: /index.html` (denied for `/assets/*` and file-like paths, so a missing asset 404s). `public/screenshots/` is excluded from the precache. There is no runtime caching: the app makes no network requests for data.
+- Manifest: `display: standalone`, theme/background `#1C1C1C`, 192 & 512 + maskable icons, two screenshots (wide, narrow), `launch_handler: navigate-existing`, English name "NATA — Local Photo & Video Sorter". Screenshots are regenerated with `node scripts/capture-screenshots.mjs` against a running production build.
 
-**Dependency hygiene** ([package.json](../package.json)): the browser bundle depends only on runtime libraries (React, exifreader ≥ 4.41.0, libraw-wasm, mediainfo.js, radix-ui, zustand, lucide, small lodash utilities). The `shadcn` CLI is in `devDependencies` (build-time only), and `pnpm.overrides` pin patched versions of dev/build-only transitive deps so `pnpm audit` is clean for both the full tree and `--prod`. See [SECURITY.md](SECURITY.md) for the audit findings.
+**Dependency hygiene** ([package.json](../package.json)): the browser bundle depends only on runtime libraries (React, exifreader ≥ 4.41.0, libraw-wasm, mediainfo.js, i18next/react-i18next, react-router, zustand, lucide, small lodash utilities). Build tools are in `devDependencies`, and `pnpm.overrides` pin patched versions of dev/build-only transitive deps so `pnpm audit` is clean for both the full tree and `--prod`. See [SECURITY.md](SECURITY.md) for the audit findings.
 
 Dev-time cross-origin isolation is provided by Vite's dev server headers (`COOP: same-origin`, `COEP: require-corp`), matching production.
 
@@ -522,57 +509,48 @@ Dev-time cross-origin isolation is provided by Vite's dev server headers (`COOP:
 
 ## 14. Deployment architecture
 
-nginx has been **removed**. The app now deploys as a **single container** via `docker compose`. There is no reverse proxy in the stack; a tiny hardened Node/Express static server serves the compiled SPA.
+The app deploys as a **single container** via `docker compose`. The runtime is an unprivileged nginx serving the compiled SPA. Its whole config is embedded in the [Dockerfile](../Dockerfile) (heredoc), so the repo's only deploy files are `Dockerfile` and `docker-compose.yml`. Node exists only in the build stage.
 
 ### 14.1 Multi-stage image
 
 ```mermaid
 flowchart LR
-    subgraph s1["Stage 1 · build (node:22-slim)"]
-        b1["corepack pnpm@9.15.9"] --> b2["pnpm install --frozen-lockfile"] --> b3["pnpm run build → /app/dist"]
+    subgraph s1["Stage 1 · build (node:24-alpine)"]
+        b1["corepack pnpm@12.8.1"] --> b2["pnpm install --frozen-lockfile"] --> b3["pnpm run build → /app/dist"]
     end
-    subgraph s2["Stage 2 · server-deps (node:22-alpine)"]
-        d1["npm ci --omit=dev of server/<br/>(express, helmet, compression)"]
+    subgraph s2["Stage 2 · runtime (nginxinc/nginx-unprivileged:stable-alpine)"]
+        r1["/etc/nginx/conf.d/default.conf<br/>(heredoc in Dockerfile)"]
+        r2["dist → /usr/share/nginx/html"]
+        r3["non-root · EXPOSE 8080<br/>HEALTHCHECK wget /healthz"]
     end
-    subgraph s3["Stage 3 · runtime (node:22-alpine)"]
-        r1["server/index.js"]
-        r2["audited node_modules"]
-        r3["dist → ./public"]
-        r4["USER node · EXPOSE 8080<br/>HEALTHCHECK /healthz · CMD node index.js"]
-    end
-    b3 -->|dist| r3
-    d1 -->|node_modules| r2
+    b3 -->|dist| r2
 ```
 
-The build toolchain and frontend dependencies are **thrown away** — only `server/index.js`, the audited production `node_modules`, and the compiled SPA (`./public`) reach the runtime image. It runs as the unprivileged built-in **`node`** user.
+The build toolchain and frontend dependencies are **thrown away** — only nginx, its config, and the compiled SPA reach the runtime image. It runs as the unprivileged `nginx` user (the `nginx-unprivileged` base image), with its pid and temp files under `/tmp`.
 
-### 14.2 The static server (`server/index.js`)
+### 14.2 The nginx config (in the Dockerfile)
 
-[server/index.js](../server/index.js) is Express 5 + helmet 8 + compression. Request handling:
+Request handling:
 
 ```mermaid
 flowchart TD
-    req["Incoming request"] --> hdr["helmet: strict CSP + COOP/COEP/CORP + HSTS + nosniff + frameguard ..."]
-    hdr --> pp["Permissions-Policy middleware (deny all powerful features)"]
-    pp --> verb{"GET or HEAD?"}
-    verb -->|no| m405["405 Method Not Allowed (Allow: GET, HEAD)"]
-    verb -->|yes| comp["compression (gzip/brotli)"]
-    comp --> health{"/healthz?"}
+    req["Incoming request"] --> hdr["server-level add_header ... always:<br/>CSP + COOP/COEP/CORP + HSTS + nosniff + X-Frame-Options + Permissions-Policy"]
+    hdr --> verb{"GET or HEAD?"}
+    verb -->|no| m405["405 Method Not Allowed"]
+    verb -->|yes| health{"= /healthz?"}
     health -->|yes| ok["200 'ok'"]
-    health -->|no| stat["express.static(DIST_DIR)"]
-    stat --> found{"asset exists?"}
-    found -->|"/assets/* hashed"| immut["Cache-Control: immutable, 1y"]
-    found -->|"html/sw/manifest"| nocache["Cache-Control: no-cache"]
-    found -->|"no"| looks{"looks like an asset?<br/>(/assets/ or has extension)"}
-    looks -->|yes| m404["404 Not Found"]
-    looks -->|no| spa["SPA fallback → index.html (no-cache)"]
+    health -->|no| ext{"has a file extension<br/>or under /assets/?"}
+    ext -->|yes| file{"file exists?"}
+    file -->|yes| serve["serve (gzip) · /assets/* → immutable, 1y · else no-cache"]
+    file -->|no| m404["404 Not Found"]
+    ext -->|no| spa["try_files → /index.html (no-cache)"]
 ```
 
-Behaviors: correct MIME types for `.wasm` (`application/wasm`) and `.webmanifest`; hashed `/assets/*` cached immutably while HTML/`sw.js`/manifest always revalidate (so PWA updates ship immediately); serves `/.well-known/security.txt` (`dotfiles: "allow"`); a `/healthz` liveness probe; SPA fallback that returns `index.html` for unknown **navigations** but a real **404** for missing assets (so the browser never parses `index.html` as JS/CSS/WASM); and graceful shutdown on SIGTERM/SIGINT. Env vars: `PORT` (default 8080), `HOST` (0.0.0.0), `STATIC_DIR`, `TRUST_PROXY`.
+Behaviors: correct MIME types for `.wasm` (`application/wasm`, from nginx's `mime.types`) and `.webmanifest` (`application/manifest+json`, set by an explicit `location`); hashed `/assets/*` cached immutably while HTML/`sw.js`/manifest always revalidate (so PWA updates ship immediately); `/.well-known/security.txt` is served as a normal file; a `/healthz` liveness probe; SPA fallback that returns `index.html` for unknown **navigations** but a real **404** for missing assets (so the browser never parses `index.html` as JS/CSS/WASM); gzip compression (no brotli in stock nginx). `add_header` is declared once at server level and no `location` re-declares it, because nginx drops inherited headers as soon as a `location` sets its own; per-path `Cache-Control` therefore comes from a `$cache_control` map (declared without `always`, so a 404 never inherits `immutable`). There are no environment variables.
 
 ### 14.3 Response headers (verified live)
 
-The server sets a complete security-header set. The exact values are documented in [SECURITY.md](SECURITY.md); the load-bearing ones for the architecture are:
+nginx sets a complete security-header set. The exact values are documented in [SECURITY.md](SECURITY.md); the load-bearing ones for the architecture are:
 
 | Header | Value (summary) | Why the app needs it |
 | --- | --- | --- |
@@ -580,14 +558,14 @@ The server sets a complete security-header set. The exact values are documented 
 | `Cross-Origin-Opener-Policy` | `same-origin` | Process-isolate the tab |
 | `Cross-Origin-Embedder-Policy` | `require-corp` | Unlock `SharedArrayBuffer` for the WASM workers |
 | `Cross-Origin-Resource-Policy` | `same-origin` | Complete cross-origin isolation |
-| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Only meaningful over HTTPS behind a TLS terminator |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Always sent; browsers only honour it over HTTPS (behind a TLS terminator) |
 | `Permissions-Policy` | deny all powerful features; allow only self `fullscreen` + `picture-in-picture` | The media viewer is the only feature that needs a capability |
 
 ### 14.4 Compose hardening
 
-[docker-compose.yml](../docker-compose.yml): `read_only` root filesystem + `tmpfs /tmp` (16 MB), `security_opt: no-new-privileges:true`, `cap_drop: ALL`, `init: true` (tini as PID 1), `deploy.resources.limits` (1 CPU / 256 MB, 64 MB reservation), a `/healthz` healthcheck, json-file log rotation (10 MB × 3), `restart: unless-stopped`, port `8080:8080`.
+[docker-compose.yml](../docker-compose.yml): `read_only` root filesystem + `tmpfs /tmp` (16 MB), `security_opt: no-new-privileges:true`, `cap_drop: ALL`, `deploy.resources.limits` (1 CPU / 128 MB, 32 MB reservation), a `/healthz` healthcheck (`wget --spider`), json-file log rotation (10 MB × 3), `restart: unless-stopped`, port `8080:8080`.
 
-For **public HTTPS**, terminate TLS at the platform edge (Cloudflare, a load balancer, or an existing Caddy/Traefik) and forward to the container; set `TRUST_PROXY=1` so HSTS reflects the external scheme.
+For **public HTTPS**, terminate TLS at the platform edge (Cloudflare, a load balancer, or an existing Caddy/Traefik) and forward to the container.
 
 ---
 
@@ -597,21 +575,21 @@ For **public HTTPS**, terminate TLS at the platform edge (Cloudflare, a load bal
 | --- | --- |
 | [`src/app/main.tsx`](../src/app/main.tsx) | Bootstrap: path normalization, SW registration, mount `StrictMode → ErrorBoundary → ThemeProvider → App` |
 | [`src/app/App.tsx`](../src/app/App.tsx) | The single view; composes all components, derives sorted/unsorted counts and "all sorted" |
-| [`src/features/file-system/model/useFileSystem.ts`](../src/features/file-system/model/useFileSystem.ts) | **Controller**: owns all session state, orchestrates loading, sorting, undo, decode, persistence |
-| [`src/shared/services/dbService.ts`](../src/shared/services/dbService.ts) | `nata-photo-db.json` read-modify-write via the single-writer chain; load-time sanitization |
-| [`src/shared/services/exifService.ts`](../src/shared/services/exifService.ts) | Image EXIF + video mediainfo extraction; capture-date parsing; display formatters |
-| [`src/shared/services/rawDecoder.ts`](../src/shared/services/rawDecoder.ts) | RAW preview pipeline (embedded-JPEG scan + libraw fallback) |
-| [`src/shared/config/fileFormats.ts`](../src/shared/config/fileFormats.ts) | Format registry + `isSupportedImage`/`isPreviewable`/`getFileFormatInfo` |
-| [`src/shared/store/statusStore.ts`](../src/shared/store/statusStore.ts) | Zustand toast store (max 3, auto-expire) with React-free helpers |
-| [`src/shared/lib/safeName.ts`](../src/shared/lib/safeName.ts) | `validateFolderName()` defense-in-depth |
+| [`src/features/sorter/hooks/useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts) | **Controller**: owns all session state, orchestrates loading, sorting, undo, decode, persistence |
+| [`src/features/sorter/services/project-db.service.ts`](../src/features/sorter/services/project-db.service.ts) | `.nata-sort-db.json` read-modify-write via the single-writer chain; load-time sanitization |
+| [`src/features/media/services/metadata.service.ts`](../src/features/media/services/metadata.service.ts) | Image EXIF + video mediainfo extraction; capture-date parsing; display formatters |
+| [`src/features/media/services/raw-decoder.service.ts`](../src/features/media/services/raw-decoder.service.ts) | RAW preview pipeline (embedded-JPEG scan + libraw fallback) |
+| [`src/features/media/config/file-formats.ts`](../src/features/media/config/file-formats.ts) | Format registry + `isSupportedImage`/`isPreviewable`/`getFileFormatInfo` |
+| [`src/shared/stores/status.store.ts`](../src/shared/stores/status.store.ts) | Zustand toast store (max 3, auto-expire) with React-free helpers |
+| [`src/features/sorter/utils/folder-name.utils.ts`](../src/features/sorter/utils/folder-name.utils.ts) | `validateFolderName()` defense-in-depth |
 | [`src/shared/lib/utils.ts`](../src/shared/lib/utils.ts) | `cn()` (clsx + tailwind-merge) |
-| [`src/shared/types/index.ts`](../src/shared/types/index.ts) | Domain types (`PhotoFile`, `PhotoMetadata`, `SortFolder`, `SortedMapping`, `SortOperation`, `ProjectState`) |
-| `src/components/` | Presentational components — `ContentViewer`, `FolderManager`, `MetadataPanel`, `OperationLog`, `Stats`, `ProgressBar`, `StatusIndicator`, `MobileActionBar`, `app/Navbar`, theme/error components |
-| `src/shared/ui/` | shadcn / Radix primitives (alert, badge, button, card, dropdown-menu, empty, field, input, input-group, item, label, progress, separator, spinner, tabs, textarea) |
+| [`src/features/sorter/types/sorter.types.ts`](../src/features/sorter/types/sorter.types.ts) | Domain types (`PhotoFile`, `PhotoMetadata`, `SortFolder`, `SortedMapping`, `SortOperation`, `ProjectState`) |
+| `src/features/sorter/components/` | Presentational components — `ContentViewer`, `FolderManager`, `MetadataPanel`, `OperationLog`, `Stats`, `ProgressBar`, `StatusIndicator`, `MobileActionBar`, `app/Navbar`, theme/error components |
+| `src/shared/components/ui/` | In-house primitives (alert, badge, button, card, dialog, empty, field, input, item, kbd, label, panel-header, progress, scroll-area, separator, spinner, tabs, tooltip) |
+| `src/shared/i18n/` | i18next setup (`index.ts`, module-level `t()`), one JSON table per language under `language/` (`en`, `id`); all user-facing strings go here |
 | `src/app/styles/globals.css` | OKLCH design tokens (light `:root` / dark `.dark`), radius scale |
 | [`vite.config.ts`](../vite.config.ts) | Vite + React + Tailwind + PWA config, `@`→`src` alias, dev COOP/COEP |
-| [`server/index.js`](../server/index.js) | Hardened Node/Express static server |
-| [`Dockerfile`](../Dockerfile) | Three-stage build → minimal non-root runtime image |
+| [`Dockerfile`](../Dockerfile) | Two-stage build (node:24-alpine → unprivileged nginx) with the nginx config embedded |
 | [`docker-compose.yml`](../docker-compose.yml) | Single-container deployment + hardening |
 
 ---
