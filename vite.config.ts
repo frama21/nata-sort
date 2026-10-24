@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
@@ -54,5 +55,19 @@ export default defineConfig({
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "require-corp"
     }
+  },
+  // Unit and integration tests live in each feature's tests/ folder. Playwright
+  // specs (tests/e2e-test/*.spec.ts) are not matched, so Vitest never runs them.
+  test: {
+    projects: ["unit", "integration"].map(name => ({
+      extends: true,
+      test: {
+        name,
+        include: [`src/**/tests/${name}-test/**/*.test.{ts,tsx}`],
+        environment: "jsdom",
+        setupFiles: ["src/test/setup.ts"],
+        restoreMocks: true
+      }
+    }))
   }
 })

@@ -58,21 +58,132 @@ the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Fi
 
 ## Tech stack
 
-React 19 · TypeScript · Vite · Tailwind CSS v4 · shadcn/Radix UI · Zustand ·
-ExifReader · mediainfo.js · libraw-wasm · vite-plugin-pwa. Production server:
-Express + helmet (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
+React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS v4 · Zustand ·
+ExifReader · mediainfo.js · libraw-wasm · vite-plugin-pwa. UI primitives are
+in-house components in `src/shared/components/ui` (native `<dialog>`, ARIA tabs,
+…), with no Radix or shadcn dependency. Tests: Vitest + React Testing Library +
+Playwright. Production server: Express + helmet (see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
 
 ## Getting started
 
-Requires Node 22+ and pnpm.
+Requires Node 22.23.4+ and pnpm 12+.
 
 ```bash
 pnpm install
-pnpm dev        # start the dev server
-pnpm build      # typecheck + production build
-pnpm preview    # preview the production build
-pnpm lint       # run ESLint
+pnpm dev                  # start the dev server
+pnpm build                # typecheck + production build
+pnpm preview              # preview the production build
+pnpm lint                 # ESLint (incl. JSDoc warnings and import boundaries)
+pnpm format:check         # Prettier
+pnpm typecheck            # tsc -b
+pnpm check:architecture   # module boundaries on resolved paths + import cycles
 ```
+
+## Architecture
+
+The code is organized by feature. A feature owns its UI, logic, routes, and
+tests, so you can change or delete it mostly inside its own folder.
+
+```text
+src/
+├── app/        # composition: providers, router + route discovery, layout, error boundary, styles
+├── features/
+│   ├── sorter/ # the sorting workspace (route "/"): controller hook, components, project DB
+│   ├── media/  # format registry, metadata extraction, RAW decoding (no routes, public API in index.ts)
+│   └── help/   # static help page (route "/help")
+├── shared/     # business-agnostic building blocks: UI primitives, status toasts, cn(), route types
+└── test/       # global test setup and test doubles (in-memory File System Access handles)
+```
+
+Each feature uses only the folders it needs (`components/`, `hooks/`, `pages/`,
+`services/`, `types/`, `utils/`, `config/`, `tests/`). It may also have:
+
+- **`routes.ts`** declares the feature's pages. It is found automatically, see below.
+- **`index.ts`** is the feature's public API. Only `media` has one, because only
+  it has consumers. If a feature has no `index.ts`, other features cannot import it.
+- **`README.md`** documents the feature's purpose, contract, and how to remove it safely.
+
+### Import boundaries
+
+| From | May import | Must not import |
+| --- | --- | --- |
+| `app/` | `shared/`, feature routes (via discovery) | feature internals |
+| `features/<name>/` | its own files (relative paths), `shared/`, another feature's `index.ts` (`@/features/<other>`) | `app/`, another feature's internal files |
+| `shared/` | `shared/`, packages | `app/`, `features/` |
+
+These rules are enforced in two places:
+
+- **ESLint** (`no-restricted-imports`) checks alias imports and gives feedback in
+  the editor. It generates one rule block per folder in `src/features`.
+- **`pnpm check:architecture`** checks the resolved paths, so relative escapes
+  like `../other-feature/...` are caught too. It also reports import cycles and
+  unresolved imports. Test files may import the internals they test.
+
+### Route discovery
+
+`src/app/routes/feature-routes.ts` uses `import.meta.glob("/src/features/*/routes.ts", { eager: true })`.
+Each `routes.ts` exports `routes: FeatureRoute[]` (see `src/shared/types/route.types.ts`):
+
+```ts
+export const routes: FeatureRoute[] = [
+  {
+    path: "/help",
+    lazy: () => import("./pages/HelpPage").then(m => ({ Component: m.HelpPage })),
+    title: "Bantuan", // document title
+    nav: { label: "Bantuan", order: 10 } // optional link in the main navigation
+  }
+]
+```
+
+- **Validation:** `collectFeatureRoutes` validates every module. A missing
+  `routes` export, an invalid route, or a duplicate path is logged and skipped;
+  the other routes still work.
+- **Lazy loading:** pages are lazy-loaded into their own chunks. Each route has
+  its own error boundary, so a crash or a failed chunk download stays inside
+  that route.
+- **Not found:** unknown URLs show a not-found page.
+- **Not supported yet:** nested routes, per-route layouts, and auth guards. Add
+  them to `FeatureRoute` when a feature needs them.
+
+The glob is resolved at build time. Adding or deleting a feature changes the
+routes with no registry to edit. A dev server picks this up on restart.
+
+### Adding a feature
+
+1. Create `src/features/<name>/` with only the folders it needs.
+2. If it has pages, add `routes.ts`.
+3. If other features need it, export a minimal public API from `index.ts`.
+4. Put its tests in `tests/unit-test/`, `tests/integration-test/`, or `tests/e2e-test/`.
+5. Add a `README.md` (copy `src/features/help/README.md` as a template).
+
+### Removing a feature
+
+Delete its folder, then run `pnpm typecheck && pnpm check:architecture && pnpm test`.
+
+- **No dependents:** removing `help` or `sorter` needs no other change. Both
+  were verified this way, including the build and the remaining tests.
+- **Has dependents:** `sorter` depends on `media`, so deleting `media` fails at
+  `tsc` and `check:architecture` with "unresolved import". It never fails
+  silently at runtime. Each feature README lists its dependencies.
+
+## Testing
+
+| Command | Runs |
+| --- | --- |
+| `pnpm test` | all Vitest projects (unit + integration) |
+| `pnpm test:unit` | `src/**/tests/unit-test/**/*.test.ts(x)` |
+| `pnpm test:integration` | `src/**/tests/integration-test/**/*.test.ts(x)` |
+| `pnpm test:e2e` | Playwright on a production build (`src/**/tests/e2e-test/*.spec.ts`, Chromium) |
+| `pnpm test:all` | Vitest, then Playwright |
+
+- **Folder picker in E2E:** Playwright can't drive the native folder picker.
+  Instead, the E2E suite points `showDirectoryPicker()` at a folder in the
+  browser's Origin Private File System. Those are real File System Access
+  handles, so copy, move, undo, and the project database run against actual
+  files.
+- **Unit and integration tests** use the in-memory handles in
+  `src/test/global-mocks/file-system.ts`.
 
 ## Run with Docker
 
@@ -127,7 +238,7 @@ incompatible version is found.
 - The dependency tree is **audit-clean** (`pnpm audit` → *No known
   vulnerabilities found*), and the production image ships only three audited
   server dependencies.
-- The app is a single view: any unknown URL is normalized back to `/`.
+- Routing is client-side only: an unknown URL renders an inert not-found page with a link home.
 
 A full security policy, threat model, and audit report is in
 [docs/SECURITY.md](docs/SECURITY.md). Report vulnerabilities privately via
