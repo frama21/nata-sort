@@ -1,6 +1,4 @@
 {
-  "common.previous": "Sebelumnya",
-  "common.next": "Selanjutnya",
   "common.undo": "Undo",
   "common.close": "Tutup",
   "common.loading": "Memuat…",
@@ -107,6 +105,7 @@
   "batch.verbCopy": "Copy",
 
   "mobile.sortToAria": "Sortir ke {name}",
+  "mobile.addFolder": "Tambah folder dulu",
   "shortcuts.sortToFolder": "Sortir foto ke folder (klik badge folder untuk ubah pintasan)",
   "shortcuts.navPhotos": "Foto sebelumnya / selanjutnya",
   "shortcuts.nextPhoto": "Foto selanjutnya",

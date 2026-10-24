@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next"
-import { ChevronLeft, ChevronRight, Scissors, Copy } from "lucide-react"
+import { ChevronLeft, ChevronRight, Scissors, Copy, FolderPlus } from "lucide-react"
 
 import { Button } from "@/shared/components/ui/button"
 import { WithTooltip } from "@/shared/components/ui/tooltip"
@@ -11,6 +11,8 @@ interface MobileActionBarProps {
   currentIndex: number
   onAssign: (photoIndex: number, folderId: string) => Promise<void>
   onNavigate: (direction: "next" | "prev") => void
+  /** Opens the folders sheet, where the first folder is created. */
+  onOpenFolders: () => void
   totalPhotos: number
 }
 
@@ -20,6 +22,7 @@ export const MobileActionBar = ({
   currentIndex,
   onAssign,
   onNavigate,
+  onOpenFolders,
   totalPhotos
 }: MobileActionBarProps) => {
   const { t } = useTranslation()
@@ -40,9 +43,18 @@ export const MobileActionBar = ({
               <ChevronLeft />
             </Button>
           </WithTooltip>
-
-          {isEmptyFolder && currentIndex !== 0 && <div className="text-xs">{t("common.previous")}</div>}
         </div>
+
+        {isEmptyFolder && (
+          <Button
+            variant="secondary"
+            className="h-full min-w-0 flex-1 leading-tight whitespace-normal"
+            onClick={onOpenFolders}
+          >
+            <FolderPlus />
+            {t("mobile.addFolder")}
+          </Button>
+        )}
 
         {!isEmptyFolder && (
           <div className="flex-1 flex gap-1 overflow-x-auto scrollbar-none">
@@ -68,7 +80,6 @@ export const MobileActionBar = ({
         )}
 
         <div className="flex flex-row items-center gap-2">
-          {isEmptyFolder && currentIndex !== totalPhotos - 1 && <div className="text-xs">{t("common.next")}</div>}
           <WithTooltip label={t("viewer.nextPhoto")}>
             <Button
               onClick={() => onNavigate("next")}

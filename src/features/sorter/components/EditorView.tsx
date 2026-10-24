@@ -122,8 +122,8 @@ export const EditorView = ({ fs }: EditorViewProps) => {
   )
 
   return (
-    <div className="flex flex-col lg:h-full lg:min-h-0">
-      <div className="flex flex-col lg:min-h-0 lg:flex-1 lg:flex-row">
+    <div className="flex min-h-full flex-col lg:h-full lg:min-h-0">
+      <div className="flex flex-1 flex-col lg:min-h-0 lg:flex-row">
         {isDesktop && (
           <nav
             aria-label={t("folder.title")}
@@ -287,6 +287,7 @@ export const EditorView = ({ fs }: EditorViewProps) => {
           currentIndex={fs.currentIndex}
           onAssign={fs.assignPhotoToFolder}
           onNavigate={fs.navigatePhoto}
+          onOpenFolders={() => setSheet("folders")}
           totalPhotos={totalPhotos}
         />
       )}

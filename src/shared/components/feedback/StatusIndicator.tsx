@@ -70,7 +70,7 @@ export const StatusIndicator = () => {
   )
 
   return (
-    <div className="pointer-events-none fixed inset-x-3 top-14 z-70 flex flex-col gap-2 md:inset-x-auto md:top-auto md:right-4 md:bottom-10 md:w-96">
+    <div className="pointer-events-none fixed inset-x-3 top-14 z-70 flex flex-col gap-2 md:inset-x-auto md:top-auto md:right-4 md:bottom-24 md:w-96 lg:bottom-10">
       {region(errors, "assertive")}
       {region(others, "polite")}
     </div>
