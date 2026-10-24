@@ -20,20 +20,22 @@ interface WithTooltipProps {
   side?: TooltipSide
   /** A single interactive element (a Button, etc.) the tooltip describes. */
   children: React.ReactElement<{ "aria-describedby"?: string }>
+  /** Classes for the wrapper, e.g. to position the control it wraps. */
+  className?: string
 }
 
 /** Shows `label` on hover/focus of its single child. */
-function WithTooltip({ label, side = "bottom", children }: WithTooltipProps) {
+function WithTooltip({ label, side = "bottom", children, className }: WithTooltipProps) {
   const id = React.useId()
 
   return (
-    <span data-slot="tooltip" className="group/tooltip relative inline-flex">
+    <span data-slot="tooltip" className={cn("group/tooltip relative inline-flex", className)}>
       {React.cloneElement(children, { "aria-describedby": id })}
       <span
         id={id}
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute z-[70] w-max max-w-[min(20rem,calc(100vw-1.5rem))] rounded-md bg-foreground px-2.5 py-1 text-xs font-medium text-background shadow-md",
+          "pointer-events-none absolute z-[70] w-max max-w-[min(20rem,calc(100vw-1.5rem))] rounded-md border border-border bg-surface-raised px-2.5 py-1 text-xs font-medium text-foreground shadow-e1",
           // `hidden` (not just invisible) so a closed tooltip never widens the page.
           "hidden group-hover/tooltip:block group-has-focus-visible/tooltip:block",
           SIDE_CLASSES[side]

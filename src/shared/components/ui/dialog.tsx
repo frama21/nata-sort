@@ -1,5 +1,6 @@
 import * as React from "react"
 import { XIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { cn } from "@/shared/lib/utils"
 
@@ -85,8 +86,23 @@ function DialogClose({ onClick, ...props }: React.ComponentProps<"button">) {
   )
 }
 
+const DIALOG_SIDES = {
+  center:
+    "m-auto max-w-[calc(100%-2rem)] rounded-lg open:animate-pop-in sm:max-w-lg max-sm:mb-0 max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-xl",
+  // Drawer / sheet: the same native <dialog>, docked to an edge.
+  left: "mr-auto ml-0 h-dvh max-h-dvh w-[280px] max-w-[85vw] rounded-none border-y-0 border-l-0 open:animate-slide-in-left",
+  bottom:
+    "mt-auto mb-0 max-h-[85dvh] max-w-full rounded-t-xl rounded-b-none border-b-0 open:animate-slide-in-bottom"
+} as const
+
 /** The modal itself. Closes on Escape, on a backdrop click, or via the close button. */
-function DialogContent({ className, children, ...props }: React.ComponentProps<"div">) {
+function DialogContent({
+  className,
+  children,
+  side = "center",
+  ...props
+}: React.ComponentProps<"div"> & { side?: keyof typeof DIALOG_SIDES }) {
+  const { t } = useTranslation()
   const dialog = useDialog()
   const ref = React.useRef<HTMLDialogElement>(null)
 
@@ -108,13 +124,16 @@ function DialogContent({ className, children, ...props }: React.ComponentProps<"
       // The inner panel fills the dialog, so a click that lands on the <dialog>
       // itself can only be on the backdrop.
       onClick={e => e.target === e.currentTarget && dialog.setOpen(false)}
-      className="m-auto w-full max-w-[calc(100%-2rem)] rounded-xl border bg-background p-0 text-foreground shadow-lg backdrop:bg-black/50 open:animate-in open:fade-in-0 open:zoom-in-95 sm:max-w-lg"
+      className={cn(
+        "w-full border border-border bg-surface-raised p-0 text-foreground shadow-e2 backdrop:bg-black/50",
+        DIALOG_SIDES[side]
+      )}
     >
       <div data-slot="dialog-content" className={cn("relative grid gap-4 p-6", className)} {...props}>
         {children}
-        <DialogClose className="absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:outline-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
+        <DialogClose className="absolute top-3 right-3 grid size-7 place-items-center rounded-md text-muted-foreground transition-colors duration-(--dur-base) hover:bg-surface-hover hover:text-foreground pointer-coarse:size-11 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
           <XIcon />
-          <span className="sr-only">Tutup</span>
+          <span className="sr-only">{t("common.close")}</span>
         </DialogClose>
       </div>
     </dialog>

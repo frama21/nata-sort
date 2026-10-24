@@ -56,7 +56,7 @@ describe("Dialog", () => {
     const user = userEvent.setup()
     renderDialog()
     await user.click(screen.getByRole("button", { name: "Pintasan" }))
-    await user.click(screen.getByRole("button", { name: "Tutup" }))
+    await user.click(screen.getByRole("button", { name: "Close" }))
     expect(screen.getByRole("button", { name: "Pintasan" })).toHaveAttribute("aria-expanded", "false")
     expect(screen.queryByRole("dialog")).toBeNull()
   })

@@ -19,12 +19,15 @@ function Progress({ className, value = null, max = 100, ...props }: ProgressProp
       aria-valuemin={0}
       aria-valuemax={max}
       aria-valuenow={value ?? undefined}
-      className={cn("relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted", className)}
+      className={cn(
+        "relative flex h-0.5 w-full items-center overflow-x-hidden rounded-full bg-foreground/15",
+        className
+      )}
       {...props}
     >
       <div
         data-slot="progress-indicator"
-        className="size-full flex-1 bg-primary transition-all"
+        className="size-full flex-1 bg-accent transition-transform duration-(--dur-slow) ease-(--ease)"
         style={{ transform: `translateX(-${100 - percent}%)` }}
       />
     </div>
