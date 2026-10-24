@@ -10,6 +10,7 @@ import {
   EmptyTitle
 } from "@/shared/components/ui/empty"
 import { AlertTriangleIcon } from "lucide-react"
+import { t } from "@/shared/i18n"
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -46,15 +47,13 @@ export class GlobalErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
               <EmptyMedia variant="icon" className="w-16 h-16 border-2">
                 <AlertTriangleIcon className="size-10 text-red-500" />
               </EmptyMedia>
-              <EmptyTitle>Terjadi kesalahan</EmptyTitle>
-              <EmptyDescription>
-                {this.state.error.message || "Aplikasi mengalami error tak terduga."}
-              </EmptyDescription>
+              <EmptyTitle>{t("error.title")}</EmptyTitle>
+              <EmptyDescription>{this.state.error.message || t("error.description")}</EmptyDescription>
             </EmptyHeader>
             <EmptyContent className="flex-row justify-center gap-2">
-              <Button onClick={this.handleReset}>Coba lagi</Button>
+              <Button onClick={this.handleReset}>{t("error.retry")}</Button>
               <Button variant="outline" onClick={() => location.reload()}>
-                Muat ulang
+                {t("error.reload")}
               </Button>
             </EmptyContent>
           </Empty>

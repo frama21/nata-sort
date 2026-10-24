@@ -9,9 +9,10 @@ export interface FeatureRoute {
   path: string
   /** Lazily loads the page so the feature's code is split out of the main bundle. */
   lazy: () => Promise<{ Component: ComponentType }>
-  /** Document title while the route is active. */
+  /** i18n key of the document title while the route is active. */
   title?: string
   /** When set, the route gets a link in the main navigation. Lower `order` comes first. */
+  /** `label` is an i18n key. */
   nav?: { label: string; order?: number }
 }
 

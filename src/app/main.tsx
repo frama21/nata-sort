@@ -1,6 +1,7 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import "./styles/globals.css"
+import "@/shared/i18n" // initialize i18next (side-effectful) before first render
 import { App } from "./App"
 
 // Register the PWA service worker. The generated SW uses skipWaiting +

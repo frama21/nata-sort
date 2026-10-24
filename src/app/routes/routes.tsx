@@ -30,7 +30,7 @@ export const createAppRoutes = (featureRoutes: FeatureRoute[]): RouteObject[] =>
         handle: { title: r.title },
         errorElement: <RouteErrorBoundary />
       })),
-      { path: "*", element: <NotFoundPage />, handle: { title: "Halaman tidak ditemukan" } }
+      { path: "*", element: <NotFoundPage />, handle: { title: "route.notFound.title" } }
     ]
   }
 ]

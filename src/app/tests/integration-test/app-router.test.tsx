@@ -35,18 +35,18 @@ describe("app router", () => {
       pageRoute("/help", "Help", { nav: { label: "Bantuan", order: 10 } }),
       pageRoute("/hidden", "Hidden")
     ])
-    const nav = await screen.findByRole("navigation", { name: "Navigasi utama" })
+    const nav = await screen.findByRole("navigation", { name: "Main navigation" })
     expect([...nav.querySelectorAll("a")].map(a => a.textContent)).toEqual(["Sortir", "Bantuan"])
   })
 
   it("shows the not-found page for an unknown path", async () => {
     renderAt("/does-not-exist", [pageRoute("/", "Home")])
-    expect(await screen.findByRole("heading", { name: "Halaman tidak ditemukan" })).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Page not found" })).toBeInTheDocument()
   })
 
   it("keeps working with no feature routes at all", async () => {
     renderAt("/", [])
-    expect(await screen.findByRole("heading", { name: "Halaman tidak ditemukan" })).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Page not found" })).toBeInTheDocument()
   })
 
   it("contains a failed lazy route in its own error boundary", async () => {
