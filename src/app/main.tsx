@@ -2,19 +2,12 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import "./styles/globals.css"
 import "@/shared/i18n" // initialize i18next (side-effectful) before first render
+import { registerPwa } from "@/shared/stores/pwa.store"
 import { App } from "./App"
 
-// Register the PWA service worker. The generated SW uses skipWaiting +
-// clientsClaim (registerType: "autoUpdate"), so it self-updates on reload.
-// Production only: `vite dev` does not emit /sw.js (the dev server answers with index.html,
-// which the browser rejects as "unsupported MIME type text/html"), and a SW would fight HMR.
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(err => {
-      console.error("[PWA] Service worker registration failed:", err)
-    })
-  })
-}
+// Service worker + install events (production only; see pwa.store.ts). A new version waits for
+// the user to accept it in the update banner (registerType: "prompt").
+registerPwa()
 
 const root = document.getElementById("root")
 if (!root) throw new Error('Missing <div id="root"> in index.html')

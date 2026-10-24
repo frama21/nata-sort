@@ -250,5 +250,13 @@
   "help.progress.body": "Folder sortir, pemetaan foto, mode salin/pindah, dan log operasi disimpan di file nata-sort-db.json di dalam folder yang kamu buka. Hapus file itu untuk memulai dari awal.",
   "help.safety.title": "Keamanan file",
   "help.safety.body": "Mode default adalah Salin, jadi file asli tidak tersentuh. File tidak pernah ditimpa: nama yang sudah ada mendapat akhiran _1, _2, dan seterusnya. Sortir terakhir bisa dibatalkan dengan Ctrl/Cmd+Z.",
+  "pwa.updateReady": "Versi baru NATA siap. Memuat ulang akan menutup folder yang sedang disortir; progres sudah tersimpan.",
+  "pwa.reload": "Muat ulang",
+  "pwa.later": "Nanti",
+  "pwa.offlineReady": "NATA siap digunakan tanpa internet.",
+  "pwa.installTitle": "Pasang NATA",
+  "pwa.installBody": "Pasang NATA sebagai aplikasi agar bisa dibuka dari desktop atau layar utama. Setelah terpasang, NATA bisa dipakai tanpa internet.",
+  "pwa.installButton": "Pasang aplikasi",
+  "pwa.installHint": "Gunakan opsi pasang di browsermu, biasanya di bilah alamat atau menu. Tidak semua browser menyediakannya.",
   "shortcuts.click": "+ Klik"
 }

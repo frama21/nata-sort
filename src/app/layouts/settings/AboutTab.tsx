@@ -1,6 +1,8 @@
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
+import { Button } from "@/shared/components/ui/button"
+import { promptInstall, usePwaStore } from "@/shared/stores/pwa.store"
 import { useProjectStore } from "@/shared/stores/project.store"
 import { appConfig } from "../../config"
 
@@ -17,6 +19,8 @@ const Row = ({ label, children }: { label: string; children: ReactNode }) => (
 export const AboutTab = () => {
   const { t } = useTranslation()
   const projectName = useProjectStore(s => s.name)
+  const canInstall = usePwaStore(s => s.installEvent !== null)
+  const installed = usePwaStore(s => s.installed)
 
   return (
     <div className="grid gap-4">
@@ -29,6 +33,19 @@ export const AboutTab = () => {
         <p className="text-sm">{t("settings.aboutSummary")}</p>
         <p className="text-sm text-muted-foreground">{t("settings.aboutPrivacy")}</p>
       </div>
+      {!installed && (
+        <section className="grid justify-items-start gap-2">
+          <h3 className="text-sm font-semibold">{t("pwa.installTitle")}</h3>
+          <p className="text-sm text-muted-foreground">{t("pwa.installBody")}</p>
+          {canInstall ? (
+            <Button variant="secondary" onClick={promptInstall}>
+              {t("pwa.installButton")}
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("pwa.installHint")}</p>
+          )}
+        </section>
+      )}
       {ABOUT_TOPICS.map(topic => (
         <section key={topic} className="grid gap-1">
           <h3 className="text-sm font-semibold">{t(`help.${topic}.title`)}</h3>

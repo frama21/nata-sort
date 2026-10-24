@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { Outlet, useLocation, useMatches } from "react-router"
 
+import { UpdateBanner } from "@/shared/components/feedback/UpdateBanner"
 import { StatusIndicator } from "@/shared/components/feedback/StatusIndicator"
 import type { FeatureRoute } from "@/shared/types/route.types"
 import { appConfig } from "../config"
@@ -51,6 +52,7 @@ export const MainLayout = ({ navRoutes }: MainLayoutProps) => {
         {t("nav.skip")}
       </a>
       <Navbar navRoutes={navRoutes} />
+      <UpdateBanner />
       <main
         id="main"
         ref={mainRef}
