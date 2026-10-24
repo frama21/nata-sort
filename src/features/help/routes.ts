@@ -4,7 +4,7 @@ export const routes: FeatureRoute[] = [
   {
     path: "/help",
     lazy: () => import("./pages/HelpPage").then(m => ({ Component: m.HelpPage })),
-    title: "Bantuan",
-    nav: { label: "Bantuan", order: 10 }
+    title: "nav.help",
+    nav: { label: "nav.help", order: 10 }
   }
 ]
