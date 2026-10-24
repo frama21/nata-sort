@@ -46,7 +46,7 @@ graph TB
         direction TB
         media["Top-level images & videos"]
         subfolders["Sort sub-folders 1..9"]
-        db[("nata-sort-db.json")]
+        db[(".nata-sort-db.json")]
     end
 
     subgraph edge["Public edge (optional)"]
@@ -179,7 +179,7 @@ NATA keeps three distinct kinds of state, each in exactly one place. Understandi
 | **Open-project flag (top bar)** | [`useProjectStore`](../src/shared/stores/project.store.ts) (Zustand): project name + `close` callback, set by `SorterPage` while a project is open | While a project is open | Lets the navbar show "Close project" without owning the session |
 | **Recent projects** | [`recent-projects.service.ts`](../src/features/sorter/services/recent-projects.service.ts) (IndexedDB, directory handles) | Across reloads, per browser profile | Start-screen list; separate from the project DB |
 | **Transient UI feedback** | [`statusStore`](../src/shared/stores/status.store.ts) (Zustand) | Seconds (auto-expires) | Toasts (icon `folder`) and, for file activity (icon `file`/`db`), the top bar `ActivityIndicator`; `save.store` counts in-flight user-visible project writes ("Saving…") and `shared/lib/activity.ts` derives the phase (failed > loading > saving > saved) |
-| **Durable project state** | `nata-sort-db.json` (on disk, via [`dbService`](../src/features/sorter/services/project-db.service.ts)) | Across reloads/sessions | Folders, per-file sort mapping, mode, `currentIndex`, operation log, metadata cache, stats |
+| **Durable project state** | `.nata-sort-db.json` (on disk, via [`dbService`](../src/features/sorter/services/project-db.service.ts)) | Across reloads/sessions | Folders, per-file sort mapping, mode, `currentIndex`, operation log, metadata cache, stats |
 
 The `useFileSystem` hook is the **controller** in an MVC-ish sense: `App` and its children are the view, the services are the model/IO layer, and the hook wires them together and owns all mutable session state. It is `~860` lines and is the single most important module to read: [src/features/sorter/hooks/useFileSystem.ts](../src/features/sorter/hooks/useFileSystem.ts).
 
@@ -227,7 +227,7 @@ sequenceDiagram
     FS-->>H: root dirHandle
     H->>H: revoke old blob URLs, reset queues/undo
     H->>DB: initProjectDatabase(dirHandle)
-    DB->>FS: read/create nata-sort-db.json
+    DB->>FS: read/create .nata-sort-db.json
     DB-->>H: CompleteProjectState (folders, mapping, cache, ...)
     loop dirHandle.values() (top-level only)
         H->>FS: getFile() for each supported image/video
@@ -268,7 +268,7 @@ sequenceDiagram
     end
     H->>H: update sortedPhotos, operations, undoStack (max 20), currentIndex++
     H->>DB: updateDatabaseAfterOperation(...)  %% enqueued write
-    DB->>FS: read-modify-write nata-sort-db.json
+    DB->>FS: read-modify-write .nata-sort-db.json
     H-->>A: state updates → advance to next photo
 ```
 
@@ -304,7 +304,7 @@ The services are **stateless, framework-free modules** (no React) that the contr
 
 ### 7.1 `dbService.ts` — persistence
 
-[src/features/sorter/services/project-db.service.ts](../src/features/sorter/services/project-db.service.ts). Owns `nata-sort-db.json` (schema `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`). Public surface: `initProjectDatabase`, `updateDatabaseAfterOperation`, `updateDatabaseFolders`, `updateDatabaseMode`, `updateDatabaseMetadata`, `loadProjectState`. All writes go through `enqueue()`/`writeChain`. The load path validates shape + version, then runs `sanitizeState()` which strips prototype-pollution keys (`__proto__`/`constructor`/`prototype`) via `safeRecord()` into `Object.create(null)` maps, bounds every collection (`MAX_SORTED_ENTRIES`/`MAX_METADATA_ENTRIES` = 100 000, `MAX_FOLDERS` = 1 000, operations sliced to 50), and coerces `moveMode`/`currentIndex` to safe defaults. A missing, corrupt, or version-mismatched file returns `null` (reset) with a visible warning — it never throws.
+[src/features/sorter/services/project-db.service.ts](../src/features/sorter/services/project-db.service.ts). Owns `.nata-sort-db.json` (schema `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`). Public surface: `initProjectDatabase`, `updateDatabaseAfterOperation`, `updateDatabaseFolders`, `updateDatabaseMode`, `updateDatabaseMetadata`, `loadProjectState`. All writes go through `enqueue()`/`writeChain`. The load path validates shape + version, then runs `sanitizeState()` which strips prototype-pollution keys (`__proto__`/`constructor`/`prototype`) via `safeRecord()` into `Object.create(null)` maps, bounds every collection (`MAX_SORTED_ENTRIES`/`MAX_METADATA_ENTRIES` = 100 000, `MAX_FOLDERS` = 1 000, operations sliced to 50), and coerces `moveMode`/`currentIndex` to safe defaults. A missing, corrupt, or version-mismatched file returns `null` (reset) with a visible warning — it never throws.
 
 ### 7.2 `exifService.ts` — metadata & chronology
 
@@ -353,7 +353,7 @@ Because the API is Chromium-only, `loadDirectory` guards on `"showDirectoryPicke
 
 ## 9. Persistence architecture (single-writer promise chain)
 
-The durable project state is one file, `nata-sort-db.json`, written **inside the opened folder**. Its shape (`CompleteProjectState`) holds: `version`, `folders[]`, `sortedPhotos` (keyed by **file name**), `moveMode`, `currentIndex`, `operations[]` (max 50), an optional `metadataCache`, `stats`, and a `timestamp`.
+The durable project state is one file, `.nata-sort-db.json`, written **inside the opened folder**. Its shape (`CompleteProjectState`) holds: `version`, `folders[]`, `sortedPhotos` (keyed by **file name**), `moveMode`, `currentIndex`, `operations[]` (max 50), an optional `metadataCache`, `stats`, and a `timestamp`.
 
 The central design decision is the **single-writer promise chain**:
 
@@ -576,7 +576,7 @@ For **public HTTPS**, terminate TLS at the platform edge (Cloudflare, a load bal
 | [`src/app/main.tsx`](../src/app/main.tsx) | Bootstrap: path normalization, SW registration, mount `StrictMode → ErrorBoundary → ThemeProvider → App` |
 | [`src/app/App.tsx`](../src/app/App.tsx) | The single view; composes all components, derives sorted/unsorted counts and "all sorted" |
 | [`src/features/sorter/hooks/useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts) | **Controller**: owns all session state, orchestrates loading, sorting, undo, decode, persistence |
-| [`src/features/sorter/services/project-db.service.ts`](../src/features/sorter/services/project-db.service.ts) | `nata-sort-db.json` read-modify-write via the single-writer chain; load-time sanitization |
+| [`src/features/sorter/services/project-db.service.ts`](../src/features/sorter/services/project-db.service.ts) | `.nata-sort-db.json` read-modify-write via the single-writer chain; load-time sanitization |
 | [`src/features/media/services/metadata.service.ts`](../src/features/media/services/metadata.service.ts) | Image EXIF + video mediainfo extraction; capture-date parsing; display formatters |
 | [`src/features/media/services/raw-decoder.service.ts`](../src/features/media/services/raw-decoder.service.ts) | RAW preview pipeline (embedded-JPEG scan + libraw fallback) |
 | [`src/features/media/config/file-formats.ts`](../src/features/media/config/file-formats.ts) | Format registry + `isSupportedImage`/`isPreviewable`/`getFileFormatInfo` |

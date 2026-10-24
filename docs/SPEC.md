@@ -68,7 +68,7 @@ See [§13 Non-goals](#13-non-goals). Broadly: no uploading, no recursion into su
 | **Sorted mapping** | The `{ fileName -> folderId }` record of which folder each file was filed into. |
 | **Operation** | A fully serializable, handle-free record of one sort action (`SortOperation`) shown in the operation log. |
 | **Undo stack** | An in-memory (non-persisted) stack of up to 20 reversible sort actions. |
-| **Project database** | A single JSON file, `nata-sort-db.json`, written inside the opened folder. Schema version `2.0`. |
+| **Project database** | A single JSON file, `.nata-sort-db.json`, written inside the opened folder. Schema version `2.0`. |
 | **Previewable** | A format flag indicating the browser can render the file directly in an `<img>`/`<video>` element. RAW and HEIC/HEIF are non-previewable (RAW is handled by a decoder; HEIC has no in-browser decode). |
 | **Embedded preview** | A JPEG image stored inside a RAW file by the camera, used as the fast/sharp preview source. |
 | **PWA** | Progressive Web App: the installable, offline-capable packaging of the app. |
@@ -258,7 +258,7 @@ Requirements are grouped by feature area. Each area lists behaviour, limits, and
 
 See [§6](#6-project-persistence--database) for the full state & persistence model. Summary:
 
-- **FR-DB-1.** A single JSON file, `nata-sort-db.json`, schema version `2.0`, is auto-created inside the opened folder on first open and updated after every state change.
+- **FR-DB-1.** A single JSON file, `.nata-sort-db.json`, schema version `2.0`, is auto-created inside the opened folder on first open and updated after every state change.
 - **FR-DB-2.** Persisted: sort folders, the per-file sort mapping (keyed by file **name**), the move mode, `currentIndex`, a recent operation log (max 50), a per-file metadata cache, stats, and a timestamp.
 - **FR-DB-3.** All writes are serialized (single promise chain) and use `createWritable → write → close`.
 - **FR-DB-4.** On load, the file is validated (shape + version) and **sanitized** (prototype-pollution stripping, size bounds, scalar coercion). A missing/corrupt/incompatible file is reset with a visible warning.
@@ -305,7 +305,7 @@ Owned by the controller hook [src/features/sorter/hooks/useFileSystem.ts](../src
 | `rawPreviewUrls`, `isDecodingRaw` | RAW preview cache & decode flag. | No |
 | `metadataByKey`, metadata cache | Lazily-extracted metadata. | Yes (metadata cache) |
 
-### 6.2 Persisted schema — `nata-sort-db.json`
+### 6.2 Persisted schema — `.nata-sort-db.json`
 
 Written inside the opened folder. Schema `version: "2.0"`. Shape (`CompleteProjectState`, see [src/features/sorter/services/project-db.service.ts](../src/features/sorter/services/project-db.service.ts) and [src/features/sorter/types/sorter.types.ts](../src/features/sorter/types/sorter.types.ts)):
 
@@ -342,7 +342,7 @@ The database file lives in a user-writable folder and is therefore treated as **
 
 ```mermaid
 flowchart TD
-    A[Read nata-sort-db.json] -->|missing| Z[Return null → fresh DB<br/>normal on first open]
+    A[Read .nata-sort-db.json] -->|missing| Z[Return null → fresh DB<br/>normal on first open]
     A -->|read ok| B[JSON.parse]
     B -->|throws| C["Warn: 'Database rusak, dibuat ulang' → reset"]
     B -->|ok| D[isValidState shape check]
@@ -369,7 +369,7 @@ flowchart TD
 
 **On restore**, additionally: sort folders whose directory no longer exists on disk are skipped (with a toast), and any mapping pointing at a missing folder is dropped. `currentIndex` is clamped to the current photo count.
 
-> Deleting `nata-sort-db.json` fully resets the project; the app recreates it on the next open.
+> Deleting `.nata-sort-db.json` fully resets the project; the app recreates it on the next open.
 
 ---
 
@@ -494,7 +494,7 @@ Each feature is accepted when its criteria hold. IDs cross-reference [§5](#5-fu
 
 ### Folder opening & scanning (5.1)
 
-- [ ] Opening a folder with mixed content lists **only** top-level supported images/videos; sub-folders, unsupported files, and `nata-sort-db.json` are excluded.
+- [ ] Opening a folder with mixed content lists **only** top-level supported images/videos; sub-folders, unsupported files, and `.nata-sort-db.json` are excluded.
 - [ ] Cancelling the picker returns to the empty state with **no** error shown.
 - [ ] Opening a second folder revokes prior blob URLs and clears the undo stack and queues.
 - [ ] An empty or all-unsupported folder keeps the pick-folder empty state.
@@ -544,7 +544,7 @@ Each feature is accepted when its criteria hold. IDs cross-reference [§5](#5-fu
 
 ### Persistence (5.9 / §6)
 
-- [ ] `nata-sort-db.json` (version `2.0`) is created on first open and updated after each change.
+- [ ] `.nata-sort-db.json` (version `2.0`) is created on first open and updated after each change.
 - [ ] A corrupt/invalid/incompatible DB is reset with a visible warning and never throws.
 - [ ] On load, prototype-pollution keys are stripped and collection sizes are bounded per the sanitization table.
 - [ ] Deleting the DB file resets the project; a folder removed on disk is skipped and its mappings dropped.

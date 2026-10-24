@@ -39,10 +39,10 @@ NATA is a **local-first, zero-backend** single-page app. Its security model foll
 | No server-side application logic | No server-side injection, SSRF, auth, or session surface. |
 | No network egress at runtime | A compromised page cannot exfiltrate the user's files — `connect-src 'self'` blocks it. |
 | Explicit, user-granted file access | The app only touches the folder the user picks in the OS dialog, and only after an explicit gesture. |
-| State stored beside the user's data | Project state lives in `nata-sort-db.json` **inside the chosen folder** — never in a cloud or shared store. |
+| State stored beside the user's data | Project state lives in `.nata-sort-db.json` **inside the chosen folder** — never in a cloud or shared store. |
 | Recent projects stay in the browser | The start screen's recent list (name, photo count, last update, directory handle) is kept in this browser's IndexedDB (`nata-recent-projects`, capped at 30). Handles are never written to the project DB, never leave the device, and are re-validated on read. Reopening one re-asks the browser for folder access; "Remove from recent" deletes only the list entry. |
 
-The remaining attack surface is the classic client-side one: malicious **media files** or a malicious **`nata-sort-db.json`** trying to crash/DoS the tab or pollute app state, cross-site attacks against the served page (XSS, clickjacking, framing), and supply-chain risk in dependencies. Each is addressed below.
+The remaining attack surface is the classic client-side one: malicious **media files** or a malicious **`.nata-sort-db.json`** trying to crash/DoS the tab or pollute app state, cross-site attacks against the served page (XSS, clickjacking, framing), and supply-chain risk in dependencies. Each is addressed below.
 
 ### Trust boundaries
 
@@ -50,7 +50,7 @@ The remaining attack surface is the classic client-side one: malicious **media f
 flowchart LR
   subgraph Untrusted
     IMG[Image / video / RAW bytes]
-    DB[nata-sort-db.json]
+    DB[.nata-sort-db.json]
     NET[The wider web]
   end
   subgraph Browser["Browser origin (sandboxed, cross-origin isolated)"]
@@ -155,7 +155,7 @@ All responses carry the full header set (verified live):
 | 1 | **High** + Moderate | `exifreader` DoS via crafted ICC `mluc` tag ([GHSA-h64w-w9pr-82m4](https://github.com/advisories/GHSA-h64w-w9pr-82m4)) and unbounded metadata decompression ([GHSA-rr89-w3h9-m66j](https://github.com/advisories/GHSA-rr89-w3h9-m66j)). ExifReader parses **untrusted user images**, so this was the most material finding. | Bump `exifreader` `^4.38.1 → ^4.41.0` (patched ≥ 4.39.0). |
 | 2 | Supply-chain | The `shadcn` **CLI** was listed under `dependencies`, pulling a large server-side tree (`hono`, `qs`, `js-yaml`, `@babel/core`, `@modelcontextprotocol/sdk`) into the **production** dependency graph. None of it ships in the browser bundle. | Move `shadcn` to `devDependencies` (still needed at build time for the `shadcn/tailwind.css` import in `globals.css`). |
 | 3 | Moderate/Low | Remaining **dev/build-only** transitive advisories (`hono`, `qs`, `js-yaml`, `@babel/core`, `vite` dev-server `fs.deny` bypass, `launch-editor`, `brace-expansion`). | Pin patched versions via `pnpm.overrides` and bump `vite` to `^8.1.4`. |
-| 4 | Hardening | Prototype-pollution / unbounded-memory risk when reading `nata-sort-db.json`. | `sanitizeState`/`safeRecord` (see §4.4). |
+| 4 | Hardening | Prototype-pollution / unbounded-memory risk when reading `.nata-sort-db.json`. | `sanitizeState`/`safeRecord` (see §4.4). |
 | 5 | Hardening | Folder-name input only blocked a few characters. | `validateFolderName` (see §4.4). |
 | 6 | Hardening | nginx image shipped the whole toolchain and ran as root. | Minimal non-root nginx runtime + hardened compose (see §6). |
 

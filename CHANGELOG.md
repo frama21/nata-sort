@@ -74,6 +74,11 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **The project state file is now hidden: `.nata-sort-db.json`** (was `nata-sort-db.json`), so it
+  no longer clutters the folder in a file manager. Projects saved under the old name
+  (`nata-sort-db.json`, `nata-photo-db.json`, `photo-sorter-db.json`) are still read and re-saved
+  under the new name on the next write; the old file is left in place. The help text says the file
+  is hidden.
 - **Page title, description, `<html lang>` and the PWA manifest are English by default**
   ("NATA — Local Photo & Video Sorter"), matching the app's English default language.
 - **Deployment is back on nginx, configured entirely in the `Dockerfile`.** The `server/` folder
