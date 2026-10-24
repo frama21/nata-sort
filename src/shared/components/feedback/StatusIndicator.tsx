@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next"
 import { CheckCircle2, XIcon, XCircle } from "lucide-react"
 
 import { Spinner } from "@/shared/components/ui/spinner"
-import { useStatusStore, type StatusItem } from "@/shared/stores/status.store"
+import { isActivityStatus, useStatusStore, type StatusItem } from "@/shared/stores/status.store"
 
 /** How long a success toast stays; errors stay until dismissed, loading until cleared. */
 const SUCCESS_MS = 3000
@@ -56,8 +56,10 @@ const Toast = ({ status }: { status: StatusItem }) => {
  */
 export const StatusIndicator = () => {
   const statuses = useStatusStore(s => s.statuses)
-  const errors = statuses.filter(s => s.type === "error")
-  const others = statuses.filter(s => s.type !== "error")
+  // File activity (sorting, saving, reading) lives in the top bar's ActivityIndicator instead.
+  const toasts = statuses.filter(s => !isActivityStatus(s))
+  const errors = toasts.filter(s => s.type === "error")
+  const others = toasts.filter(s => s.type !== "error")
 
   const region = (items: StatusItem[], live: "polite" | "assertive") => (
     <div role="status" aria-live={live} aria-atomic="false" className="flex flex-col gap-2">

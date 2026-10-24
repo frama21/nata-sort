@@ -1,4 +1,5 @@
 import { addStatus, clearStatus } from "@/shared/stores/status.store"
+import { beginSave, endSave } from "@/shared/stores/save.store"
 import { t } from "@/shared/i18n"
 
 import type { PhotoMetadata } from "@/features/media"
@@ -117,8 +118,10 @@ const mutateDatabase = async (
   dirHandle: FileSystemDirectoryHandle,
   patch: (current: CompleteProjectState) => Partial<CompleteProjectState>,
   errorMessage?: string
-): Promise<void> =>
-  enqueue(async () => {
+): Promise<void> => {
+  // Only writes the user can see count as "saving"; the silent metadata cache write doesn't.
+  if (errorMessage) beginSave()
+  return enqueue(async () => {
     try {
       const current = await loadProjectState(dirHandle)
       if (!current) return
@@ -135,7 +138,10 @@ const mutateDatabase = async (
     } finally {
       if (errorMessage) clearStatus()
     }
+  }).finally(() => {
+    if (errorMessage) endSave()
   })
+}
 
 /**
  * Update database after one or more sort operations. Pass no `operations` to

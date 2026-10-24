@@ -199,7 +199,7 @@ export const useFileSystem = (): FileSystemHook => {
       addStatus({
         type: "loading",
         message: t("toast.loadingProject"),
-        icon: "folder"
+        icon: "file"
       })
 
       try {
@@ -346,7 +346,7 @@ export const useFileSystem = (): FileSystemHook => {
         addStatus({
           type: "success",
           message: t("toast.projectLoaded"),
-          icon: "folder"
+          icon: "file"
         })
       } catch (err) {
         if (err instanceof Error && err.name !== "AbortError") {
@@ -354,7 +354,7 @@ export const useFileSystem = (): FileSystemHook => {
           addStatus({
             type: "error",
             message: t("toast.projectLoadFailed"),
-            icon: "folder"
+            icon: "file"
           })
         }
         setIsLoading(false)

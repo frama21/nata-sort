@@ -50,6 +50,19 @@ const tree = (page: Page) =>
     return list(await (await navigator.storage.getDirectory()).getDirectoryHandle(folder))
   }, FOLDER)
 
+test("sorting reports in the top bar status, not in a toast or the footer", async ({ page }) => {
+  const status = page.getByRole("banner").getByRole("status")
+  await expect(status).toHaveText("Saved")
+
+  await page.keyboard.press("1")
+  await expect(status).toHaveText("photo_1.png done")
+  // Only the top bar's live region carries it: no toast, and the footer has no save state.
+  await expect(page.getByRole("status").filter({ hasText: "photo_1.png done" })).toHaveCount(1)
+  await expect(page.locator("footer")).not.toContainText("Saved")
+  // It settles back to idle.
+  await expect(status).toHaveText("Saved")
+})
+
 test("copy keeps the original; a shortcut sorts and advances", async ({ page }) => {
   await page.keyboard.press("1")
   await expect(page.getByRole("img", { name: "photo_2.png" })).toBeVisible()
