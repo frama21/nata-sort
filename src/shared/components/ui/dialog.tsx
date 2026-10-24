@@ -125,8 +125,9 @@ function DialogContent({
       data-slot="dialog"
       aria-labelledby={dialog.titleId}
       aria-describedby={dialog.descriptionId}
-      // Escape and form[method=dialog] close the element natively; sync our state.
-      onClose={() => dialog.open && dialog.setOpen(false)}
+      // Escape and form[method=dialog] close the element natively; sync our state. React bubbles
+      // `close` through the component tree, so a dialog nested in this one must not close it too.
+      onClose={e => e.target === e.currentTarget && dialog.open && dialog.setOpen(false)}
       // The inner panel fills the dialog, so a click that lands on the <dialog>
       // itself can only be on the backdrop.
       onClick={e => e.target === e.currentTarget && dialog.setOpen(false)}
