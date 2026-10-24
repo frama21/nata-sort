@@ -204,8 +204,8 @@
 | F18 | Persistensi DB dan resume                          | Shipped      | `nata-photo-db.json`                                                  |
 | F19 | PWA / offline                                      | Shipped      | App shell + WASM di-precache                                         |
 | F20 | Tema terang/gelap ("Calm Light", aksen teal)       | Shipped      | Toggle 2 arah; default gelap (lihat 6.14 dan Bagian 14)              |
-| F21 | Halaman Bantuan (`/help`)                          | Shipped      | 5 kartu statis                                                       |
-| F22 | Dialog pintasan keyboard (`?`)                     | Shipped      |                                                                      |
+| F21 | Dialog Bantuan: tab Pintasan + Tentang (`?`)       | Shipped      | Menggantikan halaman `/help` (dihapus)                               |
+| F22 | Dialog pintasan keyboard (`?`)                     | Shipped      | Tab "Pintasan" pada dialog Bantuan                                   |
 | F23 | Mobile (bar aksi bawah, sheet panel, swipe, pinch) | Shipped      | Di bawah 1024 px panel folder/info jadi sheet                        |
 | F24 | Redo                                               | **Not built**| Backlog (FR-C1)                                                      |
 | F25 | Rename / template nama                             | **Not built**| Nama asli dipertahankan                                              |
@@ -335,7 +335,7 @@ Mode disimpan di DB dan dipilih lewat tab di `FolderManager`.
 - **Log operasi:** UI menampilkan 3 operasi terakhir (ikon centang hijau / silang merah); DB menyimpan hingga 50 (ring buffer). Tiap catatan: `photoName, folderId, folderName, mode, success, error?, timestamp`. Kartu disembunyikan bila kosong.
 - **Statistik:** total, tersortir, belum, operasi sukses/gagal. `ProgressBar` menampilkan "Foto n/total".
 - **Tema:** `dark | light | system`, **default dark**; disimpan di `localStorage["nata-sort-theme"]`; kelas `dark` pada `<html>`, dipasang sebelum cat pertama oleh `public/theme-init.js` (berkas same-origin, CSP tidak dilonggarkan; nilai tersimpan divalidasi, jatuh ke default gelap). `ThemeToggle` hanya membalik terang/gelap sehingga "system" tak bisa dipilih lagi dari UI setelah toggle; `system` dibaca sekali dan tidak mengikuti perubahan OS secara langsung.
-- **Halaman Bantuan (`/help`):** 5 kartu: Privasi, Persyaratan browser, Penyimpanan progres, Keamanan file, Pintasan keyboard.
+- **Dialog Bantuan:** tombol `?` (tooltip "Bantuan") membuka dialog dengan tiga tab: **Pintasan**, **Tentang** (Privasi, Persyaratan browser, Penyimpanan progres, Keamanan file) dan **Changelog** (timeline dari `CHANGELOG.md`, virtual scroll via `@tanstack/react-virtual`, dimuat lazy). Rute `/help` sudah dihapus; navigasi utama otomatis tersembunyi selama hanya ada satu rute.
 - **Toast:** `StatusIndicator` (kanan-bawah desktop, tengah-atas di phone); dua live region (polite, dan assertive untuk error); tidak mengambil fokus; jeda saat hover/fokus; sukses hilang dalam 3 detik, **error bertahan sampai ditutup**, loading sampai dibersihkan; toast kembar hanya tampil sekali; tombol tutup.
 - **Status bar (desktop ≥ 1024 px):** titik + kata "Tersimpan / Menyimpan… / Gagal menyimpan" (dari status berikon `db`), jumlah foto, sisa belum disortir, jumlah terpilih.
 - **Dialog pintasan:** tombol `?` di top bar membuka `ShortcutsDialog` (daftar hard-coded; tidak memuat `Esc`).
@@ -499,7 +499,6 @@ src/
   features/
     sorter/   rute "/"      (nav "Sortir", order 0)  — controller, service DB, util file, komponen UI (termasuk `StatusBar`)
     media/    tanpa UI/rute — registry format, metadata, dekoder RAW; API publik di index.ts
-    help/     rute "/help"  (judul "Bantuan", order 10)
   shared/     components/ui (primitif in-house), components/brand/NataMark, components/feedback/StatusIndicator (toast),
               i18n/ (en.json, id.json), lib/{utils.ts (cn), useMediaQuery.ts}, stores/status.store.ts, types/route.types.ts
   test/       setup.ts, global-mocks (mock File System Access)
@@ -1051,7 +1050,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | DB proyek                               | `src/features/sorter/services/project-db.service.ts`                                        |
 | Operasi file / validasi nama folder     | `src/features/sorter/utils/file-ops.utils.ts`, `folder-name.utils.ts`                       |
 | Format, metadata, dekoder RAW           | `src/features/media/config/file-formats.ts`, `services/metadata.service.ts`, `services/raw-decoder.service.ts` |
-| Halaman Bantuan                         | `src/features/help/pages/HelpPage.tsx`                                                      |
+| Dialog Bantuan (Pintasan + Tentang)     | `src/features/sorter/components/ShortcutsDialog.tsx`                                        |
 | Toast                                   | `src/shared/stores/status.store.ts`                                                         |
 | Tema dan token                          | `src/app/providers/ThemeProvider.tsx`, `src/app/styles/{tokens,globals}.css`, `public/theme-init.js`, `scripts/check-contrast.mjs` |
 | Mark dan ikon                           | `src/shared/components/brand/NataMark.tsx`, `public/{favicon.svg,icon.png,pwa-192x192.png,pwa-512x512.png,pwa-maskable-512x512.png}`, kit `docs/brand/` |

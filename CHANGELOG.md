@@ -4,8 +4,32 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Changelog tab in the Help dialog.** A third tab, **Changelog**, shows this file as a vertical
+  timeline (version, date, Added/Changed/Fixed/Security groups, rendered `code` and **bold**). The
+  list is virtualized with `@tanstack/react-virtual`, and the tab loads lazily on first open, so
+  the CHANGELOG text and the library stay out of the initial bundle.
+
+### Fixed
+
+- **Tooltips are never clipped or covered.** `WithTooltip` is now a native `popover` (top layer),
+  so panels with `overflow` no longer cut it off and it shows above modal dialogs. It opens above
+  the control by default, flips below when there is no room, and is clamped to the viewport;
+  Escape dismisses it and touch taps no longer leave it stuck open.
+- **Sort Folders panel breathing room.** Wider folder column (288 px), default card padding,
+  larger gaps between sections and roomier folder rows, so the mode tabs, shortcut hint and
+  action buttons no longer feel cramped or truncated.
+
 ### Changed
 
+- **Move-mode tabs say just "Copy" and "Cut".** The "(Duplicate)" / "(Move)" suffixes are gone
+  because the hint card under the tabs already explains each mode.
+- **Help moved into the `?` dialog.** The `/help` page and its nav link are gone; the top-bar
+  button is now called "Help" and opens a dialog with two tabs, **Shortcuts** and **About**
+  (privacy, browser requirements, saving progress, file safety). The main navigation hides itself
+  while only one view exists. The "leave this page?" e2e test was removed because no second
+  route is reachable from the UI any more; the blocker itself is unchanged.
 - **Redesign: "Calm Light" theme.** Pure-neutral surfaces, hairline borders, flat panels (no
   gradients, glass or blur), Inter Variable (self-hosted via `@fontsource-variable/inter`),
   a two-tone focus ring, calm 100–240 ms motion with `prefers-reduced-motion`, and dark as

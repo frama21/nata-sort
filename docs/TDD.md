@@ -83,7 +83,7 @@ flowchart LR
 | Bundler / dev server | Vite (rolldown) | `^8.1.4` | Build + HMR |
 | Styling | Tailwind CSS | `^4.2.4` | Utility CSS, OKLCH tokens |
 | Styling helpers | `tailwind-merge`, `clsx`, `class-variance-authority` | `^3.5.0` / `^2.1.1` / `^0.7.1` | Class merging, variants |
-| UI primitives | in-house (`src/shared/components/ui`) | — | Native `<dialog>`, ARIA tabs, CSS tooltip; no Radix |
+| UI primitives | in-house (`src/shared/components/ui`) | — | Native `<dialog>`, ARIA tabs, popover tooltip; no Radix |
 | i18n | `i18next`, `react-i18next`, `i18next-browser-languagedetector` | `^26.3.6` / `^17.0.10` / `^8.2.1` | English + Indonesian UI |
 | Icons | `lucide-react` | `^1.14.0` | Icon set |
 | State | `zustand` | `^5.0.13` | Transient status store |

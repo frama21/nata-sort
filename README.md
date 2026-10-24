@@ -95,8 +95,7 @@ src/
 ├── app/        # composition: providers, router + route discovery, layout, error boundary, styles
 ├── features/
 │   ├── sorter/ # the sorting workspace (route "/"): controller hook, components, project DB
-│   ├── media/  # format registry, metadata extraction, RAW decoding (no routes, public API in index.ts)
-│   └── help/   # static help page (route "/help")
+│   └── media/  # format registry, metadata extraction, RAW decoding (no routes, public API in index.ts)
 ├── shared/     # business-agnostic building blocks: UI primitives, i18n, status toasts, cn(), route types
 └── test/       # global test setup and test doubles (in-memory File System Access handles)
 ```
@@ -133,10 +132,10 @@ Each `routes.ts` exports `routes: FeatureRoute[]` (see `src/shared/types/route.t
 ```ts
 export const routes: FeatureRoute[] = [
   {
-    path: "/help",
-    lazy: () => import("./pages/HelpPage").then(m => ({ Component: m.HelpPage })),
-    title: "Bantuan", // document title
-    nav: { label: "Bantuan", order: 10 } // optional link in the main navigation
+    path: "/about",
+    lazy: () => import("./pages/AboutPage").then(m => ({ Component: m.AboutPage })),
+    title: "Tentang", // document title
+    nav: { label: "Tentang", order: 10 } // optional link in the main navigation
   }
 ]
 ```
@@ -160,14 +159,14 @@ routes with no registry to edit. A dev server picks this up on restart.
 2. If it has pages, add `routes.ts`.
 3. If other features need it, export a minimal public API from `index.ts`.
 4. Put its tests in `tests/unit-test/`, `tests/integration-test/`, or `tests/e2e-test/`.
-5. Add a `README.md` (copy `src/features/help/README.md` as a template).
+5. Add a `README.md` (copy `src/features/sorter/README.md` as a template).
 
 ### Removing a feature
 
 Delete its folder, then run `pnpm typecheck && pnpm check:architecture && pnpm test`.
 
-- **No dependents:** removing `help` or `sorter` needs no other change. Both
-  were verified this way, including the build and the remaining tests.
+- **No dependents:** removing `sorter` needs no other change. It was verified this way,
+  including the build and the remaining tests.
 - **Has dependents:** `sorter` depends on `media`, so deleting `media` fails at
   `tsc` and `check:architecture` with "unresolved import". It never fails
   silently at runtime. Each feature README lists its dependencies.

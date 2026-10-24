@@ -44,7 +44,7 @@ Folder colours are Tailwind palette classes stored in the project file (schema `
 
 | Region | ≥ 1024 px | < 1024 px |
 | --- | --- | --- |
-| Top bar | 48 px: mark + name · main views · help, language, theme | same, wordmark hidden < 640 px |
+| Top bar | 48 px: mark + name · main views (hidden while there is one) · help dialog, language, theme | same, wordmark hidden < 640 px |
 | Left | 248 px folders panel (`nav`) | sheet (opened by *Folders*) |
 | Centre | canvas: view toggle, viewer / grid, filmstrip | one column |
 | Right | 320 px details panel (`aside`): info, log, stats | bottom sheet (opened by *Info*) |
