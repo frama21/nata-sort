@@ -16,12 +16,12 @@ export const LanguageToggle = () => {
   return (
     <WithTooltip label={t("language.toggle")}>
       <Button
-        variant="outline"
+        variant="ghost"
         size="icon"
         aria-label={t("language.toggle")}
         onClick={() => i18n.changeLanguage(next)}
       >
-        <span aria-hidden className="font-mono text-xs font-bold tracking-tight">
+        <span aria-hidden className="text-xs font-semibold">
           {current.toUpperCase()}
         </span>
         <span className="sr-only">{t("language.toggle")}</span>

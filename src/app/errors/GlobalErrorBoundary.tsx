@@ -45,7 +45,7 @@ export class GlobalErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
           <Empty>
             <EmptyHeader>
               <EmptyMedia variant="icon" className="w-16 h-16 border-2">
-                <AlertTriangleIcon className="size-10 text-red-500" />
+                <AlertTriangleIcon className="size-10 text-destructive" />
               </EmptyMedia>
               <EmptyTitle>{t("error.title")}</EmptyTitle>
               <EmptyDescription>{this.state.error.message || t("error.description")}</EmptyDescription>

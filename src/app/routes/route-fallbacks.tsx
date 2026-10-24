@@ -66,7 +66,7 @@ export const RouteErrorBoundary = () => {
     <Empty className="h-[70dvh]" role="alert">
       <EmptyHeader>
         <EmptyMedia variant="icon" className="w-16 h-16 border-2">
-          <AlertTriangleIcon className="size-10 text-red-500" />
+          <AlertTriangleIcon className="size-10 text-destructive" />
         </EmptyMedia>
         <EmptyTitle>
           <h2>{t("route.error.title")}</h2>

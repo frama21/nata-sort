@@ -2,7 +2,7 @@ import { create } from "zustand"
 
 export type StatusType = "idle" | "loading" | "success" | "error"
 
-interface StatusItem {
+export interface StatusItem {
   id: string
   type: StatusType
   message: string
@@ -12,7 +12,9 @@ interface StatusItem {
 interface StatusState {
   statuses: StatusItem[]
   addStatus: (status: Omit<StatusItem, "id">) => void
-  /** Clears the transient "loading" toasts; success/error toasts auto-expire. */
+  /** Removes one status (a toast's dismiss button or its expiry timer). */
+  dismissStatus: (id: string) => void
+  /** Clears the transient "loading" toasts. Success toasts expire on their own; errors stay until dismissed. */
   clearStatus: () => void
 }
 
@@ -20,25 +22,15 @@ export const useStatusStore = create<StatusState>(set => ({
   statuses: [],
 
   addStatus: status =>
-    set(state => {
-      const newStatus: StatusItem = {
-        ...status,
-        id: crypto.randomUUID()
-      }
+    set(state => ({
+      // A duplicate is shown once: the repeat replaces the earlier copy (and restarts its timer).
+      statuses: [
+        { ...status, id: crypto.randomUUID() },
+        ...state.statuses.filter(s => !(s.type === status.type && s.message === status.message))
+      ].slice(0, 3)
+    })),
 
-      // Auto-remove success/error after 3 seconds
-      if (status.type === "success" || status.type === "error") {
-        setTimeout(() => {
-          set(s => ({
-            statuses: s.statuses.filter(item => item.id !== newStatus.id)
-          }))
-        }, 3000)
-      }
-
-      return {
-        statuses: [newStatus, ...state.statuses].slice(0, 3)
-      }
-    }),
+  dismissStatus: id => set(state => ({ statuses: state.statuses.filter(s => s.id !== id) })),
 
   clearStatus: () =>
     set(state => ({
