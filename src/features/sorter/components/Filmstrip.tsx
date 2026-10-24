@@ -18,7 +18,7 @@ interface FilmstripProps {
 
 /**
  * A horizontally scrollable strip of thumbnails for quick navigation and
- * selection. Keeps the current photo scrolled into view. Works the same on
+ * selection. Keeps the current photo centred in the strip. Works the same on
  * desktop and mobile (native horizontal scroll).
  */
 export const Filmstrip = ({
@@ -32,16 +32,27 @@ export const Filmstrip = ({
   onToggleSelect
 }: FilmstripProps) => {
   const { t } = useTranslation()
+  const viewportRef = useRef<HTMLDivElement>(null)
   const currentRef = useRef<HTMLLIElement | null>(null)
 
+  // Centre the current photo by scrolling the strip itself; scrollIntoView would also scroll
+  // the page, shifting the viewer on every step when the strip is below the fold.
   useEffect(() => {
-    currentRef.current?.scrollIntoView({ block: "nearest", inline: "center" })
+    const root = viewportRef.current
+    const el = currentRef.current
+    if (!root || !el) return
+    root.scrollLeft +=
+      el.getBoundingClientRect().left - root.getBoundingClientRect().left - (root.clientWidth - el.offsetWidth) / 2
   }, [currentIndex])
 
   if (photos.length === 0) return null
 
   return (
-    <ScrollArea orientation="horizontal" className="w-full rounded-md border border-border bg-surface">
+    <ScrollArea
+      orientation="horizontal"
+      viewportRef={viewportRef}
+      className="w-full rounded-md border border-border bg-surface"
+    >
       <ul aria-label={t("filmstrip.aria")} className="flex list-none gap-2 p-2">
         {photos.map((photo, i) => (
           <li key={photo.key} ref={i === currentIndex ? currentRef : undefined}>

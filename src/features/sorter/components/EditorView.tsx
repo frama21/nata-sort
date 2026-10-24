@@ -63,6 +63,12 @@ export const EditorView = ({ fs }: EditorViewProps) => {
   const currentRawPreview =
     currentPhoto && currentPhoto.format.category === "raw" ? fs.rawPreviewUrls.get(currentPhoto.key) || null : null
 
+  // Images are worth decoding ahead; video is not, and RAW has no URL until it is decoded.
+  const previewUrlAt = (index: number) => {
+    const p = fs.photos[index]
+    return p && p.format.category !== "video" ? p.url : null
+  }
+
   const onToggleSelect = (index: number, rangeSelect: boolean) =>
     rangeSelect ? fs.selectRangeTo(index) : fs.toggleSelect(index)
 
@@ -200,6 +206,8 @@ export const EditorView = ({ fs }: EditorViewProps) => {
                 currentFolder={fs.getCurrentFolder()}
                 rawPreviewUrl={currentRawPreview}
                 isDecodingRaw={fs.isDecodingRaw}
+                prevUrl={previewUrlAt(fs.currentIndex - 1)}
+                nextUrl={previewUrlAt(fs.currentIndex + 1)}
                 onNavigate={fs.navigatePhoto}
                 onJumpUnsorted={fs.jumpToNextUnsorted}
                 onUndo={fs.undoLastOperation}

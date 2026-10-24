@@ -55,6 +55,16 @@ export const GridView = ({
 
   const hasMore = visible < total
 
+  // Coming back from the single view, centre the grid on the current photo instead of the top.
+  // Scrolls the grid's own viewport only, so the page toolbar above never moves.
+  useEffect(() => {
+    const root = viewportRef.current
+    const el = root?.querySelector<HTMLElement>('[aria-current="true"]')
+    if (!root || !el) return
+    root.scrollTop +=
+      el.getBoundingClientRect().top - root.getBoundingClientRect().top - (root.clientHeight - el.offsetHeight) / 2
+  }, [])
+
   // Append the next page when the sentinel scrolls near the viewport bottom.
   useEffect(() => {
     if (!hasMore) return

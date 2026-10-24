@@ -20,6 +20,9 @@ interface ContentViewerProps {
   currentFolder: { name: string; color: string } | null
   rawPreviewUrl: string | null
   isDecodingRaw: boolean
+  /** Preview URLs of the neighbouring photos (null when none or not a plain image), decoded ahead of time. */
+  prevUrl: string | null
+  nextUrl: string | null
   onNavigate: (direction: "next" | "prev") => void
   onAssign: (index: number, shortcut: string) => void
   onJumpUnsorted: () => void
@@ -34,6 +37,8 @@ export const ContentViewer = ({
   currentFolder,
   rawPreviewUrl,
   isDecodingRaw,
+  prevUrl,
+  nextUrl,
   onNavigate,
   onAssign,
   onJumpUnsorted,
@@ -41,6 +46,16 @@ export const ContentViewer = ({
   onPreviewError
 }: ContentViewerProps) => {
   const { t } = useTranslation()
+
+  // Decode the neighbours while the user looks at this photo, so stepping to them shows no spinner.
+  useEffect(() => {
+    for (const url of [nextUrl, prevUrl]) {
+      if (!url) continue
+      const img = new Image()
+      img.src = url
+      img.decode().catch(() => {}) // a failed warm-up is not an error: the viewer retries on display
+    }
+  }, [prevUrl, nextUrl])
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgRetries, setImgRetries] = useState(0)
   const [trackedKey, setTrackedKey] = useState(photo?.key)
