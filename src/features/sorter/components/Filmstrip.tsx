@@ -34,6 +34,7 @@ export const Filmstrip = ({
   const { t } = useTranslation()
   const viewportRef = useRef<HTMLDivElement>(null)
   const currentRef = useRef<HTMLLIElement | null>(null)
+  const mounted = useRef(false)
 
   // Centre the current photo by scrolling the strip itself; scrollIntoView would also scroll
   // the page, shifting the viewer on every step when the strip is below the fold.
@@ -41,8 +42,15 @@ export const Filmstrip = ({
     const root = viewportRef.current
     const el = currentRef.current
     if (!root || !el) return
-    root.scrollLeft +=
-      el.getBoundingClientRect().left - root.getBoundingClientRect().left - (root.clientWidth - el.offsetWidth) / 2
+    const left =
+      root.scrollLeft +
+      el.getBoundingClientRect().left -
+      root.getBoundingClientRect().left -
+      (root.clientWidth - el.offsetWidth) / 2
+    // Glide while stepping; jump on first show and when the user asked for reduced motion.
+    const glide = mounted.current && !matchMedia("(prefers-reduced-motion: reduce)").matches
+    mounted.current = true
+    root.scrollTo({ left, behavior: glide ? "smooth" : "auto" })
   }, [currentIndex])
 
   if (photos.length === 0) return null
@@ -51,7 +59,7 @@ export const Filmstrip = ({
     <ScrollArea
       orientation="horizontal"
       viewportRef={viewportRef}
-      className="w-full rounded-md border border-border bg-surface"
+      className="w-full animate-fade-in rounded-md border border-border bg-surface"
     >
       <ul aria-label={t("filmstrip.aria")} className="flex list-none gap-2 p-2">
         {photos.map((photo, i) => (

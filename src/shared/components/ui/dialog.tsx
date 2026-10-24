@@ -88,12 +88,11 @@ function DialogClose({ onClick, ...props }: React.ComponentProps<"button">) {
 
 const DIALOG_SIDES = {
   center:
-    "m-auto max-w-[calc(100%-2rem)] rounded-lg open:animate-pop-in sm:max-w-lg max-sm:mb-0 max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-xl",
+    "m-auto max-w-[calc(100%-2rem)] rounded-lg sm:max-w-lg max-sm:mb-0 max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-xl",
   // Drawer / sheet: the same native <dialog>, docked to an edge.
   // Full width on phones; a 360px drawer once there is room beside the page.
-  left: "mr-auto ml-0 h-dvh max-h-dvh w-full max-w-full rounded-none border-0 open:animate-slide-in-left sm:w-[360px]",
-  bottom:
-    "mt-auto mb-0 max-h-[85dvh] max-w-full rounded-t-xl rounded-b-none border-b-0 open:animate-slide-in-bottom"
+  left: "mr-auto ml-0 h-dvh max-h-dvh w-full max-w-full rounded-none border-0 sm:w-[360px]",
+  bottom: "mt-auto mb-0 max-h-[85dvh] max-w-full rounded-t-xl rounded-b-none border-b-0"
 } as const
 
 /** The modal itself. Closes on Escape, on a backdrop click, or via the close button. */
@@ -123,6 +122,7 @@ function DialogContent({
     <dialog
       ref={ref}
       data-slot="dialog"
+      data-side={side}
       aria-labelledby={dialog.titleId}
       aria-describedby={dialog.descriptionId}
       // Escape and form[method=dialog] close the element natively; sync our state. React bubbles

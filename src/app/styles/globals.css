@@ -47,12 +47,22 @@
   --color-input: var(--border-strong);
   --color-ring: var(--accent);
 
-  --animate-rise: rise var(--dur-slow) var(--ease) backwards;
-  --animate-page-enter: page-enter var(--dur-slow) var(--ease) backwards;
-  --animate-fade-in: fade-in var(--dur-base) var(--ease) backwards;
-  --animate-pop-in: pop-in var(--dur-slow) var(--ease) backwards;
-  --animate-slide-in-left: slide-in-left var(--dur-slow) var(--ease) backwards;
-  --animate-slide-in-bottom: slide-in-bottom var(--dur-slow) var(--ease) backwards;
+  --animate-rise: rise var(--dur-slow) var(--ease-out) backwards;
+  --animate-page-enter: page-enter var(--dur-slow) var(--ease-out) backwards;
+  --animate-fade-in: fade-in var(--dur-base) var(--ease-out) backwards;
+  --animate-pop-in: pop-in var(--dur-slow) var(--ease-out) backwards;
+  --animate-slide-in-bottom: slide-in-bottom var(--dur-slow) var(--ease-out) backwards;
+  /* Welcome to workspace: the side panels glide in from their edges, the welcome screen lifts away. */
+  --animate-slide-in-left: slide-in-left var(--dur-xl) var(--ease-out) backwards;
+  --animate-slide-in-right: slide-in-right var(--dur-xl) var(--ease-out) backwards;
+  --animate-rise-lg: rise-lg var(--dur-xl) var(--ease-out) backwards;
+  --animate-welcome-out: welcome-out var(--dur-slow) var(--ease-in) forwards;
+  /* Closing a project: the mirror image of opening one. */
+  --animate-slide-out-left: slide-out-left var(--dur-slow) var(--ease-in) forwards;
+  --animate-slide-out-right: slide-out-right var(--dur-slow) var(--ease-in) forwards;
+  --animate-sink: sink var(--dur-slow) var(--ease-in) forwards;
+  --animate-slide-out-bottom: slide-out-bottom var(--dur-slow) var(--ease-in) forwards;
+  --animate-toast-out: toast-out var(--dur-base) var(--ease-in) forwards;
   --animate-shimmer: shimmer 1.5s linear infinite;
 }
 
@@ -112,7 +122,7 @@
     overflow: hidden;
     background: var(--skeleton-base);
     border-radius: var(--radius-md);
-    animation: fade-in var(--dur-base) var(--ease) 150ms backwards;
+    animation: fade-in var(--dur-base) var(--ease-out) 150ms backwards;
   }
   .skeleton::after {
     content: "";
@@ -151,12 +161,59 @@
   }
 }
 
+/* Dialogs, drawers and sheets (native <dialog>): they animate in AND out. `@starting-style` gives the
+   entry its start state; `display`/`overlay` with `allow-discrete` keep the element and its backdrop
+   on screen while the exit transition runs (Chromium 117+; elsewhere the close is just instant). */
+dialog[data-slot="dialog"] {
+  --dialog-offset: scale(0.96);
+  opacity: 0;
+  transform: var(--dialog-offset);
+  transition:
+    opacity var(--dur-base) var(--ease-in),
+    transform var(--dur-base) var(--ease-in),
+    overlay var(--dur-base) allow-discrete,
+    display var(--dur-base) allow-discrete;
+}
+dialog[data-slot="dialog"][data-side="left"] {
+  --dialog-offset: translateX(-16px);
+}
+dialog[data-slot="dialog"][data-side="bottom"] {
+  --dialog-offset: translateY(16px);
+}
+dialog[data-slot="dialog"][open] {
+  opacity: 1;
+  transform: none; /* a lingering transform would trap `position: fixed` descendants */
+  transition-duration: var(--dur-slow);
+  transition-timing-function: var(--ease-out);
+}
+dialog[data-slot="dialog"]::backdrop {
+  opacity: 0;
+  transition:
+    opacity var(--dur-base) var(--ease-in),
+    overlay var(--dur-base) allow-discrete,
+    display var(--dur-base) allow-discrete;
+}
+dialog[data-slot="dialog"][open]::backdrop {
+  opacity: 1;
+  transition-duration: var(--dur-slow);
+  transition-timing-function: var(--ease-out);
+}
+@starting-style {
+  dialog[data-slot="dialog"][open] {
+    opacity: 0;
+    transform: var(--dialog-offset);
+  }
+  dialog[data-slot="dialog"][open]::backdrop {
+    opacity: 0;
+  }
+}
+
 /* Only opacity and transform animate. `backwards` fill keeps no transform after the end
    (a lingering transform would trap `position: fixed` descendants). */
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px);
   }
 }
 @keyframes page-enter {
@@ -174,7 +231,49 @@
 @keyframes slide-in-left {
   from {
     opacity: 0;
-    transform: translateX(-12px);
+    transform: translateX(-40px);
+  }
+}
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+@keyframes slide-out-left {
+  to {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+}
+@keyframes slide-out-right {
+  to {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+@keyframes sink {
+  to {
+    opacity: 0;
+    transform: translateY(20px) scale(0.985);
+  }
+}
+@keyframes slide-out-bottom {
+  to {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+@keyframes rise-lg {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.985);
+  }
+}
+@keyframes welcome-out {
+  to {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.97);
   }
 }
 @keyframes slide-in-bottom {
@@ -186,6 +285,12 @@
 @keyframes fade-in {
   from {
     opacity: 0;
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px);
   }
 }
 @keyframes shimmer {
@@ -204,5 +309,17 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* A frozen spinner reads as a hang. Swap the rotation for a gentle opacity pulse so
+     "working" stays visible without movement. */
+  .animate-spin {
+    animation: spinner-pulse 1.5s ease-in-out infinite !important;
+  }
+
+  @keyframes spinner-pulse {
+    50% {
+      opacity: 0.35;
+    }
   }
 }

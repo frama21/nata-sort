@@ -7,22 +7,32 @@ import { isActivityStatus, useStatusStore, type StatusItem } from "@/shared/stor
 
 /** How long a success toast stays; errors stay until dismissed, loading until cleared. */
 const SUCCESS_MS = 3000
+/** How long the exit animation runs before the toast is removed (matches `--dur-base`). */
+const EXIT_MS = 200
 
 const Toast = ({ status }: { status: StatusItem }) => {
   const { t } = useTranslation()
   const dismiss = useStatusStore(s => s.dismissStatus)
   // Hover or keyboard focus inside the toast pauses its expiry.
   const [paused, setPaused] = useState(false)
+  // Set when dismissal starts: the toast plays its exit, then is removed.
+  const [leaving, setLeaving] = useState(false)
 
   useEffect(() => {
-    if (status.type !== "success" || paused) return
-    const timer = setTimeout(() => dismiss(status.id), SUCCESS_MS)
+    if (status.type !== "success" || paused || leaving) return
+    const timer = setTimeout(() => setLeaving(true), SUCCESS_MS)
     return () => clearTimeout(timer)
-  }, [status.id, status.type, paused, dismiss])
+  }, [status.type, paused, leaving])
+
+  useEffect(() => {
+    if (!leaving) return
+    const timer = setTimeout(() => dismiss(status.id), EXIT_MS)
+    return () => clearTimeout(timer)
+  }, [leaving, status.id, dismiss])
 
   return (
     <div
-      className="pointer-events-auto flex max-w-full items-center gap-2 rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm shadow-e1 animate-fade-in"
+      className={`pointer-events-auto flex max-w-full items-center gap-2 rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm shadow-e1 ${leaving ? "animate-toast-out" : "animate-slide-in-bottom"}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -38,7 +48,7 @@ const Toast = ({ status }: { status: StatusItem }) => {
       {status.type !== "loading" && (
         <button
           type="button"
-          onClick={() => dismiss(status.id)}
+          onClick={() => setLeaving(true)}
           aria-label={t("common.close")}
           className="-my-1 -mr-1 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground pointer-coarse:size-11"
         >

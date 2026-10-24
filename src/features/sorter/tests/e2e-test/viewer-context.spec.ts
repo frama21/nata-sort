@@ -8,12 +8,13 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(folder => {
     window.showDirectoryPicker = async () =>
       (await navigator.storage.getDirectory()).getDirectoryHandle(folder, { create: true })
-    // Record which URLs the viewer decodes ahead of time.
+    // Record which URLs the viewer decodes ahead of time. The warm-up uses detached `new Image()`s; the
+    // displayed image also calls decode() (to fade in once it can paint), which is not a warm-up.
     const decoded: string[] = []
     ;(window as unknown as { __decoded: string[] }).__decoded = decoded
     const decode = HTMLImageElement.prototype.decode
     HTMLImageElement.prototype.decode = function () {
-      decoded.push(this.src)
+      if (!this.isConnected) decoded.push(this.src)
       return decode.call(this)
     }
   }, FOLDER)
@@ -73,11 +74,16 @@ test.describe("on a short screen", () => {
 
     // The filmstrip scrolls sideways inside itself; it must not scroll the page.
     expect(await main.evaluate(el => el.scrollTop)).toBe(0)
-    const inView = await page.getByRole("button", { name: "View photo_016.png" }).evaluate(el => {
-      const strip = el.closest('[data-slot="scroll-area-viewport"]')!.getBoundingClientRect()
-      const thumb = el.getBoundingClientRect()
-      return thumb.left >= strip.left - 1 && thumb.right <= strip.right + 1
-    })
-    expect(inView).toBe(true)
+    // The strip glides to the current photo, so wait for it to settle.
+    await expect
+      .poll(() =>
+        page.getByRole("button", { name: "View photo_016.png" }).evaluate(el => {
+          const strip = el.closest('[data-slot="scroll-area-viewport"]')!.getBoundingClientRect()
+          const thumb = el.getBoundingClientRect()
+          return thumb.left >= strip.left - 1 && thumb.right <= strip.right + 1
+        })
+      )
+      .toBe(true)
+    expect(await main.evaluate(el => el.scrollTop)).toBe(0)
   })
 })

@@ -87,7 +87,7 @@ export const GridView = ({
   return (
     <ScrollArea
       viewportRef={viewportRef}
-      className="h-[72dvh] rounded-md border border-border bg-surface lg:h-auto lg:min-h-0 lg:flex-1"
+      className="h-[72dvh] animate-fade-in rounded-md border border-border bg-surface lg:h-auto lg:min-h-0 lg:flex-1"
     >
       <div className="grid grid-cols-3 gap-2 p-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
         {photos.slice(0, visible).map((photo, i) => (

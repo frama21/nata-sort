@@ -198,7 +198,7 @@ export const FolderManager = ({
             {folders.map(folder => (
               <li
                 key={folder.id}
-                className="group flex items-center gap-2.5 rounded-md border border-border p-2.5 transition-colors duration-(--dur-fast) hover:bg-surface-hover"
+                className="group flex animate-rise items-center gap-2.5 rounded-md border border-border p-2.5 transition-colors duration-(--dur-fast) hover:bg-surface-hover"
               >
                 <WithTooltip label={t("folder.editShortcutTitle")}>
                   <button
