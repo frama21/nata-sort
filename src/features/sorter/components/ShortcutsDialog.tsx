@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 import { CircleHelp } from "lucide-react"
 
 import { buttonVariants } from "@/shared/components/ui/button"
@@ -11,10 +12,16 @@ import {
   DialogTrigger
 } from "@/shared/components/ui/dialog"
 import { Kbd, KbdGroup } from "@/shared/components/ui/kbd"
+import { WithTooltip } from "@/shared/components/ui/tooltip"
 
 interface Shortcut {
   keys: ReactNode
-  label: string
+  labelKey: string
+}
+
+const ClickHint = () => {
+  const { t } = useTranslation()
+  return <span className="text-xs text-muted-foreground">{t("shortcuts.click")}</span>
 }
 
 const SHORTCUTS: Shortcut[] = [
@@ -26,7 +33,7 @@ const SHORTCUTS: Shortcut[] = [
         <Kbd>9</Kbd>
       </>
     ),
-    label: "Sortir foto ke folder 1–9"
+    labelKey: "shortcuts.sortToFolder"
   },
   {
     keys: (
@@ -35,10 +42,10 @@ const SHORTCUTS: Shortcut[] = [
         <Kbd>→</Kbd>
       </>
     ),
-    label: "Foto sebelumnya / selanjutnya"
+    labelKey: "shortcuts.navPhotos"
   },
-  { keys: <Kbd>Space</Kbd>, label: "Foto selanjutnya" },
-  { keys: <Kbd>U</Kbd>, label: "Lompat ke foto belum disortir" },
+  { keys: <Kbd>Space</Kbd>, labelKey: "shortcuts.nextPhoto" },
+  { keys: <Kbd>U</Kbd>, labelKey: "shortcuts.jumpUnsorted" },
   {
     keys: (
       <KbdGroup>
@@ -46,7 +53,7 @@ const SHORTCUTS: Shortcut[] = [
         <Kbd>Z</Kbd>
       </KbdGroup>
     ),
-    label: "Batalkan (undo) aksi terakhir"
+    labelKey: "shortcuts.undo"
   },
   {
     keys: (
@@ -55,51 +62,52 @@ const SHORTCUTS: Shortcut[] = [
         <Kbd>A</Kbd>
       </KbdGroup>
     ),
-    label: "Pilih / batal pilih semua (mode grid)"
+    labelKey: "shortcuts.selectAll"
   },
   {
     keys: (
       <span className="flex items-center gap-1">
         <Kbd>Shift</Kbd>
-        <span className="text-xs text-muted-foreground">+ Klik</span>
+        <ClickHint />
       </span>
     ),
-    label: "Pilih / batal pilih rentang (grid / filmstrip)"
+    labelKey: "shortcuts.rangeSelect"
   }
 ]
 
 /**
  * A help button (?) that opens a dialog listing the keyboard shortcuts, rendered
- * with the Kbd component. Lives in the sorter toolbar.
+ * with the Kbd component. Lives in the navbar.
  */
 export const ShortcutsDialog = () => {
+  const { t } = useTranslation()
+
   return (
     <Dialog>
-      <DialogTrigger
-        className={buttonVariants({ variant: "outline", size: "icon" })}
-        aria-label="Pintasan keyboard"
-      >
-        <CircleHelp className="h-[1.2rem] w-[1.2rem]" />
-      </DialogTrigger>
+      <WithTooltip label={t("shortcuts.triggerAria")}>
+        <DialogTrigger
+          className={buttonVariants({ variant: "outline", size: "icon" })}
+          aria-label={t("shortcuts.triggerAria")}
+        >
+          <CircleHelp className="h-[1.2rem] w-[1.2rem]" />
+        </DialogTrigger>
+      </WithTooltip>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Pintasan Keyboard</DialogTitle>
-          <DialogDescription>Percepat menyortir dengan pintasan berikut.</DialogDescription>
+          <DialogTitle>{t("shortcuts.title")}</DialogTitle>
+          <DialogDescription>{t("shortcuts.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-2.5">
           {SHORTCUTS.map(s => (
-            <div key={s.label} className="flex items-center justify-between gap-4">
-              <span className="text-sm">{s.label}</span>
+            <div key={s.labelKey} className="flex items-center justify-between gap-4">
+              <span className="text-sm">{t(s.labelKey)}</span>
               <span className="flex shrink-0 items-center gap-1">{s.keys}</span>
             </div>
           ))}
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Di perangkat sentuh, geser kiri/kanan untuk berpindah foto. <Kbd>Ctrl</Kbd> menjadi <Kbd>⌘</Kbd> di
-          macOS. Pintasan diabaikan saat mengetik di kolom teks.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("shortcuts.footer")}</p>
       </DialogContent>
     </Dialog>
   )

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+
 import { Field, FieldLabel } from "@/shared/components/ui/field"
 import { Progress } from "@/shared/components/ui/progress"
 
@@ -8,6 +10,7 @@ interface ProgressBarProps {
 }
 
 export const ProgressBar = ({ current, total, sorted }: ProgressBarProps) => {
+  const { t } = useTranslation()
   const safeTotal = Math.max(total, 1)
   const progress = ((current + 1) / safeTotal) * 100
   const sortedProgress = (sorted / safeTotal) * 100
@@ -16,18 +19,16 @@ export const ProgressBar = ({ current, total, sorted }: ProgressBarProps) => {
     <div className="flex flex-row w-full gap-5">
       <Field className="w-full">
         <FieldLabel htmlFor="progress-photo">
-          <span>
-            Foto {Math.min(current + 1, total)}/{total}
-          </span>
+          <span>{t("progress.photo", { current: Math.min(current + 1, total), total })}</span>
         </FieldLabel>
-        <Progress value={Math.min(progress, 100)} id="progress-photo" aria-label="Progres foto" />
+        <Progress value={Math.min(progress, 100)} id="progress-photo" aria-label={t("progress.photoAria")} />
       </Field>
 
       <Field className="w-full">
         <FieldLabel htmlFor="progress-sort">
-          <span className="ml-auto">{sorted} disortir</span>
+          <span className="ml-auto">{t("progress.sorted", { count: sorted })}</span>
         </FieldLabel>
-        <Progress value={Math.min(sortedProgress, 100)} id="progress-sort" aria-label="Progres sortir" />
+        <Progress value={Math.min(sortedProgress, 100)} id="progress-sort" aria-label={t("progress.sortAria")} />
       </Field>
     </div>
   )

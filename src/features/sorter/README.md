@@ -2,7 +2,7 @@
 
 The sorting workspace. The user opens a local folder, previews each photo or
 video, and copies or moves it into sort folders with keyboard shortcuts. The
-project state is saved to `nata-sort-db.json` inside that folder.
+project state is saved to `nata-photo-db.json` inside that folder.
 
 | | |
 | --- | --- |

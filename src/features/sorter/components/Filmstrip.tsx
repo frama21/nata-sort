@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Thumbnail } from "./Thumbnail"
 import { ScrollArea } from "@/shared/components/ui/scroll-area"
@@ -30,6 +31,7 @@ export const Filmstrip = ({
   onOpen,
   onToggleSelect
 }: FilmstripProps) => {
+  const { t } = useTranslation()
   const currentRef = useRef<HTMLLIElement | null>(null)
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export const Filmstrip = ({
 
   return (
     <ScrollArea orientation="horizontal" className="w-full rounded-lg border bg-card">
-      <ul aria-label="Filmstrip foto" className="flex list-none gap-2 p-2">
+      <ul aria-label={t("filmstrip.aria")} className="flex list-none gap-2 p-2">
         {photos.map((photo, i) => (
           <li key={photo.key} ref={i === currentIndex ? currentRef : undefined}>
             <Thumbnail

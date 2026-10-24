@@ -1,3 +1,5 @@
+import { t } from "@/shared/i18n"
+
 // ============================================================
 // Filesystem name safety
 //
@@ -35,7 +37,7 @@ export type NameValidation = { ok: true; name: string } | { ok: false; reason: s
 
 /**
  * Validate a user-entered folder name. Returns the trimmed name on success or
- * a human-readable (Indonesian) reason on failure.
+ * a human-readable, localized reason (via i18n) on failure.
  * @param raw Untrusted name as typed by the user.
  * @returns The trimmed name, or the reason it was rejected.
  */
@@ -43,31 +45,22 @@ export const validateFolderName = (raw: string): NameValidation => {
   const name = raw.trim()
 
   if (!name) {
-    return { ok: false, reason: "Nama folder tidak boleh kosong" }
+    return { ok: false, reason: t("folderName.empty") }
   }
   if (name.length > MAX_NAME_LENGTH) {
-    return {
-      ok: false,
-      reason: `Nama folder maksimal ${MAX_NAME_LENGTH} karakter`
-    }
+    return { ok: false, reason: t("folderName.tooLong", { max: MAX_NAME_LENGTH }) }
   }
   if (name === "." || name === "..") {
-    return { ok: false, reason: "Nama folder tidak valid" }
+    return { ok: false, reason: t("folderName.invalid") }
   }
   if (ILLEGAL_NAME_CHARS.test(name) || hasControlChar(name)) {
-    return {
-      ok: false,
-      reason: 'Nama folder tidak boleh mengandung \\ / : * ? " < > | atau karakter kontrol'
-    }
+    return { ok: false, reason: t("folderName.illegalChars") }
   }
   if (/[. ]$/.test(name)) {
-    return {
-      ok: false,
-      reason: "Nama folder tidak boleh diakhiri dengan titik atau spasi"
-    }
+    return { ok: false, reason: t("folderName.trailing") }
   }
   if (RESERVED_WINDOWS_NAMES.test(name)) {
-    return { ok: false, reason: `"${name}" adalah nama yang dicadangkan sistem` }
+    return { ok: false, reason: t("folderName.reserved", { name }) }
   }
 
   return { ok: true, name }

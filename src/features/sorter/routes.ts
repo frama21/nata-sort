@@ -4,6 +4,6 @@ export const routes: FeatureRoute[] = [
   {
     path: "/",
     lazy: () => import("./pages/SorterPage").then(m => ({ Component: m.SorterPage })),
-    nav: { label: "Sortir", order: 0 }
+    nav: { label: "nav.sorter", order: 0 }
   }
 ]

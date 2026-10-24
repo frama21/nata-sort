@@ -1,7 +1,9 @@
+import { useTranslation } from "react-i18next"
 import { Check, X, Scissors, Copy, Logs } from "lucide-react"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card"
-import { Item, ItemMedia, ItemGroup, ItemContent, ItemDescription, ItemTitle } from "@/shared/components/ui/item"
+import { Card, CardContent } from "@/shared/components/ui/card"
+import { PanelHeader } from "@/shared/components/ui/panel-header"
+import { cn } from "@/shared/lib/utils"
 
 import type { SortOperation } from "../types/sorter.types"
 
@@ -10,54 +12,51 @@ interface OperationLogProps {
 }
 
 export const OperationLog = ({ operations }: OperationLogProps) => {
+  const { t } = useTranslation()
+
   if (operations.length === 0) return null
 
   const recentOps = operations.slice(-3).reverse()
 
   return (
     <Card size="sm" className="w-full">
-      <CardHeader>
-        <CardTitle className="flex flex-row items-center gap-3">
-          <Logs className="w-6 h-6" />
-          <span className="text-xl font-bold"> Log Operasi Terakhir</span>
-        </CardTitle>
-      </CardHeader>
+      <PanelHeader icon={<Logs />} title={t("log.title")} subtitle={t("log.subtitle")} />
       <CardContent>
-        <div className="flex flex-col items-center pt-3 pb-5">
-          <ItemGroup className="gap-5">
-            {recentOps.map(op => (
-              <Item
-                key={op.timestamp}
-                variant="outline"
-                role="listitem"
-                className={`flex items-center ${
-                  op.success ? "bg-green-500/10 border border-green-700" : "bg-red-500/10 border border-red-700"
-                }`}
+        <ul className="flex flex-col gap-2">
+          {recentOps.map(op => (
+            <li
+              key={op.timestamp}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border border-l-[3px] bg-muted/20 px-3 py-2.5 transition-colors",
+                op.success
+                  ? "border-emerald-600/30 border-l-emerald-500"
+                  : "border-destructive/30 border-l-destructive"
+              )}
+            >
+              <span
+                className={cn(
+                  "grid size-7 shrink-0 place-items-center rounded-lg",
+                  op.success
+                    ? "bg-emerald-500/15 text-emerald-500 dark:text-emerald-400"
+                    : "bg-destructive/15 text-destructive"
+                )}
               >
-                <ItemMedia>
-                  {op.success ? (
-                    <Check className="text-green-500 size-10" />
-                  ) : (
-                    <X className="text-red-500 size-10" />
-                  )}
-                </ItemMedia>
-                <ItemContent>
-                  <ItemTitle className="line-clamp-1">{op.photoName}</ItemTitle>
-                  <ItemDescription>
-                    <span className="flex items-center gap-1">
-                      {op.mode === "cut" ? <Scissors className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                      <span className="line-clamp-1">
-                        {op.success
-                          ? `${op.mode === "cut" ? "Cut" : "Copy"} → ${op.folderName}`
-                          : op.error || "Gagal"}
-                      </span>
-                    </span>
-                  </ItemDescription>
-                </ItemContent>
-              </Item>
-            ))}
-          </ItemGroup>
-        </div>
+                {op.success ? <Check className="size-4" /> : <X className="size-4" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-mono text-xs font-medium">{op.photoName}</p>
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  {op.mode === "cut" ? <Scissors className="size-3" /> : <Copy className="size-3" />}
+                  <span className="truncate">
+                    {op.success
+                      ? `${op.mode === "cut" ? t("batch.verbMove") : t("batch.verbCopy")} → ${op.folderName}`
+                      : op.error || t("log.failed")}
+                  </span>
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   )

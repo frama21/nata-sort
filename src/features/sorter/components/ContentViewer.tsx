@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { ChevronLeft, ChevronRight, Check, AlertCircle, FileImage, ZoomIn, ZoomOut, Maximize } from "lucide-react"
 
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/components/ui/empty"
@@ -6,13 +7,12 @@ import { Spinner } from "@/shared/components/ui/spinner"
 import { Card, CardHeader } from "@/shared/components/ui/card"
 import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
+import { WithTooltip } from "@/shared/components/ui/tooltip"
 import { useZoomPan } from "../hooks/useZoomPan"
 import { cn } from "@/shared/lib/utils"
+import { isReservedShortcutKey } from "../utils/shortcut.utils"
 import type { PhotoFile } from "../types/sorter.types"
-
-// Desktop hover magnifier ("loupe").
-const LOUPE_SIZE = 176
-const LOUPE_ZOOM = 2.5
+import { LOUPE_SIZE, LOUPE_ZOOM } from "../constants/sorter.constants"
 
 interface ContentViewerProps {
   photo: PhotoFile | null
@@ -41,6 +41,7 @@ export const ContentViewer = ({
   onUndo,
   onPreviewError
 }: ContentViewerProps) => {
+  const { t } = useTranslation()
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgRetries, setImgRetries] = useState(0)
   const [trackedKey, setTrackedKey] = useState(photo?.key)
@@ -118,7 +119,13 @@ export const ContentViewer = ({
 
       if (e.key === "ArrowRight") onNavigate("next")
       if (e.key === "ArrowLeft") onNavigate("prev")
-      if (e.key >= "1" && e.key <= "9") onAssign(currentIndex, e.key)
+      // Any non-reserved key (no modifier — combos returned above) may be a
+      // customizable folder shortcut; the parent resolves it to a folder and
+      // ignores keys not bound to one. Reserved keys (Space, U, arrows, Esc…) are
+      // fixed actions, so they're excluded.
+      if (!isReservedShortcutKey(e.key)) {
+        onAssign(currentIndex, e.key.toLowerCase())
+      }
       if (e.key === " ") {
         e.preventDefault()
         onNavigate("next")
@@ -142,7 +149,7 @@ export const ContentViewer = ({
       <div className="flex items-center justify-center h-[50vh] md:h-[70vh] bg-card rounded-2xl border border-border">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-400 text-sm">Tidak ada foto untuk ditampilkan</p>
+          <p className="text-gray-400 text-sm">{t("viewer.noPhoto")}</p>
         </div>
       </div>
     )
@@ -167,7 +174,7 @@ export const ContentViewer = ({
                     variant="secondary"
                     className="bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300"
                   >
-                    Belum di sortir
+                    {t("viewer.notSorted")}
                   </Badge>
                 )}
               </div>
@@ -190,15 +197,15 @@ export const ContentViewer = ({
                   {...zoomHandlers}
                 >
                   {!imgLoaded && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Spinner className="size-10" />
+                    <div className="absolute inset-0 skeleton rounded-none flex items-center justify-center">
+                      <Spinner className="size-8 opacity-70" />
                     </div>
                   )}
                   <img
                     ref={imgRef}
                     key={photo.key}
                     src={displayUrl!}
-                    alt={photo.name || "Pratinjau foto"}
+                    alt={photo.name || t("viewer.photoPreviewAlt")}
                     className="w-full max-h-[75vh] object-contain will-change-transform"
                     style={{ transform: transform }}
                     draggable={false}
@@ -244,48 +251,56 @@ export const ContentViewer = ({
                     onTouchStart={e => e.stopPropagation()}
                     onDoubleClick={e => e.stopPropagation()}
                   >
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      className="text-white hover:bg-white/20"
-                      aria-label="Perkecil"
-                      disabled={!isZoomed}
-                      onClick={zoomOut}
-                    >
-                      <ZoomOut className="size-4" />
-                    </Button>
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      className="text-white hover:bg-white/20"
-                      aria-label="Reset zoom"
-                      disabled={!isZoomed}
-                      onClick={resetZoom}
-                    >
-                      <Maximize className="size-4" />
-                    </Button>
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      className="text-white hover:bg-white/20"
-                      aria-label="Perbesar"
-                      onClick={zoomIn}
-                    >
-                      <ZoomIn className="size-4" />
-                    </Button>
+                    <WithTooltip label={t("viewer.zoomOut")}>
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        className="text-white hover:bg-white/20"
+                        aria-label={t("viewer.zoomOut")}
+                        disabled={!isZoomed}
+                        onClick={zoomOut}
+                      >
+                        <ZoomOut className="size-4" />
+                      </Button>
+                    </WithTooltip>
+                    <WithTooltip label={t("viewer.zoomReset")}>
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        className="text-white hover:bg-white/20"
+                        aria-label={t("viewer.zoomReset")}
+                        disabled={!isZoomed}
+                        onClick={resetZoom}
+                      >
+                        <Maximize className="size-4" />
+                      </Button>
+                    </WithTooltip>
+                    <WithTooltip label={t("viewer.zoomIn")}>
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        className="text-white hover:bg-white/20"
+                        aria-label={t("viewer.zoomIn")}
+                        onClick={zoomIn}
+                      >
+                        <ZoomIn className="size-4" />
+                      </Button>
+                    </WithTooltip>
                   </div>
                 </div>
               )
             ) : isRaw && isDecodingRaw ? (
-              <Empty className="h-[50dvh]">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Spinner className="size-12" />
-                  </EmptyMedia>
-                  <EmptyTitle>Mendecode RAW...</EmptyTitle>
-                  <EmptyDescription>Ini mungkin memerlukan waktu beberapa detik</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
+              <div className="relative w-full h-[50dvh] skeleton rounded-none flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <div className="grid place-items-center size-14 rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/25">
+                    <Spinner className="size-7" />
+                  </div>
+                  <div>
+                    <p className="font-display font-bold text-sm">{t("viewer.decodingRaw")}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("viewer.decodingRawHint")}</p>
+                  </div>
+                </div>
+              </div>
             ) : (
               <Empty className="h-[50dvh]">
                 <EmptyHeader>
@@ -293,34 +308,38 @@ export const ContentViewer = ({
                     <FileImage className="size-12" />
                   </EmptyMedia>
                   <EmptyTitle>{photo.format.label}</EmptyTitle>
-                  <EmptyDescription>Preview tidak tersedia</EmptyDescription>
+                  <EmptyDescription>{t("viewer.previewUnavailable")}</EmptyDescription>
                 </EmptyHeader>
               </Empty>
             )}
           </div>
 
           {/* Navigation  */}
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Foto sebelumnya"
-            className="hidden md:flex absolute left-4 top-1/2 p-6 bg-white/50 hover:bg-white/70 rounded-full transition-all disabled:opacity-30"
-            disabled={currentIndex === 0}
-            onClick={() => onNavigate("prev")}
-          >
-            <ChevronLeft className="size-10" />
-          </Button>
+          <WithTooltip label={t("viewer.prevPhoto")} side="right">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={t("viewer.prevPhoto")}
+              className="hidden md:flex absolute left-4 top-1/2 p-6 bg-white/50 hover:bg-white/70 rounded-full transition-all disabled:opacity-30"
+              disabled={currentIndex === 0}
+              onClick={() => onNavigate("prev")}
+            >
+              <ChevronLeft className="size-10" />
+            </Button>
+          </WithTooltip>
 
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Foto selanjutnya"
-            className="hidden md:flex absolute right-4 top-1/2 p-6 bg-white/50 hover:bg-white/70 rounded-full transition-all disabled:opacity-30"
-            disabled={currentIndex === totalPhotos - 1}
-            onClick={() => onNavigate("next")}
-          >
-            <ChevronRight className="size-10" />
-          </Button>
+          <WithTooltip label={t("viewer.nextPhoto")} side="left">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={t("viewer.nextPhoto")}
+              className="hidden md:flex absolute right-4 top-1/2 p-6 bg-white/50 hover:bg-white/70 rounded-full transition-all disabled:opacity-30"
+              disabled={currentIndex === totalPhotos - 1}
+              onClick={() => onNavigate("next")}
+            >
+              <ChevronRight className="size-10" />
+            </Button>
+          </WithTooltip>
         </div>
       </CardHeader>
     </Card>

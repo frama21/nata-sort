@@ -1,6 +1,8 @@
+import { useTranslation } from "react-i18next"
 import { ChevronLeft, ChevronRight, Scissors, Copy } from "lucide-react"
 
 import { Button } from "@/shared/components/ui/button"
+import { WithTooltip } from "@/shared/components/ui/tooltip"
 import type { SortFolder, MoveMode } from "../types/sorter.types"
 
 interface MobileActionBarProps {
@@ -20,23 +22,26 @@ export const MobileActionBar = ({
   onNavigate,
   totalPhotos
 }: MobileActionBarProps) => {
+  const { t } = useTranslation()
   const isEmptyFolder = folders.length === 0
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border p-2 z-50">
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-row items-center gap-2">
-          <Button
-            onClick={() => onNavigate("prev")}
-            disabled={currentIndex === 0}
-            variant="outline"
-            size="icon-lg"
-            aria-label="Foto sebelumnya"
-          >
-            <ChevronLeft className="size-7" />
-          </Button>
+          <WithTooltip label={t("viewer.prevPhoto")}>
+            <Button
+              onClick={() => onNavigate("prev")}
+              disabled={currentIndex === 0}
+              variant="outline"
+              size="icon-lg"
+              aria-label={t("viewer.prevPhoto")}
+            >
+              <ChevronLeft className="size-7" />
+            </Button>
+          </WithTooltip>
 
-          {isEmptyFolder && currentIndex !== 0 && <div className="text-xs">Sebelumnya</div>}
+          {isEmptyFolder && currentIndex !== 0 && <div className="text-xs">{t("common.previous")}</div>}
         </div>
 
         {!isEmptyFolder && (
@@ -45,7 +50,7 @@ export const MobileActionBar = ({
               <Button
                 key={folder.id}
                 onClick={() => onAssign(currentIndex, folder.id)}
-                aria-label={`Sortir ke ${folder.name}`}
+                aria-label={t("mobile.sortToAria", { name: folder.name })}
                 className={`flex-1 min-w-[60px] py-5 rounded-lg ${folder.color} text-white text-xs font-medium active:scale-95 transition-transform`}
                 size="lg"
               >
@@ -63,16 +68,18 @@ export const MobileActionBar = ({
         )}
 
         <div className="flex flex-row items-center gap-2">
-          {isEmptyFolder && currentIndex !== totalPhotos - 1 && <div className="text-xs">Selanjutnya</div>}
-          <Button
-            onClick={() => onNavigate("next")}
-            disabled={currentIndex === totalPhotos - 1}
-            variant="outline"
-            size="icon-lg"
-            aria-label="Foto selanjutnya"
-          >
-            <ChevronRight className="size-7" />
-          </Button>
+          {isEmptyFolder && currentIndex !== totalPhotos - 1 && <div className="text-xs">{t("common.next")}</div>}
+          <WithTooltip label={t("viewer.nextPhoto")}>
+            <Button
+              onClick={() => onNavigate("next")}
+              disabled={currentIndex === totalPhotos - 1}
+              variant="outline"
+              size="icon-lg"
+              aria-label={t("viewer.nextPhoto")}
+            >
+              <ChevronRight className="size-7" />
+            </Button>
+          </WithTooltip>
         </div>
       </div>
     </div>

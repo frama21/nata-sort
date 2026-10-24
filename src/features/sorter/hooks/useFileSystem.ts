@@ -29,22 +29,16 @@ import type {
 } from "../types/sorter.types"
 
 import { addStatus, clearStatus } from "@/shared/stores/status.store"
+import { t } from "@/shared/i18n"
 import { validateFolderName } from "../utils/folder-name.utils"
 import { applyAssign, moveFileHandle } from "../utils/file-ops.utils"
-
-const FOLDER_COLORS = [
-  "bg-red-500",
-  "bg-blue-500",
-  "bg-green-500",
-  "bg-yellow-500",
-  "bg-purple-500",
-  "bg-pink-500",
-  "bg-indigo-500",
-  "bg-orange-500",
-  "bg-teal-500"
-]
-
-const MAX_UNDO = 20
+import { validateShortcut } from "../utils/shortcut.utils"
+import {
+  FOLDER_COLORS,
+  MAX_UNDO,
+  METADATA_CONCURRENCY,
+  METADATA_PERSIST_DEBOUNCE_MS
+} from "../constants/sorter.constants"
 
 interface UndoItem {
   photoKey: string
@@ -83,6 +77,8 @@ export interface FileSystemHook {
   loadDirectory: () => Promise<void>
   addFolder: (name: string) => Promise<void>
   removeFolder: (folderId: string) => Promise<void>
+  /** Set (or clear, with null) a folder's sort-shortcut key, with validation. */
+  setFolderShortcut: (folderId: string, rawKey: string | null) => Promise<void>
   assignPhotoToFolder: (photoIndex: number, folderId: string) => Promise<void>
   undoLastOperation: () => Promise<void>
   navigatePhoto: (direction: NavigationDirection) => void
@@ -130,6 +126,9 @@ export const useFileSystem = (): FileSystemHook => {
   // Lazily-extracted metadata, keyed by stable file key.
   const [metadataByKey, setMetadataByKey] = useState<Map<string, PhotoMetadata>>(new Map())
   const metaQueueRef = useRef<Set<string>>(new Set())
+  // RAW files whose real (libraw) dimensions have already been resolved, so the
+  // lazy deep-dims pass runs at most once per file.
+  const rawDimsDoneRef = useRef<Set<string>>(new Set())
   const metadataCacheRef = useRef<Record<string, PhotoMetadata>>({})
 
   // Multi-select (ephemeral).
@@ -173,7 +172,7 @@ export const useFileSystem = (): FileSystemHook => {
       debounce(
         (handle: FileSystemDirectoryHandle, cache: Record<string, PhotoMetadata>) =>
           updateDatabaseMetadata(handle, cache),
-        1500
+        METADATA_PERSIST_DEBOUNCE_MS
       ),
     []
   )
@@ -189,7 +188,7 @@ export const useFileSystem = (): FileSystemHook => {
   const loadDirectory = useCallback(async () => {
     addStatus({
       type: "loading",
-      message: "Memuat folder Project ...",
+      message: t("toast.loadingProject"),
       icon: "folder"
     })
 
@@ -197,7 +196,7 @@ export const useFileSystem = (): FileSystemHook => {
       if (!("showDirectoryPicker" in window)) {
         addStatus({
           type: "error",
-          message: "Browser tidak mendukung File System Access API",
+          message: t("toast.browserUnsupported"),
           icon: "folder"
         })
         throw new Error("Browser tidak mendukung File System Access API. Gunakan Chrome/Edge/Opera terbaru.")
@@ -210,6 +209,7 @@ export const useFileSystem = (): FileSystemHook => {
       rawDecodeQueueRef.current.clear()
       failedRawDecodesRef.current.clear()
       metaQueueRef.current.clear()
+      rawDimsDoneRef.current.clear()
       setUndoStack([])
       setSelectedKeys(new Set())
       selectionAnchorRef.current = null
@@ -279,13 +279,13 @@ export const useFileSystem = (): FileSystemHook => {
           if (processed === total || processed % 8 === 0) {
             addStatus({
               type: "loading",
-              message: `Membaca tanggal foto ${processed}/${total}...`,
+              message: t("toast.readingDates", { processed, total }),
               icon: "file"
             })
           }
         }
       }
-      await Promise.all(Array.from({ length: Math.min(8, total || 1) }, () => worker()))
+      await Promise.all(Array.from({ length: Math.min(METADATA_CONCURRENCY, total || 1) }, () => worker()))
 
       // Sort by capture date (oldest first); fall back to file mtime.
       const sortTs = (p: PhotoFile) => parseCaptureDate(cache[p.key]?.dateTaken) ?? p.file.lastModified
@@ -318,7 +318,7 @@ export const useFileSystem = (): FileSystemHook => {
         } catch {
           addStatus({
             type: "error",
-            message: `Folder ${folder.name} tidak ditemukan, dilewati`,
+            message: t("toast.folderNotFound", { name: folder.name }),
             icon: "folder"
           })
           console.warn(`[Hook] Folder ${folder.name} not found, skipping`)
@@ -342,7 +342,7 @@ export const useFileSystem = (): FileSystemHook => {
 
       addStatus({
         type: "success",
-        message: "Project berhasil dimuat",
+        message: t("toast.projectLoaded"),
         icon: "folder"
       })
     } catch (err) {
@@ -350,7 +350,7 @@ export const useFileSystem = (): FileSystemHook => {
         setError(err.message)
         addStatus({
           type: "error",
-          message: "Gagal memuat project",
+          message: t("toast.projectLoadFailed"),
           icon: "folder"
         })
       }
@@ -370,11 +370,22 @@ export const useFileSystem = (): FileSystemHook => {
       for (const i of targets) {
         const p = photos[i]
         if (!p) continue
-        if (metadataByKey.has(p.key) || metaQueueRef.current.has(p.key)) continue
+        if (metaQueueRef.current.has(p.key)) continue
+
+        // RAW files need a second, deeper pass: the fast bulk scan only captured
+        // the embedded thumbnail's size (e.g. 160×120), so re-extract with libraw
+        // for the real sensor dimensions. Everything else is done once cached.
+        const existing = metadataByKey.get(p.key)
+        const rawNeedsDeepDims =
+          p.format.category === "raw" &&
+          (!existing || existing.megapixels === 0) &&
+          !rawDimsDoneRef.current.has(p.key)
+        if (existing && !rawNeedsDeepDims) continue
 
         metaQueueRef.current.add(p.key)
+        if (p.format.category === "raw") rawDimsDoneRef.current.add(p.key)
         try {
-          const meta = await extractMetadata(p.file)
+          const meta = await extractMetadata(p.file, p.format.category === "raw")
           if (cancelled) return
           metadataCacheRef.current[p.key] = meta
           setMetadataByKey(prev => new Map(prev).set(p.key, meta))
@@ -468,7 +479,7 @@ export const useFileSystem = (): FileSystemHook => {
     async (name: string) => {
       const rootHandle = rootDirHandleRef.current
       if (!rootHandle) {
-        setError("Pilih folder foto terlebih dahulu")
+        setError(t("toast.pickFolderFirst"))
         return
       }
 
@@ -483,13 +494,13 @@ export const useFileSystem = (): FileSystemHook => {
       const folderName = validation.name
 
       if (folders.some(f => f.name.toLowerCase() === folderName.toLowerCase())) {
-        const msg = `Folder "${folderName}" sudah ada`
+        const msg = t("toast.folderExists", { name: folderName })
         setError(msg)
         addStatus({ type: "error", message: msg, icon: "folder" })
         return
       }
 
-      addStatus({ type: "loading", message: "Membuat folder...", icon: "folder" })
+      addStatus({ type: "loading", message: t("toast.creatingFolder"), icon: "folder" })
 
       try {
         const dirHandle = await rootHandle.getDirectoryHandle(folderName, {
@@ -514,12 +525,14 @@ export const useFileSystem = (): FileSystemHook => {
 
         addStatus({
           type: "success",
-          message: `Folder "${folderName}" berhasil dibuat`,
+          message: t("toast.folderCreated", { name: folderName }),
           icon: "folder"
         })
       } catch (err) {
-        addStatus({ type: "error", message: "Gagal membuat folder", icon: "folder" })
-        setError(`Gagal membuat folder: ${err instanceof Error ? err.message : "Unknown error"}`)
+        addStatus({ type: "error", message: t("toast.folderCreateFailed"), icon: "folder" })
+        setError(
+          t("toast.folderCreateError", { error: err instanceof Error ? err.message : t("common.unknownError") })
+        )
       } finally {
         clearStatus()
       }
@@ -533,7 +546,7 @@ export const useFileSystem = (): FileSystemHook => {
       const folder = folders.find(f => f.id === folderId)
       if (!folder || !rootHandle) return
 
-      addStatus({ type: "loading", message: "Menghapus folder...", icon: "folder" })
+      addStatus({ type: "loading", message: t("toast.deletingFolder"), icon: "folder" })
 
       try {
         // recursive: true so a folder that already contains sorted files is
@@ -563,12 +576,54 @@ export const useFileSystem = (): FileSystemHook => {
 
         addStatus({
           type: "success",
-          message: `Folder "${folder.name}" dihapus`,
+          message: t("toast.folderDeleted", { name: folder.name }),
           icon: "folder"
         })
       } catch (err) {
-        addStatus({ type: "error", message: "Gagal menghapus folder", icon: "folder" })
-        setError(`Gagal menghapus folder: ${err instanceof Error ? err.message : "Unknown error"}`)
+        addStatus({ type: "error", message: t("toast.folderDeleteFailed"), icon: "folder" })
+        setError(
+          t("toast.folderDeleteError", { error: err instanceof Error ? err.message : t("common.unknownError") })
+        )
+      } finally {
+        clearStatus()
+      }
+    },
+    [folders]
+  )
+
+  // Assign a custom sort-shortcut to a folder (or clear it with null). The key is
+  // validated against reserved app keys and other folders before it is applied.
+  const setFolderShortcut = useCallback(
+    async (folderId: string, rawKey: string | null) => {
+      const rootHandle = rootDirHandleRef.current
+      if (!rootHandle || !folders.some(f => f.id === folderId)) return
+
+      let nextKey: string | null = null
+      if (rawKey !== null) {
+        const result = validateShortcut(rawKey, folders, folderId)
+        if (!result.ok) {
+          setError(result.reason)
+          addStatus({ type: "error", message: result.reason, icon: "folder" })
+          return
+        }
+        nextKey = result.key
+      }
+
+      const updatedFolders = folders.map(f => (f.id === folderId ? { ...f, shortcut: nextKey } : f))
+      setFolders(updatedFolders)
+      setError(null)
+
+      try {
+        await updateDatabaseFolders(rootHandle, updatedFolders)
+        addStatus({
+          type: "success",
+          message: nextKey
+            ? t("toast.shortcutChanged", { key: nextKey.toUpperCase() })
+            : t("toast.shortcutCleared"),
+          icon: "folder"
+        })
+      } catch {
+        addStatus({ type: "error", message: t("toast.shortcutSaveFailed"), icon: "folder" })
       } finally {
         clearStatus()
       }
@@ -593,8 +648,10 @@ export const useFileSystem = (): FileSystemHook => {
       addStatus({
         type: "loading",
         message: isBatch
-          ? `Memproses ${indices.length} file...`
-          : `${mode === "cut" ? "Memindahkan" : "Mengcopy"} ${photos[indices[0]]?.name ?? ""}...`,
+          ? t("toast.processingBatch", { count: indices.length })
+          : mode === "cut"
+            ? t("toast.moving", { name: photos[indices[0]]?.name ?? "" })
+            : t("toast.copying", { name: photos[indices[0]]?.name ?? "" }),
         icon: "file"
       })
 
@@ -654,7 +711,7 @@ export const useFileSystem = (): FileSystemHook => {
           newIndex = Math.min(indices[indices.length - 1] + 1, photos.length - 1)
           setCurrentIndex(newIndex)
         }
-        setError(failCount > 0 ? `Gagal memproses ${failCount} file` : null)
+        setError(failCount > 0 ? t("toast.processFailed", { count: failCount }) : null)
 
         await updateDatabaseAfterOperation(rootHandle, {
           sortedPatch: assignedDelta,
@@ -666,10 +723,11 @@ export const useFileSystem = (): FileSystemHook => {
         addStatus({
           type: okCount > 0 ? "success" : "error",
           message: isBatch
-            ? `${okCount} file diproses${failCount ? `, ${failCount} gagal` : ""}`
+            ? t("toast.batchProcessed", { ok: okCount }) +
+              (failCount ? t("toast.batchFailedSuffix", { fail: failCount }) : "")
             : okCount > 0
-              ? `${photos[indices[0]]?.name} berhasil`
-              : "Gagal memproses file",
+              ? t("toast.singleDone", { name: photos[indices[0]]?.name ?? "" })
+              : t("toast.singleFail"),
           icon: "file"
         })
       } finally {
@@ -684,7 +742,7 @@ export const useFileSystem = (): FileSystemHook => {
       const folder = folders.find(f => f.id === folderId)
       const dirHandle = folder?.dirHandle || folderDirHandlesRef.current.get(folderId)
       if (!folder || !dirHandle) {
-        setError("Folder target tidak ditemukan")
+        setError(t("toast.targetFolderNotFound"))
         return
       }
       await assignManyToTarget([photoIndex], { id: folder.id, name: folder.name, dirHandle }, moveMode, {
@@ -704,7 +762,7 @@ export const useFileSystem = (): FileSystemHook => {
       const folder = folders.find(f => f.id === folderId)
       const dirHandle = folder?.dirHandle || folderDirHandlesRef.current.get(folderId)
       if (!folder || !dirHandle) {
-        setError("Folder target tidak ditemukan")
+        setError(t("toast.targetFolderNotFound"))
         return
       }
       const indices = selectedIndices()
@@ -723,7 +781,7 @@ export const useFileSystem = (): FileSystemHook => {
     const rootHandle = rootDirHandleRef.current
     if (!entry || !rootHandle) return
 
-    addStatus({ type: "loading", message: "Membatalkan operasi...", icon: "file" })
+    addStatus({ type: "loading", message: t("toast.undoing"), icon: "file" })
 
     try {
       const removedKeys: string[] = []
@@ -767,7 +825,7 @@ export const useFileSystem = (): FileSystemHook => {
       })
       setUndoStack(prev => prev.slice(0, -1))
       setCurrentIndex(Math.min(entry.anchorIndex, Math.max(photos.length - 1, 0)))
-      setError(failed > 0 ? `Sebagian undo gagal (${failed})` : null)
+      setError(failed > 0 ? t("toast.undoPartialFail", { count: failed }) : null)
 
       await updateDatabaseAfterOperation(rootHandle, {
         removedKeys,
@@ -779,8 +837,8 @@ export const useFileSystem = (): FileSystemHook => {
         type: "success",
         message:
           entry.items.length > 1
-            ? `Dibatalkan ${entry.items.length} operasi`
-            : `Dibatalkan: ${entry.items[0]?.photoName}`,
+            ? t("toast.undoBatch", { count: entry.items.length })
+            : t("toast.undoSingle", { name: entry.items[0]?.photoName ?? "" }),
         icon: "file"
       })
     } finally {
@@ -940,6 +998,7 @@ export const useFileSystem = (): FileSystemHook => {
     loadDirectory,
     addFolder,
     removeFolder,
+    setFolderShortcut,
     assignPhotoToFolder,
     undoLastOperation,
     navigatePhoto,

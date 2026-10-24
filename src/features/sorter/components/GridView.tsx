@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { PAGE_SIZE } from "../constants/sorter.constants"
 
 import { Thumbnail } from "./Thumbnail"
 import { ScrollArea } from "@/shared/components/ui/scroll-area"
@@ -17,7 +18,6 @@ interface GridViewProps {
 }
 
 /** How many thumbnails to render per "page" (grows as the user scrolls). */
-const PAGE_SIZE = 60
 
 /**
  * A responsive grid of every photo for bulk overview and multi-selection. It
