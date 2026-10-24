@@ -1,6 +1,6 @@
-# Photo Sorter — Functional Specification
+# NATA — Functional Specification
 
-The authoritative functional specification for Photo Sorter: a 100% client-side, browser-based photo and video sorter. This document defines *what* the application does — its scope, behaviours, limits, edge cases, and acceptance criteria — independent of implementation detail.
+The authoritative functional specification for NATA: a 100% client-side, browser-based photo and video sorter. This document defines *what* the application does — its scope, behaviours, limits, edge cases, and acceptance criteria — independent of implementation detail.
 
 Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
@@ -10,7 +10,7 @@ Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
 ## 1. Overview & scope
 
-Photo Sorter is a single-view web application that lets a user triage a local folder full of photos and videos and file each item into named sub-folders using single-key shortcuts. Everything runs in the browser: files are read and written directly on the user's disk through the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API) (`window.showDirectoryPicker`). Nothing is uploaded, there is no backend for user data, no telemetry, and no network egress of file contents.
+NATA is a single-view web application that lets a user triage a local folder full of photos and videos and file each item into named sub-folders using single-key shortcuts. Everything runs in the browser: files are read and written directly on the user's disk through the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API) (`window.showDirectoryPicker`). Nothing is uploaded, there is no backend for user data, no telemetry, and no network egress of file contents.
 
 The typical workflow:
 
@@ -68,7 +68,7 @@ See [§13 Non-goals](#13-non-goals). Broadly: no uploading, no recursion into su
 | **Sorted mapping** | The `{ fileName -> folderId }` record of which folder each file was filed into. |
 | **Operation** | A fully serializable, handle-free record of one sort action (`SortOperation`) shown in the operation log. |
 | **Undo stack** | An in-memory (non-persisted) stack of up to 20 reversible sort actions. |
-| **Project database** | A single JSON file, `photo-sorter-db.json`, written inside the opened folder. Schema version `2.0`. |
+| **Project database** | A single JSON file, `nata-sort-db.json`, written inside the opened folder. Schema version `2.0`. |
 | **Previewable** | A format flag indicating the browser can render the file directly in an `<img>`/`<video>` element. RAW and HEIC/HEIF are non-previewable (RAW is handled by a decoder; HEIC has no in-browser decode). |
 | **Embedded preview** | A JPEG image stored inside a RAW file by the camera, used as the fast/sharp preview source. |
 | **PWA** | Progressive Web App: the installable, offline-capable packaging of the app. |
@@ -150,7 +150,7 @@ All previewable via the native `<video>` element with controls.
 | MPEG Transport Stream | `.ts` | video/mp2t | Yes | |
 | 3GP | `.3gp` `.3g2` | video/3gpp, video/3gpp2 | Yes | |
 
-> Note: `previewable: true` means Photo Sorter *offers* a native `<video>` player. Actual playback of container/codec combinations (AVI, WMV, MKV, FLV) is subject to the browser/OS decoders and may not play everywhere. This does not affect sorting.
+> Note: `previewable: true` means NATA *offers* a native `<video>` player. Actual playback of container/codec combinations (AVI, WMV, MKV, FLV) is subject to the browser/OS decoders and may not play everywhere. This does not affect sorting.
 
 ### 4.5 Other
 
@@ -257,14 +257,14 @@ Requirements are grouped by feature area. Each area lists behaviour, limits, and
 
 See [§6](#6-project-persistence--database) for the full state & persistence model. Summary:
 
-- **FR-DB-1.** A single JSON file, `photo-sorter-db.json`, schema version `2.0`, is auto-created inside the opened folder on first open and updated after every state change.
+- **FR-DB-1.** A single JSON file, `nata-sort-db.json`, schema version `2.0`, is auto-created inside the opened folder on first open and updated after every state change.
 - **FR-DB-2.** Persisted: sort folders, the per-file sort mapping (keyed by file **name**), the move mode, `currentIndex`, a recent operation log (max 50), a per-file metadata cache, stats, and a timestamp.
 - **FR-DB-3.** All writes are serialized (single promise chain) and use `createWritable → write → close`.
 - **FR-DB-4.** On load, the file is validated (shape + version) and **sanitized** (prototype-pollution stripping, size bounds, scalar coercion). A missing/corrupt/incompatible file is reset with a visible warning.
 
 ### 5.10 PWA & offline
 
-- **FR-PWA-1.** The app is an installable PWA (standalone display, Indonesian manifest name *"Photo Sorter — Sortir Foto & Video Lokal"*, theme/background colour `#0a0f1a`, 192 & 512 px icons).
+- **FR-PWA-1.** The app is an installable PWA (standalone display, Indonesian manifest name *"NATA — Sortir Foto & Video Lokal"*, theme/background colour `#0a0f1a`, 192 & 512 px icons).
 - **FR-PWA-2.** A Workbox service worker precaches JS/CSS/HTML/WASM and other assets for offline use, with `maximumFileSizeToCacheInBytes` of 4 MB to cover the ~1.3 MB `libraw` WASM.
 - **FR-PWA-3.** Update strategy is `autoUpdate` (`skipWaiting` + `clientsClaim`); the SW self-updates on reload.
 - **FR-PWA-4.** The service worker is registered **manually** in [src/main.tsx](../src/main.tsx) on `window` load — no inline registration script is injected, preserving the strict CSP.
@@ -274,7 +274,7 @@ See [§6](#6-project-persistence--database) for the full state & persistence mod
 ### 5.11 Theming
 
 - **FR-THEME-1.** Light and dark themes plus a "system" option are available via the navbar toggle. **Default theme is dark.**
-- **FR-THEME-2.** The chosen theme persists in `localStorage` under key `vite-ui-theme`.
+- **FR-THEME-2.** The chosen theme persists in `localStorage` under key `nata-sort-theme`.
 - **FR-THEME-3.** Design tokens use the OKLCH colour space (light on `:root`, dark on `.dark`); see [UI facts / globals.css](../src/assets/styles/globals.css).
 
 ### 5.12 Responsive & mobile
@@ -304,7 +304,7 @@ Owned by the controller hook [src/hooks/useFileSystem.ts](../src/hooks/useFileSy
 | `rawPreviewUrls`, `isDecodingRaw` | RAW preview cache & decode flag. | No |
 | `metadataByKey`, metadata cache | Lazily-extracted metadata. | Yes (metadata cache) |
 
-### 6.2 Persisted schema — `photo-sorter-db.json`
+### 6.2 Persisted schema — `nata-sort-db.json`
 
 Written inside the opened folder. Schema `version: "2.0"`. Shape (`CompleteProjectState`, see [src/services/dbService.ts](../src/services/dbService.ts) and [src/types/index.ts](../src/types/index.ts)):
 
@@ -341,7 +341,7 @@ The database file lives in a user-writable folder and is therefore treated as **
 
 ```mermaid
 flowchart TD
-    A[Read photo-sorter-db.json] -->|missing| Z[Return null → fresh DB<br/>normal on first open]
+    A[Read nata-sort-db.json] -->|missing| Z[Return null → fresh DB<br/>normal on first open]
     A -->|read ok| B[JSON.parse]
     B -->|throws| C["Warn: 'Database rusak, dibuat ulang' → reset"]
     B -->|ok| D[isValidState shape check]
@@ -368,7 +368,7 @@ flowchart TD
 
 **On restore**, additionally: sort folders whose directory no longer exists on disk are skipped (with a toast), and any mapping pointing at a missing folder is dropped. `currentIndex` is clamped to the current photo count.
 
-> Deleting `photo-sorter-db.json` fully resets the project; the app recreates it on the next open.
+> Deleting `nata-sort-db.json` fully resets the project; the app recreates it on the next open.
 
 ---
 
@@ -472,7 +472,7 @@ Spaces and hyphens are allowed. Duplicate names (case-insensitive) are rejected 
 
 ## 13. Non-goals
 
-Photo Sorter deliberately does **not**:
+NATA deliberately does **not**:
 
 1. **Upload or transmit** files, metadata, or telemetry anywhere. There is no backend for user data and no network egress of file contents.
 2. **Recurse** into sub-folders — only the top level of the opened folder is scanned.
@@ -493,7 +493,7 @@ Each feature is accepted when its criteria hold. IDs cross-reference [§5](#5-fu
 
 ### Folder opening & scanning (5.1)
 
-- [ ] Opening a folder with mixed content lists **only** top-level supported images/videos; sub-folders, unsupported files, and `photo-sorter-db.json` are excluded.
+- [ ] Opening a folder with mixed content lists **only** top-level supported images/videos; sub-folders, unsupported files, and `nata-sort-db.json` are excluded.
 - [ ] Cancelling the picker returns to the empty state with **no** error shown.
 - [ ] Opening a second folder revokes prior blob URLs and clears the undo stack and queues.
 - [ ] An empty or all-unsupported folder keeps the pick-folder empty state.
@@ -543,7 +543,7 @@ Each feature is accepted when its criteria hold. IDs cross-reference [§5](#5-fu
 
 ### Persistence (5.9 / §6)
 
-- [ ] `photo-sorter-db.json` (version `2.0`) is created on first open and updated after each change.
+- [ ] `nata-sort-db.json` (version `2.0`) is created on first open and updated after each change.
 - [ ] A corrupt/invalid/incompatible DB is reset with a visible warning and never throws.
 - [ ] On load, prototype-pollution keys are stripped and collection sizes are bounded per the sanitization table.
 - [ ] Deleting the DB file resets the project; a folder removed on disk is skipped and its mappings dropped.
@@ -555,7 +555,7 @@ Each feature is accepted when its criteria hold. IDs cross-reference [§5](#5-fu
 
 ### Theming & responsive (5.11 / 5.12)
 
-- [ ] Theme defaults to dark, toggles across light/dark/system, and persists under `vite-ui-theme`.
+- [ ] Theme defaults to dark, toggles across light/dark/system, and persists under `nata-sort-theme`.
 - [ ] Desktop shows the 8/4-column grid with a sticky sidebar; mobile stacks with a fixed bottom action bar and swipe navigation.
 - [ ] Navigation and folder buttons expose `aria-label`s and the app is fully keyboard-operable.
 
@@ -589,4 +589,4 @@ Each feature is accepted when its criteria hold. IDs cross-reference [§5](#5-fu
 
 ---
 
-*Photo Sorter is fully client-side: your files never leave your machine. See [SECURITY.md](SECURITY.md) for the security posture and [DEPLOYMENT.md](DEPLOYMENT.md) for hosting.*
+*NATA is fully client-side: your files never leave your machine. See [SECURITY.md](SECURITY.md) for the security posture and [DEPLOYMENT.md](DEPLOYMENT.md) for hosting.*

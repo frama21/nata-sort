@@ -1,6 +1,6 @@
 # System Architecture
 
-The end-to-end design of **Photo Sorter** — a 100% client-side photo & video sorter that runs entirely in a Chromium browser, backed by a single hardened static-file container for delivery.
+The end-to-end design of **NATA** — a 100% client-side photo & video sorter that runs entirely in a Chromium browser, backed by a single hardened static-file container for delivery.
 
 Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
@@ -10,7 +10,7 @@ Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
 ## 1. Overview & guiding principles
 
-Photo Sorter is a **single-page application (SPA)** that reads, previews, orders, and re-files the user's local photos and videos **without ever uploading them**. All file access happens through the browser's [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) (`window.showDirectoryPicker`); all decoding, metadata extraction, and sorting logic runs on the user's own machine. The only server involved is a tiny static-file host that ships the compiled bundle — it never sees a single photo.
+NATA is a **single-page application (SPA)** that reads, previews, orders, and re-files the user's local photos and videos **without ever uploading them**. All file access happens through the browser's [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) (`window.showDirectoryPicker`); all decoding, metadata extraction, and sorting logic runs on the user's own machine. The only server involved is a tiny static-file host that ships the compiled bundle — it never sees a single photo.
 
 The architecture is shaped by a handful of non-negotiable principles.
 
@@ -35,7 +35,7 @@ graph TB
 
     subgraph browser["Chromium browser (Chrome / Edge / Opera)"]
         direction TB
-        spa["Photo Sorter SPA<br/>React 19 + TypeScript"]
+        spa["NATA SPA<br/>React 19 + TypeScript"]
         wasm["WASM workers<br/>libraw-wasm · mediainfo.js"]
         sw["Service Worker<br/>(Workbox precache)"]
         spa --- wasm
@@ -46,7 +46,7 @@ graph TB
         direction TB
         media["Top-level images & videos"]
         subfolders["Sort sub-folders 1..9"]
-        db[("photo-sorter-db.json")]
+        db[("nata-sort-db.json")]
     end
 
     subgraph edge["Public edge (optional)"]
@@ -144,7 +144,7 @@ graph TD
     root["createRoot(#root)"]
     strict["React.StrictMode"]
     eb["ErrorBoundary"]
-    tp["ThemeProvider<br/>defaultTheme=dark · storageKey=vite-ui-theme"]
+    tp["ThemeProvider<br/>defaultTheme=dark · storageKey=nata-sort-theme"]
     app["App"]
 
     root --> strict --> eb --> tp --> app
@@ -162,14 +162,14 @@ graph TD
 
 - **`StrictMode`** double-invokes effects in development; the controller's effects are written to tolerate this (idempotent decode/metadata queues guarded by `Set` refs, and blob-URL revocation on cleanup).
 - **`ErrorBoundary`** catches render-time exceptions and shows a recoverable error UI instead of a blank page.
-- **`ThemeProvider`** manages the light/dark/system theme (default dark, persisted under `localStorage["vite-ui-theme"]`), toggling the `.dark` class that drives the OKLCH design tokens in `globals.css`.
+- **`ThemeProvider`** manages the light/dark/system theme (default dark, persisted under `localStorage["nata-sort-theme"]`), toggling the `.dark` class that drives the OKLCH design tokens in `globals.css`.
 - **`App`** renders one of two macro-states: the **empty state** (a single "Pilih Folder Foto" call to action) when `photos.length === 0`, or the **workspace** (12-column desktop grid / stacked mobile layout with the fixed bottom `MobileActionBar`) once a folder is loaded.
 
 ---
 
 ## 5. State management
 
-Photo Sorter keeps three distinct kinds of state, each in exactly one place. Understanding the split is the key to the whole app.
+NATA keeps three distinct kinds of state, each in exactly one place. Understanding the split is the key to the whole app.
 
 ### 5.1 The three state homes
 
@@ -177,7 +177,7 @@ Photo Sorter keeps three distinct kinds of state, each in exactly one place. Und
 | --- | --- | --- | --- |
 | **Live application state** | [`useFileSystem`](../src/hooks/useFileSystem.ts) hook (React state + refs) | The mounted session | `photos`, `currentIndex`, `folders`, `sortedPhotos`, `moveMode`, `operations`, `undoStack`, `rawPreviewUrls`, `metadataByKey` |
 | **Transient UI feedback** | [`statusStore`](../src/stores/statusStore.ts) (Zustand) | Seconds (auto-expires) | Loading/success/error toasts shown in the navbar |
-| **Durable project state** | `photo-sorter-db.json` (on disk, via [`dbService`](../src/services/dbService.ts)) | Across reloads/sessions | Folders, per-file sort mapping, mode, `currentIndex`, operation log, metadata cache, stats |
+| **Durable project state** | `nata-sort-db.json` (on disk, via [`dbService`](../src/services/dbService.ts)) | Across reloads/sessions | Folders, per-file sort mapping, mode, `currentIndex`, operation log, metadata cache, stats |
 
 The `useFileSystem` hook is the **controller** in an MVC-ish sense: `App` and its children are the view, the services are the model/IO layer, and the hook wires them together and owns all mutable session state. It is `~860` lines and is the single most important module to read: [src/hooks/useFileSystem.ts](../src/hooks/useFileSystem.ts).
 
@@ -225,7 +225,7 @@ sequenceDiagram
     FS-->>H: root dirHandle
     H->>H: revoke old blob URLs, reset queues/undo
     H->>DB: initProjectDatabase(dirHandle)
-    DB->>FS: read/create photo-sorter-db.json
+    DB->>FS: read/create nata-sort-db.json
     DB-->>H: CompleteProjectState (folders, mapping, cache, ...)
     loop dirHandle.values() (top-level only)
         H->>FS: getFile() for each supported image/video
@@ -266,7 +266,7 @@ sequenceDiagram
     end
     H->>H: update sortedPhotos, operations, undoStack (max 20), currentIndex++
     H->>DB: updateDatabaseAfterOperation(...)  %% enqueued write
-    DB->>FS: read-modify-write photo-sorter-db.json
+    DB->>FS: read-modify-write nata-sort-db.json
     H-->>A: state updates → advance to next photo
 ```
 
@@ -302,7 +302,7 @@ The services are **stateless, framework-free modules** (no React) that the contr
 
 ### 7.1 `dbService.ts` — persistence
 
-[src/services/dbService.ts](../src/services/dbService.ts). Owns `photo-sorter-db.json` (schema `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`). Public surface: `initProjectDatabase`, `updateDatabaseAfterOperation`, `updateDatabaseFolders`, `updateDatabaseMode`, `updateDatabaseMetadata`, `loadProjectState`. All writes go through `enqueue()`/`writeChain`. The load path validates shape + version, then runs `sanitizeState()` which strips prototype-pollution keys (`__proto__`/`constructor`/`prototype`) via `safeRecord()` into `Object.create(null)` maps, bounds every collection (`MAX_SORTED_ENTRIES`/`MAX_METADATA_ENTRIES` = 100 000, `MAX_FOLDERS` = 1 000, operations sliced to 50), and coerces `moveMode`/`currentIndex` to safe defaults. A missing, corrupt, or version-mismatched file returns `null` (reset) with a visible warning — it never throws.
+[src/services/dbService.ts](../src/services/dbService.ts). Owns `nata-sort-db.json` (schema `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`). Public surface: `initProjectDatabase`, `updateDatabaseAfterOperation`, `updateDatabaseFolders`, `updateDatabaseMode`, `updateDatabaseMetadata`, `loadProjectState`. All writes go through `enqueue()`/`writeChain`. The load path validates shape + version, then runs `sanitizeState()` which strips prototype-pollution keys (`__proto__`/`constructor`/`prototype`) via `safeRecord()` into `Object.create(null)` maps, bounds every collection (`MAX_SORTED_ENTRIES`/`MAX_METADATA_ENTRIES` = 100 000, `MAX_FOLDERS` = 1 000, operations sliced to 50), and coerces `moveMode`/`currentIndex` to safe defaults. A missing, corrupt, or version-mismatched file returns `null` (reset) with a visible warning — it never throws.
 
 ### 7.2 `exifService.ts` — metadata & chronology
 
@@ -351,7 +351,7 @@ Because the API is Chromium-only, `loadDirectory` guards on `"showDirectoryPicke
 
 ## 9. Persistence architecture (single-writer promise chain)
 
-The durable project state is one file, `photo-sorter-db.json`, written **inside the opened folder**. Its shape (`CompleteProjectState`) holds: `version`, `folders[]`, `sortedPhotos` (keyed by **file name**), `moveMode`, `currentIndex`, `operations[]` (max 50), an optional `metadataCache`, `stats`, and a `timestamp`.
+The durable project state is one file, `nata-sort-db.json`, written **inside the opened folder**. Its shape (`CompleteProjectState`) holds: `version`, `folders[]`, `sortedPhotos` (keyed by **file name**), `moveMode`, `currentIndex`, `operations[]` (max 50), an optional `metadataCache`, `stats`, and a `timestamp`.
 
 The central design decision is the **single-writer promise chain**:
 
@@ -427,7 +427,7 @@ classDiagram
 
 `App.tsx` is the only view module; everything else under `components/` is presentational and prop-driven.
 
-- **Layout**: a sticky, backdrop-blurred `Navbar` (logo, "Photo Sorter", version, `StatusIndicator`, theme toggle). Main content is a container; on `lg` it becomes a 12-column grid — `ContentViewer` spans **8 columns**, the sticky sidebar (`top-24`) spans **4 columns** and holds `FolderManager`, `MetadataPanel`, `OperationLog`, `Stats`. On mobile everything stacks and a fixed bottom `MobileActionBar` shows prev/next plus one colored button per folder.
+- **Layout**: a sticky, backdrop-blurred `Navbar` (logo, "NATA", version, `StatusIndicator`, theme toggle). Main content is a container; on `lg` it becomes a 12-column grid — `ContentViewer` spans **8 columns**, the sticky sidebar (`top-24`) spans **4 columns** and holds `FolderManager`, `MetadataPanel`, `OperationLog`, `Stats`. On mobile everything stacks and a fixed bottom `MobileActionBar` shows prev/next plus one colored button per folder.
 - **Keyboard & touch** (in `ContentViewer`): `←/→` navigate, `Space` = next, `1`–`9` assign to the matching folder, `U` = jump to next unsorted, `Ctrl/Cmd+Z` = undo. Shortcuts are **ignored while typing** in an `input`/`textarea`/`contentEditable`. Mobile swipe uses a 50 px threshold.
 - **States**: empty (pick-folder), loading (spinner + progress text), viewer (image / video / RAW-decoding / preview-unavailable), all-sorted (green alert), error (`Alert` / `ErrorBoundary`). Transient feedback is via the status-store toasts.
 - **Design tokens**: `src/assets/styles/globals.css` in OKLCH, light on `:root`, dark on `.dark`, radius scale derived from `--radius: 0.625rem`. UI primitives are shadcn/Radix (style `radix-nova`, neutral base) with lucide icons.
@@ -494,7 +494,7 @@ The build is **Vite 8 (rolldown)** with three plugins ([vite.config.ts](../vite.
 - `registerType: "autoUpdate"` (skipWaiting + clientsClaim) so the app self-updates on reload.
 - `injectRegister: false` — the SW is registered **manually** in `main.tsx` so **no inline `<script>`** is injected, keeping the strict CSP intact (no `'unsafe-inline'` for scripts).
 - Workbox precaches `js,css,html,wasm,svg,png,ico,woff2` with `maximumFileSizeToCacheInBytes = 4 MB` to cover the ~1.3 MB libraw WASM, `cleanupOutdatedCaches`, and `navigateFallback: /index.html`.
-- Manifest: `display: standalone`, theme/background `#0a0f1a`, 192 & 512 icons, Indonesian name "Photo Sorter — Sortir Foto & Video Lokal".
+- Manifest: `display: standalone`, theme/background `#0a0f1a`, 192 & 512 icons, Indonesian name "NATA — Sortir Foto & Video Lokal".
 
 **Dependency hygiene** ([package.json](../package.json)): the browser bundle depends only on runtime libraries (React, exifreader ≥ 4.41.0, libraw-wasm, mediainfo.js, radix-ui, zustand, lucide, small lodash utilities). The `shadcn` CLI is in `devDependencies` (build-time only), and `pnpm.overrides` pin patched versions of dev/build-only transitive deps so `pnpm audit` is clean for both the full tree and `--prod`. See [SECURITY.md](SECURITY.md) for the audit findings.
 
@@ -580,7 +580,7 @@ For **public HTTPS**, terminate TLS at the platform edge (Cloudflare, a load bal
 | [`src/main.tsx`](../src/main.tsx) | Bootstrap: path normalization, SW registration, mount `StrictMode → ErrorBoundary → ThemeProvider → App` |
 | [`src/App.tsx`](../src/App.tsx) | The single view; composes all components, derives sorted/unsorted counts and "all sorted" |
 | [`src/hooks/useFileSystem.ts`](../src/hooks/useFileSystem.ts) | **Controller**: owns all session state, orchestrates loading, sorting, undo, decode, persistence |
-| [`src/services/dbService.ts`](../src/services/dbService.ts) | `photo-sorter-db.json` read-modify-write via the single-writer chain; load-time sanitization |
+| [`src/services/dbService.ts`](../src/services/dbService.ts) | `nata-sort-db.json` read-modify-write via the single-writer chain; load-time sanitization |
 | [`src/services/exifService.ts`](../src/services/exifService.ts) | Image EXIF + video mediainfo extraction; capture-date parsing; display formatters |
 | [`src/services/rawDecoder.ts`](../src/services/rawDecoder.ts) | RAW preview pipeline (embedded-JPEG scan + libraw fallback) |
 | [`src/config/fileFormats.ts`](../src/config/fileFormats.ts) | Format registry + `isSupportedImage`/`isPreviewable`/`getFileFormatInfo` |

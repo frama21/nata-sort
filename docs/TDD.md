@@ -1,6 +1,6 @@
-# Photo Sorter — Technical Design Document (TDD)
+# NATA — Technical Design Document (TDD)
 
-The deep engineering reference for Photo Sorter: every module, data structure, control flow, concurrency guarantee, performance limit, and deployment detail, grounded in the actual source.
+The deep engineering reference for NATA: every module, data structure, control flow, concurrency guarantee, performance limit, and deployment detail, grounded in the actual source.
 
 Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
@@ -10,7 +10,7 @@ Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
 ## 1. Purpose & audience
 
-This document is the authoritative **technical design** for Photo Sorter. It exists so that a contributor can understand *how* the app is built — not just what it does — and change it safely.
+This document is the authoritative **technical design** for NATA. It exists so that a contributor can understand *how* the app is built — not just what it does — and change it safely.
 
 Read this document when you need to:
 
@@ -27,14 +27,14 @@ Read this document when you need to:
 
 ## 2. System context
 
-Photo Sorter is a **100% client-side** photo & video sorter. It runs entirely in a Chromium-based browser and touches the filesystem only through the user-granted [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) (`window.showDirectoryPicker`). There is **no backend, no telemetry, and no network egress** for user data: nothing is uploaded, and every byte of every photo is read, decoded, and written locally.
+NATA is a **100% client-side** photo & video sorter. It runs entirely in a Chromium-based browser and touches the filesystem only through the user-granted [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) (`window.showDirectoryPicker`). There is **no backend, no telemetry, and no network egress** for user data: nothing is uploaded, and every byte of every photo is read, decoded, and written locally.
 
 The only server in the system is a **static file server** that ships the compiled SPA. It never sees a user's photos — it serves HTML, JS, CSS, and WASM, and nothing more.
 
 ```mermaid
 flowchart LR
   subgraph Browser["Chromium browser (Chrome / Edge / Opera)"]
-    App["Photo Sorter SPA<br/>React 19 + TS"]
+    App["NATA SPA<br/>React 19 + TS"]
     FSAA["File System Access API"]
     WASM["WASM workers<br/>libraw-wasm · mediainfo.js"]
     SW["Service Worker<br/>(Workbox precache)"]
@@ -45,7 +45,7 @@ flowchart LR
 
   subgraph Disk["User's local disk"]
     Folder["Chosen folder"]
-    DB[("photo-sorter-db.json")]
+    DB[("nata-sort-db.json")]
     Sub["Sort sub-folders 1..9"]
     Folder --> DB
     Folder --> Sub
@@ -70,7 +70,7 @@ flowchart LR
 3. Files are ordered **chronologically** by capture date/time, falling back to `File.lastModified`.
 4. The user previews each file and assigns it to a numbered sort sub-folder with single-key shortcuts (`1`–`9`).
 5. Files are **copied** (default) or **moved / cut** into sub-folders created inside the opened folder.
-6. All session state is auto-persisted to `photo-sorter-db.json` in the opened folder, so reopening the same folder restores the session.
+6. All session state is auto-persisted to `nata-sort-db.json` in the opened folder, so reopening the same folder restores the session.
 
 ---
 
@@ -215,7 +215,7 @@ Four handle-level helpers live at module scope (no component state):
 
 ### 4.2 `dbService` — persisted project state
 
-[`src/services/dbService.ts`](../src/services/dbService.ts) is the only module that reads or writes `photo-sorter-db.json`. Every mutation is a **read-modify-write** of that single file.
+[`src/services/dbService.ts`](../src/services/dbService.ts) is the only module that reads or writes `nata-sort-db.json`. Every mutation is a **read-modify-write** of that single file.
 
 #### 4.2.1 Public API
 
@@ -228,7 +228,7 @@ Four handle-level helpers live at module scope (no component state):
 | `updateDatabaseMetadata` | `(dir, cache) => Promise<void>` | Persist the per-file metadata cache (debounced by caller). |
 | `loadProjectState` | `(dir) => Promise<CompleteProjectState \| null>` | Read + validate + sanitize; `null` on missing/corrupt/incompatible. |
 
-Constants: `DB_FILENAME = "photo-sorter-db.json"`, `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`, `MAX_SORTED_ENTRIES = MAX_METADATA_ENTRIES = 100_000`, `MAX_FOLDERS = 1_000`.
+Constants: `DB_FILENAME = "nata-sort-db.json"`, `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`, `MAX_SORTED_ENTRIES = MAX_METADATA_ENTRIES = 100_000`, `MAX_FOLDERS = 1_000`.
 
 #### 4.2.2 Write-serialization chain
 
@@ -252,7 +252,7 @@ The DB file lives **inside the user's chosen folder**, so it is untrusted input:
 
 The load path is:
 
-1. **Read** `photo-sorter-db.json`. Missing file → `return null` (normal on first open, no warning).
+1. **Read** `nata-sort-db.json`. Missing file → `return null` (normal on first open, no warning).
 2. **Parse** JSON. Parse error → warn `"Database rusak, dibuat ulang"`, return `null`.
 3. **Shape check** (`isValidState`): requires `version:string`, `folders:array`, `sortedPhotos:object!=null`, `operations:array`. Fail → warn `"Format database tidak valid, dibuat ulang"`, return `null`.
 4. **Version check**: `parsed.version !== "2.0"` → warn `"Database versi X tidak kompatibel, dibuat ulang"`, return `null`.
@@ -439,7 +439,7 @@ export interface ProjectState {
 
 ---
 
-## 6. `photo-sorter-db.json` schema
+## 6. `nata-sort-db.json` schema
 
 A single JSON file written **inside the opened folder**. It is the durable session state; handles and blob URLs are never persisted (they are re-acquired on load by name).
 
@@ -634,11 +634,11 @@ sequenceDiagram
 
 ## 9. Concurrency model
 
-Photo Sorter has several independent asynchronous flows; each has an explicit guard against races.
+NATA has several independent asynchronous flows; each has an explicit guard against races.
 
 | Flow | Hazard | Guard |
 |---|---|---|
-| **DB writes** | Two read-modify-writes of `photo-sorter-db.json` interleave (holding a shortcut key; metadata persist overlapping an assign) and drop updates. | Single `writeChain` promise; every mutator wraps its body in `enqueue()` so writes run **strictly one at a time**, and the chain survives rejections. |
+| **DB writes** | Two read-modify-writes of `nata-sort-db.json` interleave (holding a shortcut key; metadata persist overlapping an assign) and drop updates. | Single `writeChain` promise; every mutator wraps its body in `enqueue()` so writes run **strictly one at a time**, and the chain survives rejections. |
 | **RAW decode** | The same file is decoded repeatedly as the effect re-fires; a failed decode retries forever. | `rawDecodeQueueRef` (in-flight dedup), `rawPreviewKeysRef` (already-done skip), `failedRawDecodesRef` (no-retry). One decode per key ever. |
 | **Metadata extraction** | Neighbor prefetch double-extracts the same file. | `metaQueueRef` in-flight set + `metadataByKey.has(key)` check; a `cancelled` flag prevents setState-after-unmount. |
 | **Capture-date scan** | Reading hundreds of headers serially is slow; unbounded parallelism thrashes memory. | Fixed pool of **≤ 8** workers over a shared cursor. |
@@ -767,14 +767,14 @@ flowchart LR
 
 - `pnpm run build` = `tsc -b && vite build`. Type errors fail the build.
 - **PWA**: `registerType: "autoUpdate"` with `injectRegister: false` — the service worker is registered **manually** in `main.tsx` (`navigator.serviceWorker.register("/sw.js")` on `window` load) so **no inline `<script>`** is injected, preserving the strict CSP. Workbox precaches `**/*.{js,css,html,wasm,svg,png,ico,woff2}` with `maximumFileSizeToCacheInBytes: 4 MB` (to cover the ~1.3 MB libraw WASM), `cleanupOutdatedCaches`, and `navigateFallback: /index.html`. `autoUpdate` implies `skipWaiting` + `clientsClaim`, so a new SW takes over on reload.
-- **Manifest**: standalone display, theme/background `#0a0f1a`, 192 & 512 icons, Indonesian name `"Photo Sorter — Sortir Foto & Video Lokal"`, `lang: "id"`.
-- **Entry** (`main.tsx`): `StrictMode → ErrorBoundary → ThemeProvider (defaultTheme dark, storageKey "vite-ui-theme") → App`; it also normalizes any non-`/` path back to `/` (single-view app, no router).
+- **Manifest**: standalone display, theme/background `#0a0f1a`, 192 & 512 icons, Indonesian name `"NATA — Sortir Foto & Video Lokal"`, `lang: "id"`.
+- **Entry** (`main.tsx`): `StrictMode → ErrorBoundary → ThemeProvider (defaultTheme dark, storageKey "nata-sort-theme") → App`; it also normalizes any non-`/` path back to `/` (single-view app, no router).
 
 ---
 
 ## 14. Testing & verification strategy
 
-Photo Sorter is a browser app whose core capability (`showDirectoryPicker`) requires a real Chromium user gesture, so verification leans on manual and infrastructure checks rather than a large unit-test suite.
+NATA is a browser app whose core capability (`showDirectoryPicker`) requires a real Chromium user gesture, so verification leans on manual and infrastructure checks rather than a large unit-test suite.
 
 **Static / build gates**
 

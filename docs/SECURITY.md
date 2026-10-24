@@ -1,6 +1,6 @@
 # Security Policy & Audit
 
-How Photo Sorter is secured, the results of a full security audit, and how to report a vulnerability.
+How NATA is secured, the results of a full security audit, and how to report a vulnerability.
 
 Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
@@ -10,7 +10,7 @@ Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
 ## 1. TL;DR
 
-- **Photo Sorter has no backend.** Every file is opened, decoded, and sorted **locally in the browser** via the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API). Nothing is uploaded; there is no telemetry and no network egress (enforced by `connect-src 'self'`).
+- **NATA has no backend.** Every file is opened, decoded, and sorted **locally in the browser** via the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API). Nothing is uploaded; there is no telemetry and no network egress (enforced by `connect-src 'self'`).
 - **Dependency tree is clean.** After this audit `pnpm audit` reports **"No known vulnerabilities found"** for both the full tree and the production (`--prod`) tree. The production container ships only `express`, `helmet`, `compression` (0 known vulns) plus the static build.
 - **Deployment is hardened and nginx-free.** A single container runs a tiny Express + [helmet](https://helmetjs.github.io/) static server as a **non-root** user with a **read-only** root filesystem, **all Linux capabilities dropped**, and `no-new-privileges`.
 - **World-class HTTP headers**, including a strict Content-Security-Policy, cross-origin isolation (COOP + COEP + CORP), HSTS, and a deny-by-default Permissions-Policy.
@@ -32,16 +32,16 @@ We aim to acknowledge reports within a few days. Because the app is fully client
 
 ## 3. Security model
 
-Photo Sorter is a **local-first, zero-backend** single-page app. Its security model follows from that:
+NATA is a **local-first, zero-backend** single-page app. Its security model follows from that:
 
 | Property | Consequence |
 | --- | --- |
 | No server-side application logic | No server-side injection, SSRF, auth, or session surface. |
 | No network egress at runtime | A compromised page cannot exfiltrate the user's files — `connect-src 'self'` blocks it. |
 | Explicit, user-granted file access | The app only touches the folder the user picks in the OS dialog, and only after an explicit gesture. |
-| State stored beside the user's data | Project state lives in `photo-sorter-db.json` **inside the chosen folder** — never in a cloud or shared store. |
+| State stored beside the user's data | Project state lives in `nata-sort-db.json` **inside the chosen folder** — never in a cloud or shared store. |
 
-The remaining attack surface is the classic client-side one: malicious **media files** or a malicious **`photo-sorter-db.json`** trying to crash/DoS the tab or pollute app state, cross-site attacks against the served page (XSS, clickjacking, framing), and supply-chain risk in dependencies. Each is addressed below.
+The remaining attack surface is the classic client-side one: malicious **media files** or a malicious **`nata-sort-db.json`** trying to crash/DoS the tab or pollute app state, cross-site attacks against the served page (XSS, clickjacking, framing), and supply-chain risk in dependencies. Each is addressed below.
 
 ### Trust boundaries
 
@@ -49,11 +49,11 @@ The remaining attack surface is the classic client-side one: malicious **media f
 flowchart LR
   subgraph Untrusted
     IMG[Image / video / RAW bytes]
-    DB[photo-sorter-db.json]
+    DB[nata-sort-db.json]
     NET[The wider web]
   end
   subgraph Browser["Browser origin (sandboxed, cross-origin isolated)"]
-    APP[Photo Sorter SPA]
+    APP[NATA SPA]
   end
   subgraph Local["Local filesystem (user-granted handle)"]
     FS[(Chosen folder)]
@@ -154,7 +154,7 @@ All responses carry the full header set (verified live):
 | 1 | **High** + Moderate | `exifreader` DoS via crafted ICC `mluc` tag ([GHSA-h64w-w9pr-82m4](https://github.com/advisories/GHSA-h64w-w9pr-82m4)) and unbounded metadata decompression ([GHSA-rr89-w3h9-m66j](https://github.com/advisories/GHSA-rr89-w3h9-m66j)). ExifReader parses **untrusted user images**, so this was the most material finding. | Bump `exifreader` `^4.38.1 → ^4.41.0` (patched ≥ 4.39.0). |
 | 2 | Supply-chain | The `shadcn` **CLI** was listed under `dependencies`, pulling a large server-side tree (`hono`, `qs`, `js-yaml`, `@babel/core`, `@modelcontextprotocol/sdk`) into the **production** dependency graph. None of it ships in the browser bundle. | Move `shadcn` to `devDependencies` (still needed at build time for the `shadcn/tailwind.css` import in `globals.css`). |
 | 3 | Moderate/Low | Remaining **dev/build-only** transitive advisories (`hono`, `qs`, `js-yaml`, `@babel/core`, `vite` dev-server `fs.deny` bypass, `launch-editor`, `brace-expansion`). | Pin patched versions via `pnpm.overrides` and bump `vite` to `^8.1.4`. |
-| 4 | Hardening | Prototype-pollution / unbounded-memory risk when reading `photo-sorter-db.json`. | `sanitizeState`/`safeRecord` (see §4.4). |
+| 4 | Hardening | Prototype-pollution / unbounded-memory risk when reading `nata-sort-db.json`. | `sanitizeState`/`safeRecord` (see §4.4). |
 | 5 | Hardening | Folder-name input only blocked a few characters. | `validateFolderName` (see §4.4). |
 | 6 | Hardening | nginx image shipped the whole toolchain and ran as root. | Minimal non-root Node runtime + hardened compose (see §6). |
 

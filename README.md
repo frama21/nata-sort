@@ -1,4 +1,4 @@
-# Photo Sorter
+# NATA
 
 A fast, **100% client-side** photo & video sorter that runs in the browser. Open
 a local folder, preview each file, and copy/move it into sort sub-folders with
@@ -35,7 +35,7 @@ the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Fi
   date) and `mediainfo.js` for video (duration, fps, codecs, bitrate). Metadata
   is extracted lazily on demand and cached.
 - **Auto-persisted project state** — folders, sort mappings, mode, and the
-  recent operation log are saved to `photo-sorter-db.json` inside the chosen
+  recent operation log are saved to `nata-sort-db.json` inside the chosen
   folder and restored on the next visit.
 - **Filename-collision safe** — copies/moves never silently overwrite; a
   `_1`, `_2`, … suffix is added when a name already exists.
@@ -211,13 +211,13 @@ for the full deployment hardening details.
 Or without Compose:
 
 ```bash
-docker build -t photo-sorter .
-docker run -d -p 8080:8080 photo-sorter
+docker build -t nata-sort .
+docker run -d -p 8080:8080 nata-sort
 ```
 
 ## How state is stored
 
-A single JSON file, `photo-sorter-db.json`, is written to the folder you open.
+A single JSON file, `nata-sort-db.json`, is written to the folder you open.
 It contains the sort folders, the per-file sort mapping (keyed by file name),
 the move mode, the recent operation log, and a metadata cache. Deleting this
 file resets the project; the app recreates it on the next open. The database

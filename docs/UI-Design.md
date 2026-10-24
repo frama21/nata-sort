@@ -1,6 +1,6 @@
 # UI / UX Design
 
-The visual and interaction design system for Photo Sorter — a keyboard-first, 100% client-side photo & video sorter. This document is the single source of truth for design tokens, layout, components, screen states, theming, motion, accessibility, and localization.
+The visual and interaction design system for NATA — a keyboard-first, 100% client-side photo & video sorter. This document is the single source of truth for design tokens, layout, components, screen states, theming, motion, accessibility, and localization.
 
 Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
@@ -12,7 +12,7 @@ Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
 ## 1. Design language & foundations
 
-Photo Sorter is a **utilitarian, content-first tool**. The interface exists to get out of the way of one repetitive task: look at a photo, press a key, move on. Every design decision serves throughput and clarity.
+NATA is a **utilitarian, content-first tool**. The interface exists to get out of the way of one repetitive task: look at a photo, press a key, move on. Every design decision serves throughput and clarity.
 
 **Principles**
 
@@ -153,18 +153,18 @@ The `@theme inline` block groups tokens into these families, each with a `*-fore
 
 ## 3. Typography
 
-Photo Sorter ships **no custom web font**. It inherits the platform/Tailwind default sans stack, keeping the payload small and the CSP simple (`font-src 'self' data:` — no remote font fetches). Type is sized with Tailwind's scale.
+NATA ships **no custom web font**. It inherits the platform/Tailwind default sans stack, keeping the payload small and the CSP simple (`font-src 'self' data:` — no remote font fetches). Type is sized with Tailwind's scale.
 
 | Role | Classes | Notes |
 | --- | --- | --- |
-| App title ("Photo Sorter") | `font-bold text-sm md:text-lg leading-tight` | In the navbar |
+| App title ("NATA") | `font-bold text-sm md:text-lg leading-tight` | In the navbar |
 | Version subtitle (`v2.0.1`) | `text-[10px] md:text-xs` | Under the title |
 | Card / panel title | `text-xl font-bold` (MetadataPanel: `text-lg md:text-xl`) | Paired with a 24px lucide icon |
 | Body / item text | `text-sm` | Default reading size |
 | Captions & metadata values | `text-xs text-muted-foreground` | Panel descriptions, filenames |
 | Micro-labels | `text-[10px]` / `text-xs` | Mobile hints, badges |
 | Folder shortcut swatch digit | `font-bold text-xs` | White on the folder color |
-| Code (`.photo-sorter-db.json`) | `<code>` inline | Empty-state hint |
+| Code (`.nata-sort-db.json`) | `<code>` inline | Empty-state hint |
 
 Guidelines: `leading-tight` on stacked headings; `truncate` / `line-clamp-1` on filenames, folder names, and operation rows; `break-words` on long metadata values (camera names, codecs) so narrow panels never overflow.
 
@@ -203,7 +203,7 @@ Icons come exclusively from **lucide-react** (`[&_svg]` sizing baked into Button
 
 ### 5.1 Breakpoints & regions
 
-Photo Sorter uses Tailwind's default breakpoints, but reacts at **two** of them, which produces three meaningful layouts:
+NATA uses Tailwind's default breakpoints, but reacts at **two** of them, which produces three meaningful layouts:
 
 | Range | Name | Navigation model | Structure |
 | --- | --- | --- | --- |
@@ -218,7 +218,7 @@ The outer wrapper is `min-h-screen` with `transition-colors duration-300` (theme
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
 │  ◐ backdrop-blur navbar  (sticky top-0, z-50)                          │
-│  [icon] Photo Sorter v2.0.1          [status toast] [☾/☀ theme]        │
+│  [icon] NATA v2.0.1          [status toast] [☾/☀ theme]        │
 ├──────────────────────────────────────────────────────────────────────┤
 │  container mx-auto · lg:grid-cols-12 · gap-6                           │
 │                                                                        │
@@ -242,7 +242,7 @@ The outer wrapper is `min-h-screen` with `transition-colors duration-300` (theme
 
 ```
 ┌───────────────────────────────┐
-│ ◐ [icon] Photo Sorter  [☾]    │  sticky navbar
+│ ◐ [icon] NATA  [☾]    │  sticky navbar
 ├───────────────────────────────┤
 │ ProgressBar  12/240 · 57 dis. │
 │ ┌───────────────────────────┐ │
@@ -291,7 +291,7 @@ flowchart TD
 
 ### 6.1 shadcn / Radix UI primitives — [src/components/ui](../src/components/ui)
 
-| Component | Purpose in Photo Sorter |
+| Component | Purpose in NATA |
 | --- | --- |
 | `alert` | Error banner, all-sorted banner, keyboard-shortcut tips |
 | `badge` | Format label, sort status, StatusIndicator toast, folder tag |
@@ -326,7 +326,7 @@ flowchart TD
 | `MobileActionBar` | [src/components/MobileActionBar.tsx](../src/components/MobileActionBar.tsx) | Fixed bottom bar: prev/next + one colored button per folder |
 | `StatusIndicator` | [src/components/StatusIndicator.tsx](../src/components/StatusIndicator.tsx) | Reads the Zustand status store; shows the newest toast in the navbar |
 | `ThemeMode` | [src/components/ThemeMode.tsx](../src/components/ThemeMode.tsx) | Sun/Moon toggle (binary light↔dark) with `sr-only` label |
-| `ThemeProvider` | [src/components/ThemeProvider.tsx](../src/components/ThemeProvider.tsx) | Theme context; writes/reads `localStorage["vite-ui-theme"]`; applies `.dark`/`.light` on `<html>` |
+| `ThemeProvider` | [src/components/ThemeProvider.tsx](../src/components/ThemeProvider.tsx) | Theme context; writes/reads `localStorage["nata-sort-theme"]`; applies `.dark`/`.light` on `<html>` |
 | `ErrorBoundary` | [src/components/ErrorBoundary.tsx](../src/components/ErrorBoundary.tsx) | Catches render errors; "Coba lagi" / "Muat ulang" recovery |
 
 ---
@@ -350,7 +350,7 @@ stateDiagram-v2
     RawDecoding --> NoPreview: decode fails
 ```
 
-1. **Empty (pick-folder)** — `totalPhotos === 0`. Full-height `Empty` (`h-[90dvh]`) with `ImageOff` media, title **"Mulai Sortir Foto"**, a description noting sort folders auto-create and state persists to `.photo-sorter-db.json`, a large **"Pilih Folder Foto"** button (disabled → "Membaca…" while loading), and the note "Chrome/Edge/Opera terbaru diperlukan. File diproses secara lokal."
+1. **Empty (pick-folder)** — `totalPhotos === 0`. Full-height `Empty` (`h-[90dvh]`) with `ImageOff` media, title **"Mulai Sortir Foto"**, a description noting sort folders auto-create and state persists to `.nata-sort-db.json`, a large **"Pilih Folder Foto"** button (disabled → "Membaca…" while loading), and the note "Chrome/Edge/Opera terbaru diperlukan. File diproses secara lokal."
 
 2. **Loading** — the pick button switches to **"Membaca…"** (disabled); the navbar `StatusIndicator` shows a `Spinner` badge. RAW/metadata work surfaces its own spinners downstream.
 
@@ -364,7 +364,7 @@ stateDiagram-v2
 
 7. **All sorted** — when `totalPhotos > 0 && unsortedCount === 0`: a green success `Alert` above the viewer — **"Semua N foto sudah disortir 🎉"** (`CheckCircle2`). The viewer still shows the current file so the user can review/re-sort.
 
-8. **Error** — `fs.error` renders a red `Alert` (`AlertTriangleIcon`) at the top of `main`; e.g. a reset warning when `.photo-sorter-db.json` is missing/corrupt/incompatible. Uncaught render errors fall to the **ErrorBoundary** full-screen `Empty`: "Terjadi kesalahan" with **"Coba lagi"** (reset) and **"Muat ulang"** (reload).
+8. **Error** — `fs.error` renders a red `Alert` (`AlertTriangleIcon`) at the top of `main`; e.g. a reset warning when `.nata-sort-db.json` is missing/corrupt/incompatible. Uncaught render errors fall to the **ErrorBoundary** full-screen `Empty`: "Terjadi kesalahan" with **"Coba lagi"** (reset) and **"Muat ulang"** (reload).
 
 9. **Transient toasts** — the Zustand status store (max 3; success/error auto-expire after 3s; loading cleared explicitly) feeds `StatusIndicator`: a `Spinner`, `CheckCircle2`, or `XCircle` badge with a short message in the navbar.
 
@@ -412,7 +412,7 @@ Theme is owned by [ThemeProvider](../src/components/ThemeProvider.tsx) and appli
 | --- | --- |
 | Supported values | `dark`, `light`, `system` (type `Theme`) |
 | App default | **`dark`** — `main.tsx` mounts `<ThemeProvider defaultTheme="dark" …>` |
-| Persistence | `localStorage["vite-ui-theme"]`; read on init, written on every `setTheme` |
+| Persistence | `localStorage["nata-sort-theme"]`; read on init, written on every `setTheme` |
 | `system` handling | Resolves via `window.matchMedia("(prefers-color-scheme: dark)")` and applies the matching class |
 | Toggle UI | `ThemeMode` — a single Sun/Moon icon button that **flips binary light↔dark** (Sun in light, Moon in dark; icons cross-fade via `scale`/`rotate` transitions). `system` is honored when stored but not offered by the binary toggle. |
 | Cross-fade | Root wrapper uses `transition-colors duration-300` so theme switches ease rather than snap |
@@ -485,8 +485,8 @@ Configured via `vite-plugin-pwa` in [vite.config.ts](../vite.config.ts) and the 
 
 | Aspect | Value |
 | --- | --- |
-| Manifest name | **"Photo Sorter — Sortir Foto & Video Lokal"** |
-| Short name | "Photo Sorter" |
+| Manifest name | **"NATA — Sortir Foto & Video Lokal"** |
+| Short name | "NATA" |
 | `display` | `standalone` (chromeless app window) |
 | `orientation` | `any` |
 | `theme_color` / `background_color` | `#0a0f1a` (dark navy — browser chrome & splash) |

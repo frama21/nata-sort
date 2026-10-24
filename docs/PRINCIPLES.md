@@ -1,6 +1,6 @@
 # Engineering & Product Principles
 
-The values that guide how Photo Sorter is built and how we decide trade-offs, expressed as concrete, testable commitments rather than slogans.
+The values that guide how NATA is built and how we decide trade-offs, expressed as concrete, testable commitments rather than slogans.
 
 Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
@@ -40,7 +40,7 @@ Full keyboard operation with a typing-guard, `aria-label`s on icon-only controls
 
 ## How to read this document
 
-Photo Sorter is a 100% client-side photo & video sorter: you open a local folder, preview each file in chronological order, and assign it to a sort sub-folder with single-key shortcuts. Nothing is uploaded — every byte is processed in your browser via the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API).
+NATA is a 100% client-side photo & video sorter: you open a local folder, preview each file in chronological order, and assign it to a sort sub-folder with single-key shortcuts. Nothing is uploaded — every byte is processed in your browser via the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API).
 
 That single fact — *the user's files never leave their machine* — is the root from which most of these principles grow. Each principle below has three parts:
 
@@ -64,7 +64,7 @@ Related reading: [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY.md](SECURITY.md),
 
 - File access goes exclusively through the File System Access API. Loading a folder is a direct `window.showDirectoryPicker()` call in [`src/hooks/useFileSystem.ts`](../src/hooks/useFileSystem.ts) (`loadDirectory`), and files are read from `FileSystemFileHandle`s the user explicitly granted.
 - There is **no fetch/XHR/WebSocket to any user-content endpoint** anywhere in the app. The Content-Security-Policy in [`server/index.js`](../server/index.js) pins `connect-src` to `'self' blob: data:` only — the browser itself forbids sending photo bytes to a third party.
-- Persistence is a local JSON file, `photo-sorter-db.json`, written *inside the folder the user opened* by [`src/services/dbService.ts`](../src/services/dbService.ts) (`writeDatabaseFile`). State lives next to the data it describes, on the user's disk — not in any cloud.
+- Persistence is a local JSON file, `nata-sort-db.json`, written *inside the folder the user opened* by [`src/services/dbService.ts`](../src/services/dbService.ts) (`writeDatabaseFile`). State lives next to the data it describes, on the user's disk — not in any cloud.
 - RAW decoding (`libraw-wasm`), EXIF parsing (`ExifReader`), and video metadata (`mediainfo.js`) all run in-browser (WebAssembly / Web Workers). No image is ever sent to a decode service.
 - No analytics SDK, no error-reporting beacon, no "phone home." Diagnostics are `console.warn`/`console.error` only (e.g. the RAW-decode and metadata-extract failure paths in `useFileSystem.ts`), which stay in the user's own devtools.
 - The manifest and README state the promise plainly, and the app is an installable, offline-capable PWA precisely so it can keep working with the network fully disconnected.
@@ -75,7 +75,7 @@ Related reading: [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY.md](SECURITY.md),
 
 **Statement.** Treat images, videos, folder names, and the on-disk database as untrusted input. Validate shape and bounds, sanitize, and never let external data drive control flow or memory unchecked.
 
-**Why.** "Local-first" does not mean "trusted-first." The files a user opens may be malformed, adversarially crafted, or downloaded from anywhere. The `photo-sorter-db.json` file can be edited by any process with write access to that folder. Folder names are free-form user text that becomes a real filesystem path. A crafted image can carry a decompression bomb; a crafted JSON can attempt prototype pollution. Because we parse *untrusted binary and JSON at rest*, input handling is the largest part of our real attack surface, and we treat all of it as hostile by default.
+**Why.** "Local-first" does not mean "trusted-first." The files a user opens may be malformed, adversarially crafted, or downloaded from anywhere. The `nata-sort-db.json` file can be edited by any process with write access to that folder. Folder names are free-form user text that becomes a real filesystem path. A crafted image can carry a decompression bomb; a crafted JSON can attempt prototype pollution. Because we parse *untrusted binary and JSON at rest*, input handling is the largest part of our real attack surface, and we treat all of it as hostile by default.
 
 **How it shows up in this codebase.**
 
@@ -170,7 +170,7 @@ See [SECURITY.md](SECURITY.md) for the complete posture and audit results.
 
 - **Header-only reads.** Image metadata parses only the first 2 MB slice (`MAX_HEADER_BYTES`) in [`src/services/exifService.ts`](../src/services/exifService.ts); video uses a chunked reader. We never buffer a whole 40 MB RAW to read a capture date.
 - **Lazy, neighbor-aware metadata.** The lazy-extract effect in [`src/hooks/useFileSystem.ts`](../src/hooks/useFileSystem.ts) processes only the current photo and its immediate neighbors (`[currentIndex, +1, -1]`), so metadata is ready just before you reach a file, without doing the whole folder up front.
-- **Two-layer caching.** Metadata is cached in memory (`metadataByKey`, `metadataCacheRef`) *and* persisted to `photo-sorter-db.json` (`metadataCache`), so reopening a folder is effectively instant — the initial chronological sort reuses cached dates and only reads files it has never seen.
+- **Two-layer caching.** Metadata is cached in memory (`metadataByKey`, `metadataCacheRef`) *and* persisted to `nata-sort-db.json` (`metadataCache`), so reopening a folder is effectively instant — the initial chronological sort reuses cached dates and only reads files it has never seen.
 - **Bounded concurrency.** The initial capture-date pass runs a fixed pool of up to 8 workers (`Array.from({ length: Math.min(8, total || 1) }, worker)`), and metadata persistence is `debounce`d to 1500 ms — enough parallelism to be fast, capped so we don't thrash the disk or the main thread.
 - **Cheap, correct ordering.** `parseCaptureDate` drives a single `sort` with a deterministic tiebreak (`localeCompare` on the key), and falls back to `lastModified` when no date exists.
 - **Bounded RAW previews.** [`src/services/rawDecoder.ts`](../src/services/rawDecoder.ts) prefers the *largest embedded JPEG preview* — scanning for `FF D8 FF` SOI markers, validating candidates with `createImageBitmap`, picking the widest, then re-encoding to `≤ 2048 px` (`MAX_PREVIEW_DIM`) so the cache stays small. Full `libraw` sensor decode (half-size, AHD, sRGB) is only the fallback, only when no sharp embedded preview ≥ 800 px (`SHARP_PREVIEW_MIN_WIDTH`) exists, and never for files > 80 MB.
@@ -191,8 +191,8 @@ See [SECURITY.md](SECURITY.md) for the complete posture and audit results.
 - **Shortcuts yield to text entry.** Keyboard shortcuts are ignored while typing in an input, so naming a folder never triggers a sort.
 - **Screen-reader affordances.** `aria-label`s on navigation and folder-action buttons, an `sr-only` label on the theme toggle, and a visible focus ring (`focus-visible` / `outline-ring/50`) make state legible to assistive tech and keyboard users alike.
 - **Responsive by construction.** Desktop uses a 12-column grid (viewer 8 cols + sticky sidebar 4 cols); mobile stacks to a single column with a fixed bottom `MobileActionBar` (prev/next + one colored button per folder) and swipe navigation (50 px threshold). One codebase serves both.
-- **Light/dark theming with system awareness.** `ThemeProvider` (default dark, `storageKey "vite-ui-theme"`) plus a toggle and system option; tokens are defined in OKLCH in [`src/assets/styles/globals.css`](../src/assets/styles/globals.css) for both `:root` and `.dark`.
-- **Localized UI.** The interface copy is Indonesian (`lang="id"`), including status toasts and the PWA manifest name "Photo Sorter — Sortir Foto & Video Lokal." (Code, comments, README, and CHANGELOG remain English — see [Coding conventions](#coding-conventions).)
+- **Light/dark theming with system awareness.** `ThemeProvider` (default dark, `storageKey "nata-sort-theme"`) plus a toggle and system option; tokens are defined in OKLCH in [`src/assets/styles/globals.css`](../src/assets/styles/globals.css) for both `:root` and `.dark`.
+- **Localized UI.** The interface copy is Indonesian (`lang="id"`), including status toasts and the PWA manifest name "NATA — Sortir Foto & Video Lokal." (Code, comments, README, and CHANGELOG remain English — see [Coding conventions](#coding-conventions).)
 
 ---
 
@@ -302,4 +302,4 @@ A change is not done until all of the following hold. This is the shared checkli
 
 ---
 
-*This is a living document. When a decision teaches us something new about how Photo Sorter should be built, we write it down here.*
+*This is a living document. When a decision teaches us something new about how NATA should be built, we write it down here.*

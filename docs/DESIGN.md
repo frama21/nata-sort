@@ -1,6 +1,6 @@
-# Software Design — Photo Sorter
+# Software Design — NATA
 
-The design decisions and rationale behind Photo Sorter, a 100% client-side photo
+The design decisions and rationale behind NATA, a 100% client-side photo
 & video sorter that runs entirely in a Chromium browser. This document explains
 *why* the code is shaped the way it is, not just what it does.
 
@@ -31,7 +31,7 @@ Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 
 ## 1. Design goals & constraints
 
-Photo Sorter exists to do one thing well: let a photographer flip through the
+NATA exists to do one thing well: let a photographer flip through the
 top-level images and videos in a local folder, in the order they were taken, and
 fan them out into destination sub-folders with single-key shortcuts — without
 any file ever leaving the machine.
@@ -237,7 +237,7 @@ export interface SortOperation {
 ```
 
 **Rationale.**
-- The operation log is persisted into `photo-sorter-db.json`; a handle cannot be
+- The operation log is persisted into `nata-sort-db.json`; a handle cannot be
   serialized to JSON and would silently corrupt the record.
 - Keeping handles out of the log means the log can never leak a live capability
   or a stale reference — a security-relevant property (the log stores *what
@@ -259,7 +259,7 @@ negligible cost for a large gain in robustness.
 ### ADR-5 — Single-writer DB promise chain
 
 **Context.** Every mutation (assign, undo, folder add/remove, mode change,
-metadata cache) is a **read-modify-write** of the same `photo-sorter-db.json`.
+metadata cache) is a **read-modify-write** of the same `nata-sort-db.json`.
 Holding down a `1`–`9` shortcut fires assignments faster than a write completes.
 Concurrent read-modify-writes interleave and silently drop updates
 (last-writer-wins on a stale read).
@@ -728,7 +728,7 @@ comparator falls back from to `file.lastModified` — see [§5.1](#51-chronologi
 
 ## 6. Concurrency & race-condition handling
 
-Photo Sorter has three concurrency hotspots, each handled explicitly:
+NATA has three concurrency hotspots, each handled explicitly:
 
 1. **Rapid mutations → the DB write chain.** Holding a shortcut key fires
    assignments faster than a JSON write completes. All writes are serialized

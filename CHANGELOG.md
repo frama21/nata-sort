@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **Renamed to `nata-sort`; the brand is now NATA.** The package, server package,
+  Docker image/container, and log tags use `nata-sort`; the UI, page titles, and
+  the PWA manifest say "NATA". The theme preference key is now `nata-sort-theme`,
+  so the theme resets to the default once.
+- **State file renamed to `nata-sort-db.json`.** Older `photo-sorter-db.json`
+  files are not read, so those folders start as new projects. To keep existing
+  progress, rename the file to `nata-sort-db.json` before opening the folder.
+
 ## [2.2.0] - 2026-07-15
 
 ### Added
@@ -57,7 +69,7 @@ All notable changes to this project are documented in this file.
   per WCAG 1.4.4/1.4.10) and added a `role="status"`/`aria-live` region for
   status toasts.
 - Fixed the empty-state hint to show the correct database filename
-  (`photo-sorter-db.json`).
+  (`nata-sort-db.json`).
 - Added **Prettier** (`pnpm format` / `pnpm format:check`, config in
   `.prettierrc`) and formatted the whole codebase.
 - Full-codebase principle audit and cleanup:
@@ -115,7 +127,7 @@ All notable changes to this project are documented in this file.
 ## [2.0.0] - 2026-06-14
 
 > ⚠️ **Breaking:** database schema bumped to `2.0`; existing
-> `photo-sorter-db.json` files are reset on first open.
+> `nata-sort-db.json` files are reset on first open.
 
 ### Added
 
