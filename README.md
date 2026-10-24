@@ -247,7 +247,7 @@ incompatible version is found.
 
 A full security policy, threat model, and audit report is in
 [docs/SECURITY.md](docs/SECURITY.md). Report vulnerabilities privately via
-[GitHub security advisories](https://github.com/frama21/photo-sorter/security/advisories/new)
+[GitHub security advisories](https://github.com/frama21/nata-sort/security/advisories/new)
 (see [`/.well-known/security.txt`](public/.well-known/security.txt)).
 
 ## Documentation
