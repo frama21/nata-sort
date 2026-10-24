@@ -29,7 +29,7 @@ export const MobileActionBar = ({
   const isEmptyFolder = folders.length === 0
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 h-18 border-t border-border bg-surface p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-50 animate-slide-in-bottom h-18 border-t border-border bg-surface p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
       <div className="flex h-full items-center justify-between gap-2">
         <div className="flex flex-row items-center gap-2">
           <WithTooltip label={t("viewer.prevPhoto")}>

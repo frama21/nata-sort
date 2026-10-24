@@ -127,14 +127,15 @@ export const EditorView = ({ fs }: EditorViewProps) => {
         {isDesktop && (
           <nav
             aria-label={t("folder.title")}
-            className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto border-r border-border bg-surface p-3"
+            // Children keep their height (`*:shrink-0`): on a short screen the panel scrolls instead of squeezing its cards.
+            className="flex w-72 shrink-0 animate-slide-in-left flex-col gap-3 overflow-y-auto border-r border-border bg-surface p-3 *:shrink-0"
           >
             {foldersPanel}
           </nav>
         )}
 
         {/* Canvas: view toggle + selection controls, progress, viewer / grid, filmstrip */}
-        <div className="flex min-w-0 flex-1 flex-col gap-3 bg-canvas p-3 pb-24 lg:min-h-0 lg:overflow-y-auto lg:pb-3">
+        <div className="flex min-w-0 flex-1 animate-rise-lg flex-col gap-3 bg-canvas p-3 pb-24 lg:min-h-0 lg:overflow-y-auto lg:pb-3 [animation-delay:45ms]">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1" role="group" aria-label={t("editor.viewMode")}>
               <Button
@@ -250,7 +251,7 @@ export const EditorView = ({ fs }: EditorViewProps) => {
         {isDesktop && (
           <aside
             aria-label={t("editor.infoPanel")}
-            className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto border-l border-border bg-surface p-3"
+            className="flex w-80 shrink-0 animate-slide-in-right flex-col gap-3 overflow-y-auto border-l border-border bg-surface p-3 *:shrink-0 [animation-delay:90ms]"
           >
             {infoPanel}
           </aside>

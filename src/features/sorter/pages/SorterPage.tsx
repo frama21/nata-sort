@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useBlocker } from "react-router"
 import { AlertTriangleIcon, XIcon } from "lucide-react"
@@ -13,14 +13,35 @@ import { EditorView } from "../components/EditorView"
 import { WelcomeView } from "../components/WelcomeView"
 import { useFileSystem } from "../hooks/useFileSystem"
 
+/** How long the start screen stays to lift away once a project opens (matches `--dur-slow`). */
+const WELCOME_EXIT_MS = 300
+
 /** The sorting workspace: pick a folder, then preview and file each photo. */
 export const SorterPage = () => {
   const { t } = useTranslation()
   const fs = useFileSystem()
   const totalPhotos = fs.photos.length
 
-  // Tell the top bar a project is open so it can offer "Close project".
+  // When a project opens, the start screen stays mounted for a moment and lifts away over the
+  // workspace as it slides in, instead of one view snapping to the other.
+  const [wasEmpty, setWasEmpty] = useState(totalPhotos === 0)
+  const [welcomeLeaving, setWelcomeLeaving] = useState(false)
+  // Bumped each time the start screen returns, so it remounts with a fresh recent-projects list even
+  // if the project was closed while the previous copy was still leaving.
+  const [welcomeKey, setWelcomeKey] = useState(0)
+  if ((totalPhotos === 0) !== wasEmpty) {
+    setWasEmpty(totalPhotos === 0)
+    setWelcomeLeaving(totalPhotos > 0)
+    if (totalPhotos === 0) setWelcomeKey(k => k + 1)
+  }
+  useEffect(() => {
+    if (!welcomeLeaving) return
+    const timer = setTimeout(() => setWelcomeLeaving(false), WELCOME_EXIT_MS)
+    return () => clearTimeout(timer)
+  }, [welcomeLeaving])
+
   const { projectName, closeProject } = fs
+  // Tell the top bar a project is open so it can offer "Close project".
   useEffect(() => {
     if (totalPhotos === 0 || !projectName) return
     useProjectStore.getState().open(projectName, closeProject)
@@ -58,15 +79,28 @@ export const SorterPage = () => {
         </Alert>
       )}
 
-      {totalPhotos === 0 ? (
-        <WelcomeView
-          isLoading={fs.isLoading}
-          onLoadDirectory={fs.loadDirectory}
-          onOpenRecent={fs.openRecentProject}
-        />
-      ) : (
-        <EditorView fs={fs} />
-      )}
+      <div className="relative h-full">
+        {(totalPhotos === 0 || welcomeLeaving) && (
+          <div
+            // Same element and position in the tree before and during the exit, so the screen is not remounted.
+            inert={welcomeLeaving}
+            aria-hidden={welcomeLeaving || undefined}
+            className={
+              welcomeLeaving
+                ? "pointer-events-none absolute inset-0 z-10 animate-welcome-out bg-background"
+                : "h-full"
+            }
+          >
+            <WelcomeView
+              key={welcomeKey}
+              isLoading={fs.isLoading}
+              onLoadDirectory={fs.loadDirectory}
+              onOpenRecent={fs.openRecentProject}
+            />
+          </div>
+        )}
+        {totalPhotos > 0 && <EditorView fs={fs} />}
+      </div>
 
       <Dialog
         open={blocker.state === "blocked"}
