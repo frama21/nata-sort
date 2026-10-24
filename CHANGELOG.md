@@ -74,6 +74,15 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **Deployment is back on nginx, configured entirely in the `Dockerfile`.** The `server/` folder
+  (Express + helmet + compression) is deleted; the repo's only deploy files are `Dockerfile` and
+  `docker-compose.yml`. Node now appears once, as `node:24-alpine` in the build stage (pnpm 12.8.1
+  via corepack; `pnpm-workspace.yaml` is copied before install so `overrides` match the lockfile).
+  The runtime is `nginxinc/nginx-unprivileged:stable-alpine` (non-root, `:8080`) with the same CSP,
+  cross-origin isolation, HSTS and `Permissions-Policy` headers, `GET`/`HEAD` only, immutable
+  `/assets/*`, `no-cache` for everything else, real 404s for missing assets, SPA fallback,
+  `application/manifest+json` for `.webmanifest`, gzip, and `/healthz`. `TRUST_PROXY`, `HOST`, `PORT`
+  and `STATIC_DIR` are gone. The healthcheck uses `wget`; the Compose memory limit drops to 128M.
 - **Motion feels fluid, not abrupt.** Durations are a little longer (120/180/280 ms), entrances use a spring-out curve (`--ease-out`) and exits an accelerating one
   (`--ease-in`). Only `opacity` and `transform` animate, and reduced motion still zeroes them.
 

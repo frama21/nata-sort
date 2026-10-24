@@ -109,7 +109,7 @@ Uploading photos to sort them is a privacy and bandwidth non-starter, and it
 would require a server, storage, and a trust relationship.
 
 **Decision.** Process everything in the browser via the File System Access API.
-The only server that exists is a tiny static file host (see [ADR-11](#adr-11--single-container-nodehelmet-static-server-nginx-removed))
+The only server that exists is a tiny static file host (see [ADR-12](#adr-12--single-container-nginx-configured-in-the-dockerfile-node-24-build-stage-only))
 that ships the app bundle and never receives user files.
 
 **Rationale.**
@@ -499,7 +499,9 @@ outcome.
 
 ---
 
-### ADR-11 — Single-container Node/helmet static server (nginx removed)
+### ADR-11 — Single-container Node/helmet static server (nginx removed) — SUPERSEDED by [ADR-12](#adr-12--single-container-nginx-configured-in-the-dockerfile-node-24-build-stage-only)
+
+> **SUPERSEDED.** Kept for history. `server/` has been deleted and nginx is back, configured inside the `Dockerfile`.
 
 **Context.** The app is static assets, but they must be served with a strict CSP,
 cross-origin isolation (COOP/COEP/CORP — required for the WASM/worker pipeline),
@@ -535,6 +537,38 @@ only `express`/`helmet`/`compression` for the runtime, and runs as the non-root
 container is hardened at the compose layer (read-only rootfs + tmpfs, `cap_drop:
 ALL`, `no-new-privileges`, `init: true`, CPU/memory limits, log rotation). Details
 in [SECURITY.md](SECURITY.md).
+
+### ADR-12 — Single-container nginx configured in the Dockerfile (Node 24 build stage only)
+
+**Context.** ADR-11 replaced nginx with a small Express + helmet server. That added
+a second dependency tree (`server/package.json`, its own lockfile) and a `server-deps`
+image stage, and Node appeared in three `FROM` lines (`node:22-slim`, twice
+`node:22-alpine`) for what is, at runtime, a static file host.
+
+**Decision.** Keep the single container, but serve it with the unprivileged
+`nginxinc/nginx-unprivileged:stable-alpine` image. The whole nginx config (security
+headers, `$cache_control` map, SPA fallback, 405 for non-GET/HEAD, `/healthz`) is a
+heredoc in the [`Dockerfile`](../Dockerfile), so the repo's only deploy files are
+`Dockerfile` and `docker-compose.yml`. Node appears **once**: the build stage on
+`node:24-alpine` with pnpm 12.8.1 via corepack. `server/` is deleted.
+
+**Rationale.**
+- No runtime dependencies to audit: the final image holds nginx and `dist` only.
+- One file to read for the build and the serving behavior; no separate lockfile.
+- The exact header set from [SECURITY.md](SECURITY.md) is unchanged, now emitted by
+  `add_header ... always` at server level.
+
+**Alternatives considered.**
+- *Keep Express + helmet (ADR-11)* — rejected: extra package, lockfile, and stage for
+  behavior nginx provides natively.
+- *Mount an `nginx.conf` from the repo* — rejected: the requirement is a repo with
+  only `Dockerfile` and `docker-compose.yml`.
+
+**Trade-offs.** nginx drops inherited `add_header` as soon as a `location` declares
+its own, so headers are declared once at server level and per-path `Cache-Control`
+comes from a map (without `always`, so 404s are never `immutable`). Stock nginx has
+no brotli (gzip only). HSTS is sent on every response; browsers only honour it over
+HTTPS. `TRUST_PROXY`, `PORT`, `HOST` and `STATIC_DIR` no longer exist.
 
 ---
 

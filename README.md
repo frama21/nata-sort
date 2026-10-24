@@ -68,8 +68,8 @@ React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS v4 · Zu
 ExifReader · mediainfo.js · libraw-wasm · vite-plugin-pwa. UI primitives are
 in-house components in `src/shared/components/ui` (native `<dialog>`, ARIA tabs,
 …), with no Radix or shadcn dependency. Tests: Vitest + React Testing Library +
-Playwright. Production server: Express + helmet (see
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
+Playwright. Production server: nginx, configured inside the
+[`Dockerfile`](Dockerfile) (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
 
 ## Getting started
 
@@ -192,14 +192,14 @@ Delete its folder, then run `pnpm typecheck && pnpm check:architecture && pnpm t
 
 ## Run with Docker
 
-Deployment is a **single container** driven by `docker compose` — **no nginx and
-no reverse proxy**. A multi-stage `Dockerfile` builds the app with pnpm, then a
-minimal `node:22-alpine` runtime serves the static output with a tiny hardened
-[Express](https://expressjs.com/) + [helmet](https://helmetjs.github.io/) server
-([`server/index.js`](server/index.js)): strict CSP + security headers,
+Deployment is a **single container** driven by `docker compose`. A two-stage
+`Dockerfile` builds the app with pnpm on `node:24-alpine` (the only place Node
+appears), then an unprivileged `nginx` runtime serves the static output. The
+whole nginx config lives in the `Dockerfile` (the repo's only deploy files are
+`Dockerfile` and `docker-compose.yml`): strict CSP + security headers,
 cross-origin isolation, SPA routing, immutable asset caching, and correct
-PWA/WASM MIME types. The final image contains only the built assets and three
-audited server dependencies — no toolchain, and it runs as a **non-root** user.
+PWA/WASM MIME types. The final image contains only nginx and the built assets —
+no Node, no toolchain — and it runs as a **non-root** user.
 
 ```bash
 docker compose up -d --build    # build & run → http://localhost:8080
@@ -210,7 +210,7 @@ The Compose file is hardened for production out of the box: read-only root
 filesystem, `no-new-privileges`, all Linux capabilities dropped, resource
 limits, log rotation, and a health check. For public HTTPS, terminate TLS at
 your platform edge (Cloudflare, a load balancer, Caddy/Traefik) and forward to
-the container, setting `TRUST_PROXY=1`. See [docs/SECURITY.md](docs/SECURITY.md)
+the container. See [docs/SECURITY.md](docs/SECURITY.md)
 for the full deployment hardening details.
 
 Or without Compose:
@@ -235,8 +235,8 @@ incompatible version is found.
   there is no network egress (`connect-src 'self'`).
 - A strict **Content-Security-Policy** and a full set of security headers
   (`COOP`/`COEP`/`CORP` cross-origin isolation, `HSTS`, `X-Frame-Options`,
-  `Referrer-Policy`, `Permissions-Policy`, …) are set by the hardened
-  [`server/index.js`](server/index.js).
+  `Referrer-Policy`, `Permissions-Policy`, …) are set by the nginx config in the
+  [`Dockerfile`](Dockerfile).
 - Untrusted input is defended in depth: images are parsed header-only and
   decodes are bounded/timed-out; the project database is sanitized against
   prototype pollution; folder names are strictly validated.

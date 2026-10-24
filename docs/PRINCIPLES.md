@@ -24,7 +24,7 @@ Shared logic lives in one place: `megapixelsFrom()` in [exifService.ts](../src/f
 
 ### KISS — Keep It Simple
 
-The simplest thing that works: a single JSON file for persistence, a promise chain (not a lock library) for write serialization, plain `<img>`/`<video>` tags for previews, and an ~180-line Express server instead of a reverse-proxy stack.
+The simplest thing that works: a single JSON file for persistence, a promise chain (not a lock library) for write serialization, plain `<img>`/`<video>` tags for previews, and a stock nginx whose whole config lives in the Dockerfile instead of a custom server.
 
 ### Semantic
 
@@ -63,7 +63,7 @@ Related reading: [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY.md](SECURITY.md),
 **How it shows up in this codebase.**
 
 - File access goes exclusively through the File System Access API. Loading a folder is a direct `window.showDirectoryPicker()` call in [`src/features/sorter/hooks/useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts) (`loadDirectory`), and files are read from `FileSystemFileHandle`s the user explicitly granted.
-- There is **no fetch/XHR/WebSocket to any user-content endpoint** anywhere in the app. The Content-Security-Policy in [`server/index.js`](../server/index.js) pins `connect-src` to `'self' blob: data:` only — the browser itself forbids sending photo bytes to a third party.
+- There is **no fetch/XHR/WebSocket to any user-content endpoint** anywhere in the app. The Content-Security-Policy in the nginx config of the [`Dockerfile`](../Dockerfile) pins `connect-src` to `'self' blob: data:` only — the browser itself forbids sending photo bytes to a third party.
 - Persistence is a local JSON file, `nata-sort-db.json`, written *inside the folder the user opened* by [`src/features/sorter/services/project-db.service.ts`](../src/features/sorter/services/project-db.service.ts) (`writeDatabaseFile`). State lives next to the data it describes, on the user's disk — not in any cloud.
 - RAW decoding (`libraw-wasm`), EXIF parsing (`ExifReader`), and video metadata (`mediainfo.js`) all run in-browser (WebAssembly / Web Workers). No image is ever sent to a decode service.
 - No analytics SDK, no error-reporting beacon, no "phone home." Diagnostics are `console.warn`/`console.error` only (e.g. the RAW-decode and metadata-extract failure paths in `useFileSystem.ts`), which stay in the user's own devtools.
@@ -101,7 +101,7 @@ Related reading: [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY.md](SECURITY.md),
 
 **How it shows up in this codebase.**
 
-- **Strict CSP with no script `unsafe-inline`/`unsafe-eval`.** [`server/index.js`](../server/index.js) sets (verified live):
+- **Strict CSP with no script `unsafe-inline`/`unsafe-eval`.** The nginx config in the [`Dockerfile`](../Dockerfile) sets (verified live):
 
   ```
   default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none';
@@ -112,7 +112,7 @@ Related reading: [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY.md](SECURITY.md),
   ```
 
   Scripts get only `'wasm-unsafe-eval'` (needed to compile the `libraw`/`mediainfo` WASM) — never arbitrary `eval`. To keep the CSP intact, the service worker is registered manually in [`src/app/main.tsx`](../src/app/main.tsx) on `window` load, so `vite-plugin-pwa` injects **no inline script**.
-- **Full security-header set** via `helmet` plus a `Permissions-Policy` middleware, all verified live: `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, `Cross-Origin-Resource-Policy: same-origin`, `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-Permitted-Cross-Domain-Policies: none`, `X-DNS-Prefetch-Control: off`, `X-Download-Options: noopen`, `Origin-Agent-Cluster: ?1`, and `X-XSS-Protection: 0` (the legacy, footgun-prone auditor is deliberately disabled).
+- **Full security-header set** via nginx `add_header ... always` (including `Permissions-Policy`), all verified live: `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, `Cross-Origin-Resource-Policy: same-origin`, `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-Permitted-Cross-Domain-Policies: none`, `X-DNS-Prefetch-Control: off`, `X-Download-Options: noopen`, `Origin-Agent-Cluster: ?1`, and `X-XSS-Protection: 0` (the legacy, footgun-prone auditor is deliberately disabled).
 - **Cross-origin isolation** (COOP + COEP + CORP) is on by default — a prerequisite for the WASM decoders and a hard barrier against cross-origin leakage.
 - **Least privilege at the edge.** `Permissions-Policy` denies accelerometer, autoplay, browsing-topics, camera, display-capture, encrypted-media, geolocation, gyroscope, interest-cohort, magnetometer, microphone, midi, payment, publickey-credentials-get, screen-wake-lock, serial, sync-xhr, usb, and xr-spatial-tracking; it allows only `self` fullscreen and picture-in-picture for the media viewer.
 - **React auto-escaping** handles all metadata/user text; we never `dangerouslySetInnerHTML` untrusted content.
@@ -205,10 +205,10 @@ See [SECURITY.md](SECURITY.md) for the complete posture and audit results.
 **How it shows up in this codebase.**
 
 - **No router.** It is a single view. [`src/app/main.tsx`](../src/app/main.tsx) normalizes any non-`/` path back to `/`; the whole app is [`src/app/App.tsx`](../src/app/App.tsx) composing a handful of components. No routing library, no navigation state to secure.
-- **No backend for the app.** Persistence is a local JSON file, not a server or an embedded DB engine. The only server, [`server/index.js`](../server/index.js), is a *static file server* — Express 5 + `helmet` + `compression`, nothing more.
+- **No backend for the app.** Persistence is a local JSON file, not a server or an embedded DB engine. The only server is nginx serving static files, configured in the [`Dockerfile`](../Dockerfile) — nothing more.
 - **One controller, clear boundaries.** State orchestration lives in one hook, [`src/features/sorter/hooks/useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts); pure services are cleanly separated (`dbService`, `exifService`, `rawDecoder`); a single Zustand store (`statusStore`) holds only transient toasts (max 3, auto-expiring). Responsibilities don't smear across the codebase.
 - **Dependency hygiene as a security fix.** The audit found the `shadcn` CLI wrongly listed under `dependencies`, dragging a large server-side tree (`hono`, `qs`, `js-yaml`, `@babel/core`, `@modelcontextprotocol/sdk`) into the *production* graph — none of which ships in the browser bundle. It was moved to `devDependencies` (still needed at build time for the `shadcn/tailwind.css` import). Remaining transitive dev/build-only advisories were pinned via `pnpm.overrides`. Result: `pnpm audit` reports **"No known vulnerabilities found"** for both the full tree and `--prod`. See [SECURITY.md](SECURITY.md).
-- **Runtime image ships only what runs.** The Docker runtime stage carries only `server/index.js`, audited production `node_modules` (express, helmet, compression), and the built `dist` — no build toolchain, no dev dependencies.
+- **Runtime image ships only what runs.** The Docker runtime stage carries only nginx, its config, and the built `dist` — no Node, no build toolchain, no dev dependencies.
 - **Small, obvious helpers.** File operations are pure functions with no component state (`fileExists`, `getUniqueFileName`, `writeFileTo`, `moveFileHandle`), and `moveFileHandle` prefers the native `handle.move()` and only falls back to copy-then-delete — the simplest correct thing.
 
 ---
@@ -221,11 +221,11 @@ See [SECURITY.md](SECURITY.md) for the complete posture and audit results.
 
 **How it shows up in this codebase.**
 
-- **Locked, multi-stage build.** The [`Dockerfile`](../Dockerfile) has three stages: (1) **build** on `node:22-slim` using `corepack pnpm@9.15.9` and `pnpm install --frozen-lockfile` → `pnpm run build` → `/app/dist`; (2) **server-deps** on `node:22-alpine` with `npm ci --omit=dev` of `server/` from its `package-lock.json`; (3) **runtime** on `node:22-alpine` copying only `server/index.js` + audited `node_modules` + `dist` (as `./public`). Frozen lockfiles (pnpm v9, npm) make dependency resolution reproducible.
-- **Runs as non-root with a healthcheck.** The runtime stage runs as the built-in `node` user, `EXPOSE 8080`, a `HEALTHCHECK` hitting `/healthz` via Node's built-in `fetch`, and `CMD ["node","index.js"]`.
-- **Container hardening in [`docker-compose.yml`](../docker-compose.yml):** `read_only` root filesystem + `tmpfs /tmp`, `security_opt: no-new-privileges:true`, `cap_drop: ALL`, `init: true` (tini), resource limits (1 CPU / 256 M, 64 M reservation), a healthcheck, `json-file` log rotation (10 m × 3), `restart: unless-stopped`, and port `8080:8080`.
-- **A deliberately tiny, correct server.** [`server/index.js`](../server/index.js) serves hashed `/assets/*` immutably and HTML/`sw.js`/manifest with `no-cache`, sets correct `application/wasm` and `.webmanifest` MIME types, allows `GET`/`HEAD` only (`405` otherwise), serves `/.well-known/security.txt`, exposes `/healthz`, does SPA fallback (unknown navigation → `index.html`; missing asset → `404`), gzip/brotli compresses, and shuts down gracefully on `SIGTERM`/`SIGINT`. Config is env-driven: `PORT` (8080), `HOST` (0.0.0.0), `STATIC_DIR`, `TRUST_PROXY`.
-- **TLS at the edge, by design.** There is **no nginx and no reverse proxy in the stack** — it deploys as a single container. For public HTTPS, terminate TLS at the platform edge (Cloudflare / load balancer / an existing Caddy or Traefik) and set `TRUST_PROXY=1` so HSTS reflects the external scheme. See [DEPLOYMENT.md](DEPLOYMENT.md).
+- **Locked, multi-stage build.** The [`Dockerfile`](../Dockerfile) has two stages: (1) **build** on `node:24-alpine` (the only Node) using `corepack pnpm@12.8.1` and `pnpm install --frozen-lockfile` (with `pnpm-workspace.yaml` copied first so `overrides` match) → `pnpm run build` → `/app/dist`; (2) **runtime** on `nginxinc/nginx-unprivileged:stable-alpine` with the nginx config embedded as a heredoc and `dist` copied to `/usr/share/nginx/html`. The frozen pnpm lockfile makes dependency resolution reproducible.
+- **Runs as non-root with a healthcheck.** The runtime stage runs as the unprivileged `nginx` user of the `nginx-unprivileged` image, `EXPOSE 8080`, and a `HEALTHCHECK` hitting `/healthz` via `wget --spider`.
+- **Container hardening in [`docker-compose.yml`](../docker-compose.yml):** `read_only` root filesystem + `tmpfs /tmp`, `security_opt: no-new-privileges:true`, `cap_drop: ALL`, resource limits (1 CPU / 128 M, 32 M reservation), a healthcheck, `json-file` log rotation (10 m × 3), `restart: unless-stopped`, and port `8080:8080`.
+- **A deliberately tiny, correct server.** The nginx config in the [`Dockerfile`](../Dockerfile) serves hashed `/assets/*` immutably and HTML/`sw.js`/manifest with `no-cache`, sets correct `application/wasm` and `.webmanifest` MIME types, allows `GET`/`HEAD` only (`405` otherwise), serves `/.well-known/security.txt`, exposes `/healthz`, does SPA fallback (unknown navigation → `index.html`; missing asset → `404`), and gzip-compresses. There are no environment variables.
+- **TLS at the edge, by design.** There is **no separate reverse proxy in the stack** — it deploys as a single container. For public HTTPS, terminate TLS at the platform edge (Cloudflare / load balancer / an existing Caddy or Traefik); HSTS is always sent and browsers honour it over HTTPS. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ---
 

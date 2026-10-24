@@ -53,7 +53,7 @@ flowchart LR
 
   subgraph Edge["Deployment (no user data)"]
     TLS["TLS terminator<br/>(Cloudflare / LB / Caddy)"]
-    Server["Node/Express + helmet<br/>static server :8080"]
+    Server["nginx (unprivileged)<br/>static server :8080"]
     TLS --> Server
   end
 
@@ -93,11 +93,9 @@ flowchart LR
 | PWA | `vite-plugin-pwa` (Workbox) | `^1.3.0` | Service worker, offline |
 | Carousel | `embla-carousel-react` | `^8.6.0` | Viewer interactions |
 | Utilities | `lodash.debounce`, `lodash.isempty` | `^4.0.8` / `^4.4.0` | Debounce, emptiness check |
-| **Server** | `express` | `5.2.1` | Static HTTP server |
-| **Server** | `helmet` | `8.3.0` | Security headers |
-| **Server** | `compression` | `1.8.1` | gzip / brotli |
-| Runtime | Node.js | `22` (server `engines >=20`) | Build & serve |
-| Package manager | pnpm | `9.15.9` (lockfile v9) | Frontend deps |
+| **Server** | nginx (`nginxinc/nginx-unprivileged:stable-alpine`) | image tag | Static HTTP server, security headers, gzip |
+| Build | Node.js | `24` (`node:24-alpine`, build stage only) | Build |
+| Package manager | pnpm | `12.8.1` (lockfile v9) | Frontend deps |
 
 Build orchestration is a two-step `pnpm run build` → `tsc -b && vite build`. See [§13 Build pipeline](#13-build-pipeline).
 
@@ -674,31 +672,27 @@ The design principle throughout: **serialize the one shared mutable resource** (
 
 ## 11. Deployment & runtime design
 
-> **nginx has been removed.** The app now deploys as a **single container** via `docker compose`. There is no nginx and no reverse proxy in the stack; a tiny hardened Node/Express server serves the static build.
+> The app deploys as a **single container** via `docker compose`. An unprivileged nginx serves the static build, and its whole config is embedded in the `Dockerfile` (the earlier Node/Express server and the `server/` folder were removed).
 
 ### 11.1 Multi-stage `Dockerfile`
 
 | Stage | Base image | What it does |
 |---|---|---|
-| **1. build** | `node:22-slim` | `corepack prepare pnpm@9.15.9`, `pnpm install --frozen-lockfile` (with a cache mount), `pnpm run build` → `/app/dist`. |
-| **2. server-deps** | `node:22-alpine` | `npm ci --omit=dev` of `server/` (only `express`, `helmet`, `compression`) from `server/package-lock.json` — fully reproducible. |
-| **3. runtime** | `node:22-alpine` | Copies `server/index.js`, the audited prod `node_modules`, and `dist` (as `./public`); runs as the non-root built-in **`node`** user; `EXPOSE 8080`; `HEALTHCHECK` hits `/healthz` with Node's built-in `fetch`; `CMD ["node","index.js"]`. |
+| **1. build** | `node:24-alpine` | `corepack prepare pnpm@12.8.1`, copy `package.json` + `pnpm-lock.yaml` + `pnpm-workspace.yaml` (so `overrides` match the lockfile), `pnpm install --frozen-lockfile` (with a cache mount), `pnpm run build` → `/app/dist`. The only Node in the file. |
+| **2. runtime** | `nginxinc/nginx-unprivileged:stable-alpine` | Writes `/etc/nginx/conf.d/default.conf` from a heredoc, copies `dist` to `/usr/share/nginx/html`; runs non-root; `EXPOSE 8080`; `HEALTHCHECK` runs `wget -q --spider http://127.0.0.1:8080/healthz`. |
 
-The frontend toolchain and dependencies never reach the runtime image — only the compiled static output plus three small server packages ship.
+The frontend toolchain and dependencies never reach the runtime image — only the compiled static output ships.
 
-### 11.2 The static server (`server/index.js`)
+### 11.2 The nginx config (embedded in the `Dockerfile`)
 
-Express 5 + helmet 8 + compression. Behavior:
+Behavior:
 
-- `x-powered-by` disabled; strong ETags.
-- **helmet** sets a strict CSP (`useDefaults:false`, every directive explicit), **cross-origin isolation** (COOP `same-origin` + COEP `require-corp` + CORP `same-origin`) so the WASM workers can use `SharedArrayBuffer`, **HSTS** (2 years, `includeSubDomains`, `preload`), `Referrer-Policy: no-referrer`, and `X-Frame-Options: DENY`.
-- A middleware sets a restrictive **Permissions-Policy** (denies accelerometer, autoplay, browsing-topics, camera, display-capture, encrypted-media, geolocation, gyroscope, interest-cohort, magnetometer, microphone, midi, payment, publickey-credentials-get, screen-wake-lock, serial, sync-xhr, usb, xr-spatial-tracking; allows only `self` fullscreen + picture-in-picture).
-- **GET/HEAD only** — any other verb gets `405 Method Not Allowed` with `Allow: GET, HEAD`.
-- `compression()` for gzip/brotli.
-- `/healthz` → `ok` (liveness/readiness probe).
-- Static serving with correct MIME (`.wasm` → `application/wasm`, `.webmanifest` → `application/manifest+json`), `dotfiles:"allow"` (serves `/.well-known/security.txt`), **immutable caching** for content-hashed `/assets/*` (`max-age=31536000, immutable`) and **`no-cache`** for HTML / service worker / manifest / icons so PWA updates ship immediately.
-- **SPA fallback**: an unknown *navigation* path returns `index.html` (the client normalizes the URL back to `/`); anything that **looks like an asset** (starts with `/assets/` or has a file extension) returns a real **404**, so the browser never parses `index.html` as JS/CSS/WASM.
-- **Graceful shutdown** on `SIGTERM`/`SIGINT`: `server.close()` then a 10 s force-exit fallback.
+- `server_tokens off`; gzip (no brotli in stock nginx) for CSS/JS/JSON/manifest/WASM/SVG/text.
+- **Headers** (all `add_header ... always`, declared once at server level — a `location` that re-declares `add_header` would drop them): strict CSP, **cross-origin isolation** (COOP `same-origin` + COEP `require-corp` + CORP `same-origin`) so the WASM workers can use `SharedArrayBuffer`, **HSTS** (2 years, `includeSubDomains`, `preload`; always sent, honoured by browsers over HTTPS), `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, and a restrictive **Permissions-Policy** (denies accelerometer, autoplay, browsing-topics, camera, display-capture, encrypted-media, geolocation, gyroscope, interest-cohort, magnetometer, microphone, midi, payment, publickey-credentials-get, screen-wake-lock, serial, sync-xhr, usb, xr-spatial-tracking; allows only `self` fullscreen + picture-in-picture).
+- **GET/HEAD only** — any other verb gets `405`.
+- `= /healthz` → `200 ok` (liveness/readiness probe).
+- Static serving with correct MIME (`.wasm` → `application/wasm` from `mime.types`; `.webmanifest` → `application/manifest+json` via an explicit `location`), `/.well-known/security.txt` served as a normal file, **immutable caching** for content-hashed `/assets/*` (`max-age=31536000, immutable`) and **`no-cache`** for everything else (HTML / service worker / manifest / icons) so PWA updates ship immediately. `Cache-Control` comes from a `$cache_control` map and is added **without `always`**, so a 404 never inherits `immutable`.
+- **SPA fallback**: `try_files $uri /index.html` for navigation paths (the client normalizes the URL back to `/`); anything that **looks like an asset** (under `/assets/` or with a file extension) uses `try_files $uri =404` and returns a real **404**, so the browser never parses `index.html` as JS/CSS/WASM.
 
 ### 11.3 Response headers (verified live)
 
@@ -728,27 +722,20 @@ read_only: true                    # immutable root filesystem
 tmpfs: [ "/tmp:size=16m,mode=1777" ]  # the only writable path
 security_opt: [ "no-new-privileges:true" ]
 cap_drop: [ ALL ]
-init: true                         # tini as PID 1 (reap zombies, forward signals)
-deploy.resources.limits: { cpus: "1.0", memory: 256M }   # reservation: 64M
-healthcheck: node fetch /healthz   # 30s interval, 5s timeout, 3 retries, 10s start
+deploy.resources.limits: { cpus: "1.0", memory: 128M }   # reservation: 32M
+healthcheck: wget --spider /healthz   # 30s interval, 5s timeout, 3 retries, 10s start
 logging: json-file (max-size 10m, max-file 3)
 restart: unless-stopped
 ports: [ "8080:8080" ]
 ```
 
-For public HTTPS, terminate TLS at the platform edge (Cloudflare, a load balancer, or an existing Caddy/Traefik) and forward to the container; set `TRUST_PROXY=1` so HSTS and scheme detection reflect the external scheme.
+For public HTTPS, terminate TLS at the platform edge (Cloudflare, a load balancer, or an existing Caddy/Traefik) and forward to the container.
 
 ---
 
 ## 12. Configuration & environment variables
 
-| Variable | Default | Consumer | Effect |
-|---|---|---|---|
-| `PORT` | `8080` | `server/index.js` | Listen port. |
-| `HOST` | `0.0.0.0` | `server/index.js` | Bind address. |
-| `STATIC_DIR` | `./public` (image) / `../dist` (local) | `server/index.js` | Directory of compiled SPA. |
-| `TRUST_PROXY` | `false` | `server/index.js` | Enable **only** behind a trusted TLS terminator so `req.protocol`/HSTS reflect the external scheme. |
-| `NODE_ENV` | `production` | Docker/compose | Standard production toggle. |
+The runtime container reads **no environment variables**: nginx listens on `8080` and serves `/usr/share/nginx/html`; everything else is in the `Dockerfile`.
 
 Frontend build-time configuration lives in [`vite.config.ts`](../vite.config.ts): the `@` → `src` alias, `optimizeDeps.exclude: ["mediainfo.js"]`, dev-server COOP/COEP headers (to match production isolation), and the PWA manifest + Workbox options.
 
@@ -758,7 +745,7 @@ Frontend build-time configuration lives in [`vite.config.ts`](../vite.config.ts)
 
 ```mermaid
 flowchart LR
-  src["src/ + server/"] --> tsc["tsc -b (type-check / project refs)"]
+  src["src/"] --> tsc["tsc -b (type-check / project refs)"]
   tsc --> vite["vite build (rolldown)"]
   vite --> pwa["vite-plugin-pwa: sw.js + manifest + precache"]
   pwa --> dist["/app/dist"]
@@ -809,7 +796,7 @@ By design there is **no telemetry and no network egress** — nothing about the 
 - **In-app status toasts** (`statusStore`) surface every DB/folder/file operation to the user in real time (loading/success/error, Indonesian).
 - **Console diagnostics**: services log with prefixed tags (`[DB]`, `[Hook]`, `[PWA]`) for corrupt-DB, version-mismatch, folder-not-found, metadata-extract, and RAW-decode failures.
 - **Operation log**: the last 50 `SortOperation`s (with `success`/`error`) are persisted in the DB and rendered in the `OperationLog` component and `Stats`.
-- **Server side**: `server/index.js` logs startup and shutdown; `/healthz` drives the Docker `HEALTHCHECK` and compose healthcheck; container logs are rotated (`json-file`, 10 MB × 3).
+- **Server side**: nginx writes access/error logs to stdout/stderr (`/healthz` is excluded); `/healthz` drives the Docker `HEALTHCHECK` and compose healthcheck; container logs are rotated (`json-file`, 10 MB × 3).
 
 There is no server-side request/response logging of user content because the server never receives any.
 
@@ -857,6 +844,5 @@ There is no server-side request/response logging of user content because the ser
 | Status store | [`src/shared/stores/status.store.ts`](../src/shared/stores/status.store.ts) |
 | Name safety | [`src/features/sorter/utils/folder-name.utils.ts`](../src/features/sorter/utils/folder-name.utils.ts) |
 | Types | [`src/features/sorter/types/sorter.types.ts`](../src/features/sorter/types/sorter.types.ts) |
-| Static server | [`server/index.js`](../server/index.js) |
-| Container | [`Dockerfile`](../Dockerfile) · [`docker-compose.yml`](../docker-compose.yml) |
+| Container + nginx config | [`Dockerfile`](../Dockerfile) · [`docker-compose.yml`](../docker-compose.yml) |
 | Build config | [`vite.config.ts`](../vite.config.ts) |

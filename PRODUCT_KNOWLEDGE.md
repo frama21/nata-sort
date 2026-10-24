@@ -6,7 +6,7 @@
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | **Versi produk**   | 2.2.0 (rilis 2026-07-15) + perubahan _Unreleased_ (rename brand ke NATA)                                                         |
 | **Snapshot kode**  | Branch `chore/app`, 2026-10-24                                                                                                   |
-| **Sumber utama**   | Kode di `src/`, `server/`, `package.json`, `vite.config.ts`, `Dockerfile`, `docker-compose.yml`, `firebase.json`                 |
+| **Sumber utama**   | Kode di `src/`, `package.json`, `vite.config.ts`, `Dockerfile`, `docker-compose.yml`, `firebase.json`                 |
 | **Sumber sekunder**| `README.md`, `CHANGELOG.md`, `docs/*.md` (berlabel v2.0.1, sebagian usang — lihat [Bagian 21](#21-ketidakkonsistenan-dokumen-vs-kode)) |
 | **Pembaca**        | Tim produk, engineer baru, QA, support, dan stakeholder non-teknis                                                               |
 | **Aturan konflik** | Bila dokumen lama dan kode berbeda, **kode yang benar**. Klaim yang hanya berasal dari docs lama ditandai _(per docs v2.0.1)_.   |
@@ -54,7 +54,7 @@
 | Browser             | **Chromium saja**: Chrome, Edge, Opera (butuh File System Access API dan secure context)                      |
 | Platform            | Web/PWA (dapat dipasang, bisa offline). Desktop target utama; mobile didukung bila browser punya API tersebut |
 | Model data          | Satu file JSON `nata-sort-db.json` yang disimpan **di dalam folder yang dibuka**                              |
-| Server              | Hanya menyajikan file statis (Express 5 + helmet). Tidak memproses media.                                     |
+| Server              | Hanya menyajikan file statis (nginx tanpa-hak-istimewa, konfigurasi ada di `Dockerfile`). Tidak memproses media.                                     |
 
 **Nilai inti dalam satu kalimat:** _sortir ribuan file secepat Anda bisa menekan tombol angka, tanpa menyerahkan foto ke layanan cloud._
 
@@ -174,7 +174,7 @@
 - Format baru hanya ditambahkan di `src/features/media/config/file-formats.ts`.
 - Cabut blob URL, hentikan worker WASM; async yang tampil ke pengguna dibungkus try/catch/finally dan menampilkan toast.
 - Dependensi produksi seminimal mungkin; `pnpm audit` harus bersih.
-- Jangan ubah tanpa alasan kuat: CSP/header di `server/index.js` dan `firebase.json`, patch worker libraw dan timeout 20 detik, versi skema DB `"2.0"`.
+- Jangan ubah tanpa alasan kuat: CSP/header di konfigurasi nginx dalam `Dockerfile` dan `firebase.json`, patch worker libraw dan timeout 20 detik, versi skema DB `"2.0"`.
 
 ---
 
@@ -484,7 +484,7 @@ Catatan:
 | `SWIPE_THRESHOLD`                   | 50 px           |                                                     | `useZoomPan.ts`                                     |
 | Toast tersimpan / kedaluwarsa       | 3 / 3 detik     | Hanya sukses; error menetap sampai ditutup; loading menetap | `status.store.ts`, `StatusIndicator.tsx`    |
 | Batas file precache PWA             | 4 MB            |                                                     | `vite.config.ts`                                    |
-| Port server / healthcheck           | 8080 / `/healthz`|                                                    | `server/index.js`, `Dockerfile`                     |
+| Port server / healthcheck           | 8080 / `/healthz`|                                                    | `Dockerfile`                                        |
 
 ---
 
@@ -589,7 +589,7 @@ showDirectoryPicker
 
 ### 12.2 Content-Security-Policy
 
-Diterapkan oleh helmet (`useDefaults:false`) dan identik di `firebase.json`:
+Diterapkan oleh nginx (`add_header ... always` di `Dockerfile`) dan identik di `firebase.json`:
 
 ```
 default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self';
@@ -633,7 +633,7 @@ Cross-origin isolation (COOP+COEP+CORP) dibutuhkan agar worker WASM dapat memaka
 
 - `pnpm audit` (penuh dan `--prod`) dilaporkan bersih _(per docs v2.0.1)_. Advisory yang sudah ditutup: ExifReader GHSA-h64w-w9pr-82m4 (HIGH, tag ICC `mluc` buatan) dan GHSA-rr89-w3h9-m66j (MODERATE, dekompresi metadata tak terbatas). CLI `shadcn` dipindah ke devDependencies.
 - Override transitif dev-only ada di `pnpm-workspace.yaml`.
-- Image produksi hanya memuat `express`, `helmet`, `compression`.
+- Image produksi tidak memuat Node maupun paket npm: hanya nginx dan hasil build statis.
 - **Pelaporan:** GitHub private advisory; `public/.well-known/security.txt` (RFC 9116) dengan `Expires: 2027-01-01`, `Preferred-Languages: id, en`. **Perlu diperbarui sebelum Januari 2027.**
 - **Rekomendasi operator:** pin image dengan digest, jalankan Trivy/`docker scout`, hanya HTTPS, pertimbangkan HSTS preload, jangan tambah sumber lintas-origin ke CSP.
 
@@ -647,41 +647,37 @@ Cross-origin isolation (COOP+COEP+CORP) dibutuhkan agar worker WASM dapat memaka
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | **A. Docker Compose (disarankan)** | `docker compose up -d --build` → http://localhost:8080                                                     |
 | B. Docker biasa            | `docker build -t nata-sort .` lalu `docker run --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges -p 8080:8080 nata-sort` |
-| C. Firebase Hosting        | `pnpm build` lalu `firebase deploy --only hosting` (site `sastrala-phoso`, `public: dist`, header identik dengan server Node, HTTPS bawaan sehingga HSTS efektif) |
-| D. Dari source             | `pnpm build; cd server && npm install --omit=dev; STATIC_DIR=../dist PORT=8080 node index.js`                       |
+| C. Firebase Hosting        | `pnpm build` lalu `firebase deploy --only hosting` (site `sastrala-phoso`, `public: dist`, header identik dengan konfigurasi nginx, HTTPS bawaan sehingga HSTS efektif) |
+| D. Dari source             | `pnpm build; pnpm preview` (hanya untuk uji lokal; bukan jalur produksi)                                            |
 
-### 13.2 Dockerfile (3 tahap)
+### 13.2 Dockerfile (2 tahap)
 
-1. **build** — `node:22-slim`, corepack + pnpm `9.15.9`, `pnpm install --frozen-lockfile`, `pnpm run build`.
-2. **server-deps** — `node:22-alpine`, `npm ci --omit=dev` dari `server/package-lock.json`.
-3. **runtime** — `node:22-alpine`; `NODE_ENV=production`, `PORT=8080`, `HOST=0.0.0.0`; user `node` (non-root); `EXPOSE 8080`; `HEALTHCHECK` tiap 30 s (timeout 5 s, start 10 s, 3 retry) ke `/healthz`; `CMD ["node","index.js"]`.
+1. **build** — `node:24-alpine` (satu-satunya Node), corepack + pnpm `12.8.1`, salin `package.json` + `pnpm-lock.yaml` + `pnpm-workspace.yaml` (agar `overrides` cocok dengan lockfile), `pnpm install --frozen-lockfile`, `pnpm run build`.
+2. **runtime** — `nginxinc/nginx-unprivileged:stable-alpine`; konfigurasi nginx lengkap ditulis lewat heredoc ke `/etc/nginx/conf.d/default.conf`; `dist` disalin ke `/usr/share/nginx/html`; berjalan non-root; `EXPOSE 8080`; `HEALTHCHECK` tiap 30 s (timeout 5 s, start 10 s, 3 retry) menjalankan `wget -q --spider http://127.0.0.1:8080/healthz`.
+
+Repo hanya berisi `Dockerfile` dan `docker-compose.yml` untuk deployment; folder `server/` sudah dihapus.
 
 ### 13.3 docker-compose.yml (pengerasan)
 
-Service `web` (image `nata-sort:latest`, container `nata-sort`), `restart: unless-stopped`, `init: true`, port `8080:8080`, `read_only: true`, tmpfs `/tmp` (16 MB), `no-new-privileges`, `cap_drop: ALL`, batas 1,0 CPU / 256 MB (cadangan 64 MB), log `json-file` 10 MB × 3. `TRUST_PROXY: "1"` tersedia sebagai baris komentar.
+Service `web` (image `nata-sort:latest`, container `nata-sort`), `restart: unless-stopped`, port `8080:8080`, `read_only: true`, tmpfs `/tmp` (16 MB; pid dan file sementara nginx), `no-new-privileges`, `cap_drop: ALL`, batas 1,0 CPU / 128 MB (cadangan 32 MB), log `json-file` 10 MB × 3. Tidak ada `init` maupun variabel lingkungan.
 
-### 13.4 Variabel lingkungan (`server/index.js`)
+### 13.4 Variabel lingkungan
 
-| Variabel      | Default      | Catatan                                                                                                    |
-| ------------- | ------------ | ---------------------------------------------------------------------------------------------------------- |
-| `PORT`        | `8080`       |                                                                                                            |
-| `HOST`        | `0.0.0.0`    |                                                                                                            |
-| `STATIC_DIR`  | `./public`   | `../dist` bila dijalankan dari source                                                                      |
-| `TRUST_PROXY` | nonaktif     | `false`, `0`, kosong = mati; nilai lain diteruskan ke Express (`1`, `true`, `loopback`, daftar IP). Set hanya di belakang proxy TLS tepercaya. |
+Kontainer **tidak membaca env var apa pun** (`PORT`, `HOST`, `STATIC_DIR`, `TRUST_PROXY`, `NODE_ENV` sudah tidak ada). Port 8080 dan direktori `/usr/share/nginx/html` tertanam di konfigurasi nginx pada `Dockerfile`.
 
 Aplikasi front-end sendiri **tidak membaca env var** dan tidak punya rahasia.
 
-### 13.5 Perilaku server
+### 13.5 Perilaku server (nginx)
 
-- `x-powered-by` dimatikan; ETag kuat; `compression()`.
-- Hanya `GET`/`HEAD` (selain itu 405 dengan `Allow: GET, HEAD`).
-- `/healthz` → `ok`; `/.well-known/security.txt` disajikan (`dotfiles:"allow"`).
-- `.wasm` → `application/wasm`; `.webmanifest` → `application/manifest+json`.
+- `server_tokens off`; kompresi gzip (nginx standar tanpa brotli).
+- Semua header keamanan dideklarasikan sekali di level `server` dengan `always` (sebuah `location` yang mendeklarasikan ulang `add_header` akan menghapus header turunan, jadi tidak ada yang melakukannya). `Cache-Control` berasal dari `map $uri $cache_control` dan tanpa `always`, sehingga 404 tidak pernah `immutable`.
+- Hanya `GET`/`HEAD` (selain itu 405).
+- `/healthz` → `ok`; `/.well-known/security.txt` disajikan sebagai berkas biasa.
+- `.wasm` → `application/wasm` (dari `mime.types`); `.webmanifest` → `application/manifest+json` (lewat `location` eksplisit).
 - `/assets/*` immutable setahun (`public, max-age=31536000, immutable`); HTML, `sw.js`, manifest → `no-cache`.
-- Fallback SPA mengembalikan `index.html` untuk navigasi; path di bawah `/assets/` atau ber-ekstensi yang tak ada → 404 asli.
-- Shutdown anggun pada SIGTERM/SIGINT (paksa keluar setelah 10 detik).
-- Log awal: `[nata-sort] serving <dir> on http://HOST:PORT`.
-- Kontainer berbicara HTTP biasa: terminasikan TLS di edge (Cloudflare, load balancer, Caddy, Traefik) dan set `TRUST_PROXY=1`.
+- Fallback SPA (`try_files $uri /index.html`) untuk navigasi; path di bawah `/assets/` atau ber-ekstensi yang tak ada → 404 asli.
+- HSTS selalu dikirim; browser hanya memberlakukannya lewat HTTPS.
+- Kontainer berbicara HTTP biasa: terminasikan TLS di edge (Cloudflare, load balancer, Caddy, Traefik).
 
 ### 13.6 Verifikasi dan troubleshooting
 
@@ -826,7 +822,7 @@ Versi dari `package.json` aktual. Node `>=22.23.4`, pnpm `>=12.0.0` (lihat [Bagi
 
 **Build, kualitas, test (dev):** vite ^8.3.5 (rolldown), @vitejs/plugin-react ^6.1.2, tailwindcss + @tailwindcss/vite ^4.3.3, vite-plugin-pwa ^1.3.0, typescript ~6.0.3, vitest ^5.0.5, jsdom ^30.1.3, @playwright/test ~1.63.0, @testing-library/react ^16.3.3 · user-event ^14.6.8 · jest-dom ^7.0.1, eslint ^10.13.0 (+ typescript-eslint ^8.72.0, react-hooks ^7.1.1, react-refresh ^0.5.7, jsdoc ^65.4.1), prettier ^3.9.10.
 
-**Server (`server/package.json`, `nata-sort-server` 1.0.0, versi dipaku persis):** express 5.2.1, helmet 8.3.0, compression 1.8.1.
+**Server:** tidak ada dependensi npm di runtime; nginx berasal dari image `nginxinc/nginx-unprivileged:stable-alpine`.
 
 **`pnpm-workspace.yaml`:** `allowBuilds: exifreader, msw`; override: `@babel/core@<7.29.6 → >=7.29.6 <8`, `vite@<8.0.16 → >=8.0.16`, `brace-expansion@>=5.0.0 <5.0.6 → >=5.0.6`.
 
@@ -899,7 +895,7 @@ Semua item wajib mempertahankan "tanpa upload, tanpa telemetri, local-first".
 | 1.1.0          | 2025-05                | Preview + metadata video (mediainfo.js); migrasi ke shadcn/Radix dan store status Zustand; perbaikan DB yang ter-reset saat project dimuat ulang           |
 | **2.0.0**      | 2026-06-14             | **Breaking:** skema DB `2.0` (DB lama direset). Tambah: urutan kronologis, undo, `U`, state semua tersortir, PWA/offline, metadata malas, retry gambar, tabrakan nama, header keamanan + CSP, Docker, ErrorBoundary. Ubah: pemetaan berdasarkan nama file, log operasi serializable, preview RAW dari JPEG tertanam terbesar. Perbaiki: desinkronisasi setelah cut+reload, handle basi, retry RAW tak berhingga, pintasan saat mengetik, foto pertama tak bisa disortir di mobile, race toast, nama folder duplikat/invalid |
 | 2.0.1          | 2026-06-14             | Penguatan RAW: perbaikan hang worker libraw ("n is not a function"), potongan ARW terpotong, tambal worker, timeout 20 s + terminate, fallback `thumbnailData()`, preview JPEG ter-bounded, libraw-wasm ^1.4.0 |
-| **2.1.0**      | 2026-07-14             | Keamanan (audit bersih, ExifReader ^4.41.0, pengerasan jalur load DB, nama folder lebih ketat, `security.txt`, `firebase.json`), deployment (nginx dihapus → Express + helmet di `node:22-alpine`, compose dikeraskan), kualitas kode (enam prinsip, `mutateDatabase()`, `megapixelsFrom()`, Prettier), fitur (filmstrip/grid, zoom+loupe, multi-select + batch sort, dialog pintasan `?`, set `docs/` lengkap) |
+| **2.1.0**      | 2026-07-14             | Keamanan (audit bersih, ExifReader ^4.41.0, pengerasan jalur load DB, nama folder lebih ketat, `security.txt`, `firebase.json`), deployment (nginx diganti Express + helmet di `node:22-alpine`, compose dikeraskan; kemudian digantikan lagi oleh nginx tanpa-hak-istimewa dengan konfigurasi di `Dockerfile` dan `server/` dihapus), kualitas kode (enam prinsip, `mutateDatabase()`, `megapixelsFrom()`, Prettier), fitur (filmstrip/grid, zoom+loupe, multi-select + batch sort, dialog pintasan `?`, set `docs/` lengkap) |
 | 2.2.0          | 2026-07-15             | Grid lazy-render dengan append-on-scroll + loader; pintasan grid `Ctrl/Cmd+A`, `Shift+klik`, `Esc`; filmstrip dan grid di dalam `ScrollArea`                  |
 | _Unreleased_   | —                      | **Redesign "Calm Light"**: token netral + aksen teal NATA, Inter Variable, shell 3 panel + status bar, toast, sheet di mobile, mark/ikon baru, `check:contrast`, dialog keluar halaman in-app, `tw-animate-css` dihapus. Rename ke **NATA / `nata-sort`** (paket, server, Docker, tag log; kunci tema → `nata-sort-theme`). File state kini `nata-sort-db.json` (sebelumnya `nata-photo-db.json`; `nata-photo-db.json` dan `photo-sorter-db.json` lama dibaca otomatis lalu disimpan ulang). Arsitektur berbasis fitur + route discovery menggantikan FSD, primitive UI in-house tanpa Radix, i18n untuk Help/route, perbaikan layout mobile, suite tes |
 
@@ -946,7 +942,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | 5   | i18n                       | Versi lama dokumen ini: "folder i18n tidak ada, string inline Indonesia"                                                      | `src/shared/i18n` (i18next, `en.json`/`id.json`) ada; UI dwibahasa dengan `LanguageToggle`                         | Selesai: dokumen disinkronkan                   |
 | 6   | Pengujian                  | TDD §14: belum ada suite unit; E2E "masa depan"                                                                               | ±47 tes (Vitest + Playwright), `check:architecture`                                                                | Tulis ulang bagian testing di TDD                                       |
 | 7   | Batch / filmstrip / grid / zoom / dialog pintasan | PRD: bulk filing = Could; PRD/SPEC tidak menyebut filmstrip, grid, loupe, `?`, shortcut grid                       | Semua sudah shipped (2.1.0/2.2.0)                                                                                  | Tambahkan ke PRD/SPEC; SPEC undo harus menyebut batch = 1 entri         |
-| 8   | Toolchain                  | Docs: Node 22+, pnpm 9; Dockerfile pin pnpm `9.15.9`                                                                          | `engines`: node `>=22.23.4`, pnpm `>=12.0.0`                                                                       | Verifikasi nilai `pnpm >=12.0.0` dan samakan dengan Dockerfile          |
+| 8   | Toolchain                  | Docs lama: Node 22+, pnpm 9 (OBSOLETE; Dockerfile kini `node:24-alpine`, pnpm `12.8.1`)                                                                          | `engines`: node `>=22.23.4`, pnpm `>=12.0.0`                                                                       | Verifikasi nilai `pnpm >=12.0.0` dan samakan dengan Dockerfile          |
 | 9   | Versi dependensi           | TDD: React ^19.2.5, Vite ^8.1.4, Tailwind ^4.2.4, exifreader ^4.41.0, libraw-wasm ^1.4.0, mediainfo.js ^0.3.7                  | React ^19.3.1, Vite ^8.3.5, Tailwind ^4.3.3, exifreader ^4.51.0, libraw-wasm ^1.6.0, mediainfo.js ^0.3.8           | Perbarui                                                                |
 | 10  | Lokasi `pnpm.overrides`    | Docs: di `package.json`                                                                                                       | Di `pnpm-workspace.yaml`                                                                                           | Koreksi; aturan "Keep `pnpm.overrides`" tetap berlaku                   |
 | 11  | Nama file DB               | UI-Design: `.nata-sort-db.json` (titik di depan, sudah dikoreksi); CHANGELOG 2.0.0/PRD v2.0.0 menyebut nama baru padahal dulu `photo-sorter-db.json` | Kode: `nata-sort-db.json`                                                                                          | Koreksi typo; tandai catatan historis                                   |
@@ -954,11 +950,11 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | 13  | Dekode RAW                 | README: "dekode libraw-wasm resolusi penuh"                                                                                   | Setengah ukuran (`halfSize`), AHD, sRGB                                                                            | Koreksi README                                                          |
 | 14  | Shortcut di README         | Tabel README tidak memuat `Ctrl/Cmd+A`, `Esc`, `Shift+klik`                                                                   | Ketiganya ada di kode dan CHANGELOG 2.2.0                                                                          | Tambahkan; jelaskan bahwa `1`–`9`/panah hanya single view               |
 | 15  | Lokasi penanganan shortcut | SPEC: `ContentViewer.tsx`; PRINCIPLES: "app shell"                                                                            | `ContentViewer` (single view) dan `SorterPage` (grid)                                                              | Samakan                                                                 |
-| 16  | Docker lama                | CHANGELOG 2.0.0: Docker multi-stage + nginx                                                                                   | nginx dihapus di 2.1.0 (Express + helmet)                                                                          | Biarkan sebagai sejarah, beri catatan                                   |
+| 16  | Docker lama                | CHANGELOG 2.0.0: Docker multi-stage + nginx                                                                                   | nginx diganti Express + helmet di 2.1.0, lalu nginx kembali (konfigurasi di `Dockerfile`, `server/` dihapus)                                                                          | Biarkan sebagai sejarah, beri catatan                                   |
 | 17  | Firebase                   | PRD NFR-D hanya menyebut Docker                                                                                               | `firebase.json` ada (site `sastrala-phoso`; `.firebaserc` proyek `sastrala-id`) — sisa nama proyek lama            | Tambahkan ke PRD; pastikan nama site/proyek memang dimaksudkan          |
 | 18  | URL repo                   | `security.txt`/README: `frama21/photo-sorter`                                                                                 | Folder lokal `nata-photo`, brand NATA                                                                              | Sesuaikan bila remote sudah berubah                                     |
 | 19  | Nama fungsi                | `isSupportedImage`                                                                                                            | Juga meloloskan video                                                                                              | Pertimbangkan rename (`isSupportedMedia`)                               |
-| 20  | Ukuran server              | DEPLOYMENT: "~180 baris"                                                                                                      | `server/index.js` ±201 baris                                                                                       | Minor                                                                   |
+| 20  | Ukuran server              | DEPLOYMENT: "~180 baris"                                                                                                      | OBSOLETE: `server/` sudah dihapus                                                                                       | Minor                                                                   |
 | 21  | PRD internal               | G6 "tanpa instalasi" vs PWA yang dapat dipasang; exifreader "4.39.0" vs pin ^4.41.0                                            | Instal PWA bersifat opsional; versi terpasang jauh lebih baru                                                      | Perjelas redaksi                                                        |
 | 22  | DESIGN.md vs UI-Design.md  | `DESIGN.md` adalah dokumen desain perangkat lunak/ADR                                                                         | Desain visual ada di `UI-Design.md`                                                                                | Tambahkan indeks `docs/`                                                |
 
@@ -1057,7 +1053,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | Tema dan token                          | `src/app/providers/ThemeProvider.tsx`, `src/app/styles/{tokens,globals}.css`, `public/theme-init.js`, `scripts/check-contrast.mjs` |
 | Mark dan ikon                           | `src/shared/components/brand/NataMark.tsx`, `public/{favicon.svg,icon.png,pwa-192x192.png,pwa-512x512.png,pwa-maskable-512x512.png}`, kit `docs/brand/` |
 | Spesifikasi desain visual               | `docs/UI-Design.md`, `redesign.md` (brief asal)                                              |
-| Server statis dan header                | `server/index.js`, `firebase.json`                                                          |
+| Server statis dan header                | `Dockerfile` (konfigurasi nginx), `firebase.json`                                           |
 | Build dan PWA                           | `vite.config.ts`                                                                            |
 | Container                               | `Dockerfile`, `docker-compose.yml`                                                          |
 | Penegak arsitektur                      | `scripts/check-architecture.mjs`, `eslint.config.js`                                        |

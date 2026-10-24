@@ -11,8 +11,8 @@ Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 ## 1. TL;DR
 
 - **NATA has no backend.** Every file is opened, decoded, and sorted **locally in the browser** via the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API). Nothing is uploaded; there is no telemetry and no network egress (enforced by `connect-src 'self'`).
-- **Dependency tree is clean.** After this audit `pnpm audit` reports **"No known vulnerabilities found"** for both the full tree and the production (`--prod`) tree. The production container ships only `express`, `helmet`, `compression` (0 known vulns) plus the static build.
-- **Deployment is hardened and nginx-free.** A single container runs a tiny Express + [helmet](https://helmetjs.github.io/) static server as a **non-root** user with a **read-only** root filesystem, **all Linux capabilities dropped**, and `no-new-privileges`.
+- **Dependency tree is clean.** After this audit `pnpm audit` reports **"No known vulnerabilities found"** for both the full tree and the production (`--prod`) tree. The production container ships no Node and no npm packages: only nginx plus the static build.
+- **Deployment is hardened.** A single container runs an unprivileged nginx (config embedded in the `Dockerfile`) as a **non-root** user with a **read-only** root filesystem, **all Linux capabilities dropped**, and `no-new-privileges`.
 - **World-class HTTP headers**, including a strict Content-Security-Policy, cross-origin isolation (COOP + COEP + CORP), HSTS, and a deny-by-default Permissions-Policy.
 
 ---
@@ -71,7 +71,7 @@ flowchart LR
 
 ### 4.1 Content-Security-Policy
 
-Set by [`server/index.js`](../server/index.js) via helmet, and verified on live responses:
+Set by the nginx config embedded in the [`Dockerfile`](../Dockerfile) (`add_header ... always`), and verified on live responses:
 
 ```
 default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none';
@@ -146,7 +146,7 @@ All responses carry the full header set (verified live):
 | --- | --- | --- |
 | `pnpm audit --prod` | 1 high + several moderate (exifreader, shadcn tree) | **No known vulnerabilities found** |
 | `pnpm audit` (incl. dev) | 15 (2 high, 12 moderate, 1 low) | **No known vulnerabilities found** |
-| Production image deps | full frontend tree via nginx image | only `express`, `helmet`, `compression` (0 vulns) |
+| Production image deps | full frontend tree via nginx image | no npm packages (nginx + static build only) |
 
 ### Findings & remediation
 
@@ -157,7 +157,7 @@ All responses carry the full header set (verified live):
 | 3 | Moderate/Low | Remaining **dev/build-only** transitive advisories (`hono`, `qs`, `js-yaml`, `@babel/core`, `vite` dev-server `fs.deny` bypass, `launch-editor`, `brace-expansion`). | Pin patched versions via `pnpm.overrides` and bump `vite` to `^8.1.4`. |
 | 4 | Hardening | Prototype-pollution / unbounded-memory risk when reading `nata-sort-db.json`. | `sanitizeState`/`safeRecord` (see §4.4). |
 | 5 | Hardening | Folder-name input only blocked a few characters. | `validateFolderName` (see §4.4). |
-| 6 | Hardening | nginx image shipped the whole toolchain and ran as root. | Minimal non-root Node runtime + hardened compose (see §6). |
+| 6 | Hardening | nginx image shipped the whole toolchain and ran as root. | Minimal non-root nginx runtime + hardened compose (see §6). |
 
 > **Production vs. development:** the only reason any advisory ever appeared in the tree is the `shadcn` CLI, which is a **build-time-only** dev dependency. It is never installed into the production image and never reaches a browser. The `pnpm.overrides` in [`package.json`](../package.json) keep even the dev tree green.
 
@@ -173,14 +173,14 @@ pnpm audit --prod      # prod only  → No known vulnerabilities found
 
 ## 6. Deployment & container hardening
 
-The app deploys as **one container** via `docker compose` — no nginx, no reverse proxy required (see [`Dockerfile`](../Dockerfile), [`docker-compose.yml`](../docker-compose.yml), [`server/index.js`](../server/index.js)).
+The app deploys as **one container** via `docker compose` — no separate reverse proxy required (see [`Dockerfile`](../Dockerfile), which also holds the nginx config, and [`docker-compose.yml`](../docker-compose.yml)).
 
 **Image (`Dockerfile`)**
 
-- Multi-stage: (1) build the SPA with pnpm on `node:22-slim`; (2) `npm ci --omit=dev` the three runtime deps on `node:22-alpine` from a committed lockfile; (3) a minimal `node:22-alpine` runtime that contains **only** `server/index.js`, the audited `node_modules`, and the static `dist`.
-- Runs as the unprivileged built-in **`node`** user (no root).
-- No shell tooling, no build toolchain, no frontend dependencies in the final image.
-- `HEALTHCHECK` uses Node's built-in `fetch` against `/healthz` (no `curl`/`wget`).
+- Two stages: (1) build the SPA with pnpm 12.8.1 on `node:24-alpine` (the only Node in the image chain, thrown away); (2) `nginxinc/nginx-unprivileged:stable-alpine` containing **only** the nginx config and the static `dist`.
+- Runs as the unprivileged `nginx` user (no root), listening on `8080`.
+- No build toolchain and no frontend dependencies in the final image.
+- `HEALTHCHECK` uses BusyBox `wget --spider` against `/healthz`.
 
 **Runtime (`docker-compose.yml`)**
 
@@ -188,17 +188,16 @@ The app deploys as **one container** via `docker compose` — no nginx, no rever
 | --- | --- |
 | Immutable root FS | `read_only: true` (+ a 16 MB `tmpfs` at `/tmp`, the only writable path) |
 | No privilege escalation | `security_opt: [no-new-privileges:true]` |
-| Least privilege | `cap_drop: [ALL]` (the server needs no Linux capabilities) |
-| Proper PID 1 | `init: true` (tini reaps zombies, forwards signals) |
-| Resource caps | `deploy.resources.limits`: 1 CPU / 256 MB (reservation 64 MB) |
+| Least privilege | `cap_drop: [ALL]` (nginx on port 8080 needs no Linux capabilities) |
+| Resource caps | `deploy.resources.limits`: 1 CPU / 128 MB (reservation 32 MB) |
 | Log rotation | `json-file` driver, `10m × 3` |
 | Self-healing | `healthcheck` + `restart: unless-stopped` |
 
-**The server (`server/index.js`)** sets all headers from §4, accepts only `GET`/`HEAD` (`405` otherwise), serves hashed `/assets/*` immutably and HTML/`sw.js`/manifest with `no-cache`, emits correct `application/wasm` / `application/manifest+json` MIME types, returns real `404`s for missing assets (never HTML-as-JS), and shuts down gracefully on `SIGTERM`/`SIGINT`.
+**The nginx config (in the `Dockerfile`)** sets all headers from §4 once at server level (a `location` that re-declares `add_header` would drop them, so none does; `Cache-Control` comes from a `$cache_control` map), accepts only `GET`/`HEAD` (`405` otherwise), serves hashed `/assets/*` immutably and everything else with `no-cache`, emits correct `application/wasm` / `application/manifest+json` MIME types, and returns real `404`s for missing assets (never HTML-as-JS). Responses are gzip-compressed.
 
 ### TLS
 
-HSTS is only honoured over HTTPS. For a public deployment, terminate TLS at your platform edge (Cloudflare, a cloud load balancer, or an existing Caddy/Traefik) and forward to the container; set `TRUST_PROXY=1` so protocol detection and HSTS reflect the external scheme.
+HSTS is always sent but only honoured by browsers over HTTPS. For a public deployment, terminate TLS at your platform edge (Cloudflare, a cloud load balancer, or an existing Caddy/Traefik) and forward to the container.
 
 ---
 
@@ -242,3 +241,4 @@ curl -sSD - http://localhost:8080/ -o /dev/null
 ## 10. Audit changelog
 
 - **2026-07-14** — Full audit for v2.0.1: patched `exifreader`; removed `shadcn` from production deps; pinned dev-tree advisories to a clean `pnpm audit`; added DB sanitization and folder-name validation; replaced the nginx deployment with a hardened non-root Node/helmet single-container setup; added `security.txt` and this policy.
+- **2026-10-24** — Deployment moved from the Node/helmet server to an unprivileged nginx configured in the `Dockerfile`; `server/` removed (no npm packages in the runtime image). Header set unchanged; Node 24 only in the build stage.

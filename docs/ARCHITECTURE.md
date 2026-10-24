@@ -54,8 +54,8 @@ graph TB
     end
 
     subgraph container["Single Docker container"]
-        server["Node + Express + helmet<br/>static server (:8080)"]
-        dist["/public (compiled SPA + WASM)"]
+        server["nginx (unprivileged)<br/>static server (:8080)"]
+        dist["/usr/share/nginx/html (compiled SPA + WASM)"]
         server --- dist
     end
 
@@ -509,57 +509,48 @@ Dev-time cross-origin isolation is provided by Vite's dev server headers (`COOP:
 
 ## 14. Deployment architecture
 
-nginx has been **removed**. The app now deploys as a **single container** via `docker compose`. There is no reverse proxy in the stack; a tiny hardened Node/Express static server serves the compiled SPA.
+The app deploys as a **single container** via `docker compose`. The runtime is an unprivileged nginx serving the compiled SPA. Its whole config is embedded in the [Dockerfile](../Dockerfile) (heredoc), so the repo's only deploy files are `Dockerfile` and `docker-compose.yml`. Node exists only in the build stage.
 
 ### 14.1 Multi-stage image
 
 ```mermaid
 flowchart LR
-    subgraph s1["Stage 1 · build (node:22-slim)"]
-        b1["corepack pnpm@9.15.9"] --> b2["pnpm install --frozen-lockfile"] --> b3["pnpm run build → /app/dist"]
+    subgraph s1["Stage 1 · build (node:24-alpine)"]
+        b1["corepack pnpm@12.8.1"] --> b2["pnpm install --frozen-lockfile"] --> b3["pnpm run build → /app/dist"]
     end
-    subgraph s2["Stage 2 · server-deps (node:22-alpine)"]
-        d1["npm ci --omit=dev of server/<br/>(express, helmet, compression)"]
+    subgraph s2["Stage 2 · runtime (nginxinc/nginx-unprivileged:stable-alpine)"]
+        r1["/etc/nginx/conf.d/default.conf<br/>(heredoc in Dockerfile)"]
+        r2["dist → /usr/share/nginx/html"]
+        r3["non-root · EXPOSE 8080<br/>HEALTHCHECK wget /healthz"]
     end
-    subgraph s3["Stage 3 · runtime (node:22-alpine)"]
-        r1["server/index.js"]
-        r2["audited node_modules"]
-        r3["dist → ./public"]
-        r4["USER node · EXPOSE 8080<br/>HEALTHCHECK /healthz · CMD node index.js"]
-    end
-    b3 -->|dist| r3
-    d1 -->|node_modules| r2
+    b3 -->|dist| r2
 ```
 
-The build toolchain and frontend dependencies are **thrown away** — only `server/index.js`, the audited production `node_modules`, and the compiled SPA (`./public`) reach the runtime image. It runs as the unprivileged built-in **`node`** user.
+The build toolchain and frontend dependencies are **thrown away** — only nginx, its config, and the compiled SPA reach the runtime image. It runs as the unprivileged `nginx` user (the `nginx-unprivileged` base image), with its pid and temp files under `/tmp`.
 
-### 14.2 The static server (`server/index.js`)
+### 14.2 The nginx config (in the Dockerfile)
 
-[server/index.js](../server/index.js) is Express 5 + helmet 8 + compression. Request handling:
+Request handling:
 
 ```mermaid
 flowchart TD
-    req["Incoming request"] --> hdr["helmet: strict CSP + COOP/COEP/CORP + HSTS + nosniff + frameguard ..."]
-    hdr --> pp["Permissions-Policy middleware (deny all powerful features)"]
-    pp --> verb{"GET or HEAD?"}
-    verb -->|no| m405["405 Method Not Allowed (Allow: GET, HEAD)"]
-    verb -->|yes| comp["compression (gzip/brotli)"]
-    comp --> health{"/healthz?"}
+    req["Incoming request"] --> hdr["server-level add_header ... always:<br/>CSP + COOP/COEP/CORP + HSTS + nosniff + X-Frame-Options + Permissions-Policy"]
+    hdr --> verb{"GET or HEAD?"}
+    verb -->|no| m405["405 Method Not Allowed"]
+    verb -->|yes| health{"= /healthz?"}
     health -->|yes| ok["200 'ok'"]
-    health -->|no| stat["express.static(DIST_DIR)"]
-    stat --> found{"asset exists?"}
-    found -->|"/assets/* hashed"| immut["Cache-Control: immutable, 1y"]
-    found -->|"html/sw/manifest"| nocache["Cache-Control: no-cache"]
-    found -->|"no"| looks{"looks like an asset?<br/>(/assets/ or has extension)"}
-    looks -->|yes| m404["404 Not Found"]
-    looks -->|no| spa["SPA fallback → index.html (no-cache)"]
+    health -->|no| ext{"has a file extension<br/>or under /assets/?"}
+    ext -->|yes| file{"file exists?"}
+    file -->|yes| serve["serve (gzip) · /assets/* → immutable, 1y · else no-cache"]
+    file -->|no| m404["404 Not Found"]
+    ext -->|no| spa["try_files → /index.html (no-cache)"]
 ```
 
-Behaviors: correct MIME types for `.wasm` (`application/wasm`) and `.webmanifest`; hashed `/assets/*` cached immutably while HTML/`sw.js`/manifest always revalidate (so PWA updates ship immediately); serves `/.well-known/security.txt` (`dotfiles: "allow"`); a `/healthz` liveness probe; SPA fallback that returns `index.html` for unknown **navigations** but a real **404** for missing assets (so the browser never parses `index.html` as JS/CSS/WASM); and graceful shutdown on SIGTERM/SIGINT. Env vars: `PORT` (default 8080), `HOST` (0.0.0.0), `STATIC_DIR`, `TRUST_PROXY`.
+Behaviors: correct MIME types for `.wasm` (`application/wasm`, from nginx's `mime.types`) and `.webmanifest` (`application/manifest+json`, set by an explicit `location`); hashed `/assets/*` cached immutably while HTML/`sw.js`/manifest always revalidate (so PWA updates ship immediately); `/.well-known/security.txt` is served as a normal file; a `/healthz` liveness probe; SPA fallback that returns `index.html` for unknown **navigations** but a real **404** for missing assets (so the browser never parses `index.html` as JS/CSS/WASM); gzip compression (no brotli in stock nginx). `add_header` is declared once at server level and no `location` re-declares it, because nginx drops inherited headers as soon as a `location` sets its own; per-path `Cache-Control` therefore comes from a `$cache_control` map (declared without `always`, so a 404 never inherits `immutable`). There are no environment variables.
 
 ### 14.3 Response headers (verified live)
 
-The server sets a complete security-header set. The exact values are documented in [SECURITY.md](SECURITY.md); the load-bearing ones for the architecture are:
+nginx sets a complete security-header set. The exact values are documented in [SECURITY.md](SECURITY.md); the load-bearing ones for the architecture are:
 
 | Header | Value (summary) | Why the app needs it |
 | --- | --- | --- |
@@ -567,14 +558,14 @@ The server sets a complete security-header set. The exact values are documented 
 | `Cross-Origin-Opener-Policy` | `same-origin` | Process-isolate the tab |
 | `Cross-Origin-Embedder-Policy` | `require-corp` | Unlock `SharedArrayBuffer` for the WASM workers |
 | `Cross-Origin-Resource-Policy` | `same-origin` | Complete cross-origin isolation |
-| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Only meaningful over HTTPS behind a TLS terminator |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Always sent; browsers only honour it over HTTPS (behind a TLS terminator) |
 | `Permissions-Policy` | deny all powerful features; allow only self `fullscreen` + `picture-in-picture` | The media viewer is the only feature that needs a capability |
 
 ### 14.4 Compose hardening
 
-[docker-compose.yml](../docker-compose.yml): `read_only` root filesystem + `tmpfs /tmp` (16 MB), `security_opt: no-new-privileges:true`, `cap_drop: ALL`, `init: true` (tini as PID 1), `deploy.resources.limits` (1 CPU / 256 MB, 64 MB reservation), a `/healthz` healthcheck, json-file log rotation (10 MB × 3), `restart: unless-stopped`, port `8080:8080`.
+[docker-compose.yml](../docker-compose.yml): `read_only` root filesystem + `tmpfs /tmp` (16 MB), `security_opt: no-new-privileges:true`, `cap_drop: ALL`, `deploy.resources.limits` (1 CPU / 128 MB, 32 MB reservation), a `/healthz` healthcheck (`wget --spider`), json-file log rotation (10 MB × 3), `restart: unless-stopped`, port `8080:8080`.
 
-For **public HTTPS**, terminate TLS at the platform edge (Cloudflare, a load balancer, or an existing Caddy/Traefik) and forward to the container; set `TRUST_PROXY=1` so HSTS reflects the external scheme.
+For **public HTTPS**, terminate TLS at the platform edge (Cloudflare, a load balancer, or an existing Caddy/Traefik) and forward to the container.
 
 ---
 
@@ -598,8 +589,7 @@ For **public HTTPS**, terminate TLS at the platform edge (Cloudflare, a load bal
 | `src/shared/i18n/` | i18next setup (`index.ts`, module-level `t()`), one JSON table per language under `language/` (`en`, `id`); all user-facing strings go here |
 | `src/app/styles/globals.css` | OKLCH design tokens (light `:root` / dark `.dark`), radius scale |
 | [`vite.config.ts`](../vite.config.ts) | Vite + React + Tailwind + PWA config, `@`→`src` alias, dev COOP/COEP |
-| [`server/index.js`](../server/index.js) | Hardened Node/Express static server |
-| [`Dockerfile`](../Dockerfile) | Three-stage build → minimal non-root runtime image |
+| [`Dockerfile`](../Dockerfile) | Two-stage build (node:24-alpine → unprivileged nginx) with the nginx config embedded |
 | [`docker-compose.yml`](../docker-compose.yml) | Single-container deployment + hardening |
 
 ---

@@ -65,7 +65,8 @@ chronological ordering, undo, PWA/offline support, lazy cached metadata, and
 collision-safe file operations; version 2.0.1 hardened the RAW-preview pipeline
 against decoder hangs and truncated embedded previews. A dedicated security and
 deployment hardening pass replaced the previous nginx-based container with a
-single hardened Node/Express static server.
+single hardened Node/Express static server (since replaced by an unprivileged
+nginx configured inside the `Dockerfile`; `server/` was removed).
 
 ---
 
@@ -493,8 +494,8 @@ desirable future enhancements; **Won't** = explicitly excluded for now.
 
 ### 7.2 Security
 
-Grounded in [SECURITY.md](SECURITY.md); the server sets these via `helmet` plus
-a Permissions-Policy middleware (verified live).
+Grounded in [SECURITY.md](SECURITY.md); nginx sets these via `add_header ... always`
+in the `Dockerfile` config (verified live).
 
 | ID | Requirement |
 | --- | --- |
@@ -558,10 +559,10 @@ Grounded in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 | ID | Requirement |
 | --- | --- |
-| NFR-D1 | The app deploys as a **single container** via `docker compose` — **no nginx and no reverse proxy** in the stack. |
-| NFR-D2 | The runtime is a tiny hardened static server (Express 5 + helmet 8 + compression) running as the non-root `node` user, `EXPOSE 8080`, with a `/healthz` healthcheck. |
-| NFR-D3 | Container hardening: read-only root FS + tmpfs `/tmp`, `no-new-privileges`, `cap_drop ALL`, `init: true`, CPU/memory limits, log rotation, `restart: unless-stopped`. |
-| NFR-D4 | For public HTTPS, TLS is terminated at the platform edge and forwarded to the container; set `TRUST_PROXY=1` so HSTS reflects the external scheme. |
+| NFR-D1 | The app deploys as a **single container** via `docker compose` — **no separate reverse proxy** in the stack; the only deploy files are `Dockerfile` and `docker-compose.yml`. |
+| NFR-D2 | The runtime is unprivileged nginx (`nginxinc/nginx-unprivileged:stable-alpine`) with its config embedded in the `Dockerfile`, running non-root, `EXPOSE 8080`, with a `/healthz` healthcheck. Node (24-alpine) exists only in the build stage. |
+| NFR-D3 | Container hardening: read-only root FS + tmpfs `/tmp`, `no-new-privileges`, `cap_drop ALL`, CPU/memory limits (1 CPU / 128 MB), log rotation, `restart: unless-stopped`. |
+| NFR-D4 | For public HTTPS, TLS is terminated at the platform edge and forwarded to the container; HSTS is always sent and honoured by browsers over HTTPS. |
 
 ---
 
@@ -680,7 +681,8 @@ Not a numbered app-feature release, but a material posture change captured in
 [SECURITY.md](SECURITY.md) and [DEPLOYMENT.md](DEPLOYMENT.md):
 
 - **nginx removed**; app now serves from a single hardened Node/Express
-  container.
+  container. *(Superseded: nginx is back, configured in the `Dockerfile`; see
+  [CHANGELOG.md](../CHANGELOG.md).)*
 - exifreader bumped `^4.38.1 → ^4.41.0` (patches DoS advisories in untrusted
   image parsing); `shadcn` CLI moved to devDependencies; transitive dev/build
   advisories pinned via `pnpm.overrides`; DB load path hardened
@@ -722,8 +724,8 @@ telemetry, local-first** (G1, N1, N6).
 | Library | ExifReader (^4.41.0) | Image EXIF parsing of untrusted files. | Security-sensitive; kept ≥ patched (4.39.0). |
 | Library | mediainfo.js | Video metadata. | Its WASM isn't emitted at build; video metadata degrades gracefully. |
 | Framework | React 19, Vite 8 (rolldown), Tailwind v4, shadcn/Radix, Zustand | App shell & UI. | Major upgrades may require rework. |
-| Runtime | Node 22 / Express 5 / helmet 8 / compression | Static server & headers. | Header/CSP regressions would weaken posture. |
-| Build/tooling | Node 22+, pnpm 9 (lockfile v9), vite-plugin-pwa (Workbox) | Build & PWA. | Toolchain drift; keep lockfile audited. |
+| Runtime | nginx (`nginx-unprivileged:stable-alpine`) | Static server & headers. | Header/CSP regressions would weaken posture. |
+| Build/tooling | Node 24 (build stage only), pnpm 12 (lockfile v9), vite-plugin-pwa (Workbox) | Build & PWA. | Toolchain drift; keep lockfile audited. |
 
 ### 10.3 Risks & mitigations
 
@@ -736,7 +738,7 @@ telemetry, local-first** (G1, N1, N6).
 | R5 | Untrusted-image parsing DoS (exifreader advisories). | Medium | High | Bumped to ^4.41.0; header-only reads; bounded collections. |
 | R6 | Video metadata missing due to un-emitted WASM. | Known | Low | Extractor catches failure and returns defaults; documented functional limitation. |
 | R7 | Large libraries strain memory (blob URLs, caches). | Medium | Medium | Lazy metadata, bounded preview re-encode, blob-URL revocation, bounded caches. |
-| R8 | Misconfigured HTTPS/edge weakens HSTS. | Low | Medium | `TRUST_PROXY=1` guidance; hardened container defaults. |
+| R8 | Misconfigured HTTPS/edge weakens HSTS. | Low | Medium | TLS-at-edge guidance; hardened container defaults. |
 | R9 | HEIC users expect previews. | Medium | Low | File is sortable and clearly marked non-previewable; revisit if a decoder appears. |
 
 ---
@@ -805,4 +807,4 @@ telemetry, local-first, hardened by default**.
 - Format registry: [src/features/media/config/file-formats.ts](../src/features/media/config/file-formats.ts)
 - Name safety: [src/features/sorter/utils/folder-name.utils.ts](../src/features/sorter/utils/folder-name.utils.ts)
 - Types: [src/features/sorter/types/sorter.types.ts](../src/features/sorter/types/sorter.types.ts)
-- Static server: [server/index.js](../server/index.js)
+- Static server config: [Dockerfile](../Dockerfile)
