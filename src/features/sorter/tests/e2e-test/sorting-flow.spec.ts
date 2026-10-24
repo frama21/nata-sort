@@ -42,7 +42,7 @@ const tree = (page: Page) =>
     const list = async (dir: FileSystemDirectoryHandle): Promise<unknown[]> => {
       const out: unknown[] = []
       for await (const [name, handle] of dir as unknown as AsyncIterable<[string, FileSystemHandle]>) {
-        if (name === "nata-photo-db.json") continue
+        if (name === "nata-sort-db.json") continue
         out.push(handle.kind === "directory" ? { [name]: await list(handle as FileSystemDirectoryHandle) } : name)
       }
       return out.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
@@ -78,9 +78,9 @@ test("arrow keys in the mode tabs switch tabs without changing the photo", async
 })
 
 test("shortcuts are ignored while the shortcuts dialog is open", async ({ page }) => {
-  const trigger = page.getByRole("button", { name: "Help" })
+  const trigger = page.getByRole("button", { name: "Help & settings" })
   await trigger.click()
-  const dialog = page.getByRole("dialog", { name: "Help" })
+  const dialog = page.getByRole("dialog", { name: "Settings" })
   await expect(dialog).toBeVisible()
 
   await page.keyboard.press("1")
@@ -94,14 +94,17 @@ test("shortcuts are ignored while the shortcuts dialog is open", async ({ page }
   await expect(trigger).toBeFocused()
 })
 
-test("the help dialog has Shortcuts, About and Changelog tabs", async ({ page }) => {
-  await page.getByRole("button", { name: "Help" }).click()
-  const dialog = page.getByRole("dialog", { name: "Help" })
+test("the settings dialog opens on Shortcuts and has Appearance, About and Changelog tabs", async ({ page }) => {
+  await page.getByRole("button", { name: "Help & settings" }).click()
+  const dialog = page.getByRole("dialog", { name: "Settings" })
   await expect(dialog.getByRole("tab", { name: "Shortcuts" })).toHaveAttribute("aria-selected", "true")
   await expect(dialog.getByText("Undo the last action")).toBeVisible()
   await dialog.getByRole("tab", { name: "About" }).click()
   await expect(dialog.getByRole("heading", { name: "Privacy" })).toBeVisible()
-  await expect(dialog.getByText(/nata-photo-db\.json/)).toBeVisible()
+  await expect(dialog.getByText(/nata-sort-db\.json/)).toBeVisible()
+  await expect(dialog.getByText(/^\d+\.\d+\.\d+$/)).toBeVisible() // app version
+  await expect(dialog.getByText("Keep")).toHaveCount(0)
+  await expect(dialog.getByText("e2e-photos")).toBeVisible() // the open project
 
   await dialog.getByRole("tab", { name: "Changelog" }).click()
   const timeline = dialog.getByRole("region", { name: "Changelog" })
@@ -110,4 +113,10 @@ test("the help dialog has Shortcuts, About and Changelog tabs", async ({ page })
   await expect(timeline.getByRole("heading", { name: "v1.1.0" })).toHaveCount(0)
   await timeline.evaluate(el => el.scrollTo({ top: el.scrollHeight }))
   await expect(timeline.getByRole("heading", { name: "v1.1.0" })).toBeVisible()
+
+  // Reopening always lands on Shortcuts, not on the tab that was open last.
+  await page.keyboard.press("Escape")
+  await expect(dialog).toBeHidden()
+  await page.getByRole("button", { name: "Help & settings" }).click()
+  await expect(dialog.getByRole("tab", { name: "Shortcuts" })).toHaveAttribute("aria-selected", "true")
 })

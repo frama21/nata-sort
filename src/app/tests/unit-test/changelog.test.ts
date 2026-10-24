@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import changelog from "../../../../../../CHANGELOG.md?raw"
-import { parseChangelog, toChangelogRows } from "../../../utils/changelog.utils"
+import changelog from "../../../../CHANGELOG.md?raw"
+import { parseChangelog, toChangelogRows } from "../../layouts/settings/changelog.utils"
 
 const SAMPLE = `# Changelog
 

@@ -3,7 +3,7 @@ import * as React from "react"
 import { cn } from "@/shared/lib/utils"
 
 // WAI-ARIA tabs pattern (automatic activation): one tab in the tab order, arrow
-// keys / Home / End move between tabs, and only the active panel is rendered.
+// keys (either axis, so a vertical list works too) / Home / End move between tabs, and only the active panel is rendered.
 
 interface TabsContextValue {
   value: string
@@ -58,9 +58,9 @@ function TabsList({ className, onKeyDown, ...props }: React.ComponentProps<"div"
     const index = tabs.indexOf(document.activeElement as HTMLButtonElement)
     if (index === -1) return
     const target =
-      e.key === "ArrowRight"
+      e.key === "ArrowRight" || e.key === "ArrowDown"
         ? tabs[(index + 1) % tabs.length]
-        : e.key === "ArrowLeft"
+        : e.key === "ArrowLeft" || e.key === "ArrowUp"
           ? tabs[(index - 1 + tabs.length) % tabs.length]
           : e.key === "Home"
             ? tabs[0]

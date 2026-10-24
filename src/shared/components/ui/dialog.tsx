@@ -99,9 +99,14 @@ const DIALOG_SIDES = {
 function DialogContent({
   className,
   children,
+  dialogClassName,
   side = "center",
   ...props
-}: React.ComponentProps<"div"> & { side?: keyof typeof DIALOG_SIDES }) {
+}: React.ComponentProps<"div"> & {
+  side?: keyof typeof DIALOG_SIDES
+  /** Extra classes for the outer `<dialog>` (size, position); `className` styles the inner panel. */
+  dialogClassName?: string
+}) {
   const { t } = useTranslation()
   const dialog = useDialog()
   const ref = React.useRef<HTMLDialogElement>(null)
@@ -126,7 +131,8 @@ function DialogContent({
       onClick={e => e.target === e.currentTarget && dialog.setOpen(false)}
       className={cn(
         "w-full border border-border bg-surface-raised p-0 text-foreground shadow-e2 backdrop:bg-black/50",
-        DIALOG_SIDES[side]
+        DIALOG_SIDES[side],
+        dialogClassName
       )}
     >
       <div data-slot="dialog-content" className={cn("relative grid gap-4 p-6", className)} {...props}>

@@ -10,5 +10,5 @@ test("unknown URLs show the not-found page with a way home", async ({ page }) =>
 test("the main navigation is hidden while there is only one view", async ({ page }) => {
   await page.goto("/")
   await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "Help" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Help & settings" })).toBeVisible()
 })

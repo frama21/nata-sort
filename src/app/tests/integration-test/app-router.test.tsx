@@ -30,13 +30,24 @@ describe("app router", () => {
   })
 
   it("lists routes that ask for navigation, in order", async () => {
-    renderAt("/", [
+    renderAt("/help", [
       pageRoute("/", "Home", { nav: { label: "Sortir", order: 0 } }),
       pageRoute("/help", "Help", { nav: { label: "Bantuan", order: 10 } }),
       pageRoute("/hidden", "Hidden")
     ])
     const nav = await screen.findByRole("navigation", { name: "Main navigation" })
     expect([...nav.querySelectorAll("a")].map(a => a.textContent)).toEqual(["Sortir", "Bantuan"])
+  })
+
+  it("keeps the top bar minimal on the start screen: no navigation, only the settings button", async () => {
+    renderAt("/", [
+      pageRoute("/", "Home", { nav: { label: "Sortir", order: 0 } }),
+      pageRoute("/help", "Help", { nav: { label: "Bantuan", order: 10 } })
+    ])
+    expect(await screen.findByRole("heading", { name: "Home" })).toBeInTheDocument()
+    expect(screen.queryByRole("navigation", { name: "Main navigation" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: "NATA" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Help & settings" })).toBeInTheDocument()
   })
 
   it("shows the not-found page for an unknown path", async () => {

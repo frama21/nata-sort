@@ -5,7 +5,7 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 import { cn } from "@/shared/lib/utils"
 
 import changelogMarkdown from "../../../../CHANGELOG.md?raw"
-import { parseChangelog, toChangelogRows, type ChangelogRow } from "../utils/changelog.utils"
+import { parseChangelog, toChangelogRows, type ChangelogRow } from "./changelog.utils"
 
 const ROWS = toChangelogRows(parseChangelog(changelogMarkdown))
 
@@ -116,7 +116,7 @@ export const ChangelogTimeline = () => {
       role="region"
       tabIndex={0}
       aria-label={t("changelog.aria")}
-      className="h-96 overflow-y-auto rounded-md pr-2"
+      className="h-full overflow-y-auto rounded-md pr-2"
     >
       <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map(item => (
