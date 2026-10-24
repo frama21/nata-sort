@@ -15,13 +15,17 @@ the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Fi
 - **Chronological order** — files are sorted by capture date/time (EXIF / video
   metadata), falling back to the file's modified date.
 - **Sort with shortcuts** — keys `1`–`9` assign the current file to a folder.
+  Click a folder's badge and press any key to rebind it (arrows, `Space`, `U`,
+  `Esc`, and keys used by another folder are refused).
+- **English & Indonesian UI** — a navbar toggle switches language; the choice is
+  remembered on the device. Strings live in `src/shared/i18n/language/{en,id}.json`.
 - **Copy or Cut mode** — duplicate into the target folder, or move it there.
 - **Filmstrip & grid view** — a thumbnail strip under the viewer and a
   toggleable responsive grid (with RAW previews), both showing sort status.
 - **Zoom & pan** — a desktop hover **loupe** magnifier, plus pinch-to-zoom /
   drag-to-pan and double-tap-to-reset on touch, for pixel-peeping.
 - **Multi-select + batch sort** — select many photos (checkbox, shift-range,
-  "pilih belum disortir") and sort them all into a folder at once — via the
+  "Select unsorted") and sort them all into a folder at once — via the
   folder button or its number shortcut; a batch is a single undo.
 - **Undo** the last action (`Ctrl/Cmd+Z`), covering single and batch sorts.
 - **Jump to next unsorted** (`U`) to skip already-sorted files, plus an
@@ -35,7 +39,7 @@ the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Fi
   date) and `mediainfo.js` for video (duration, fps, codecs, bitrate). Metadata
   is extracted lazily on demand and cached.
 - **Auto-persisted project state** — folders, sort mappings, mode, and the
-  recent operation log are saved to `nata-sort-db.json` inside the chosen
+  recent operation log are saved to `nata-photo-db.json` inside the chosen
   folder and restored on the next visit.
 - **Filename-collision safe** — copies/moves never silently overwrite; a
   `_1`, `_2`, … suffix is added when a name already exists.
@@ -53,12 +57,13 @@ the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Fi
 | `Space`        | Next photo                  |
 | `U`            | Jump to next unsorted photo |
 | `Ctrl/Cmd + Z` | Undo last action            |
+| `Ctrl/Cmd + A` | Select all (grid view)      |
 
 (Shortcuts are ignored while typing in a text field.)
 
 ## Tech stack
 
-React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS v4 · Zustand ·
+React 19 · TypeScript (strict) · Vite · React Router · Tailwind CSS v4 · Zustand · i18next ·
 ExifReader · mediainfo.js · libraw-wasm · vite-plugin-pwa. UI primitives are
 in-house components in `src/shared/components/ui` (native `<dialog>`, ARIA tabs,
 …), with no Radix or shadcn dependency. Tests: Vitest + React Testing Library +
@@ -92,7 +97,7 @@ src/
 │   ├── sorter/ # the sorting workspace (route "/"): controller hook, components, project DB
 │   ├── media/  # format registry, metadata extraction, RAW decoding (no routes, public API in index.ts)
 │   └── help/   # static help page (route "/help")
-├── shared/     # business-agnostic building blocks: UI primitives, status toasts, cn(), route types
+├── shared/     # business-agnostic building blocks: UI primitives, i18n, status toasts, cn(), route types
 └── test/       # global test setup and test doubles (in-memory File System Access handles)
 ```
 
@@ -100,8 +105,8 @@ Each feature uses only the folders it needs (`components/`, `hooks/`, `pages/`,
 `services/`, `types/`, `utils/`, `config/`, `tests/`). It may also have:
 
 - **`routes.ts`** declares the feature's pages. It is found automatically, see below.
-- **`index.ts`** is the feature's public API. Only `media` has one, because only
-  it has consumers. If a feature has no `index.ts`, other features cannot import it.
+- **`index.ts`** is the feature's public API. Only `media` and `sorter` have one,
+  because only they have consumers. If a feature has no `index.ts`, other features cannot import it.
 - **`README.md`** documents the feature's purpose, contract, and how to remove it safely.
 
 ### Import boundaries
@@ -217,7 +222,7 @@ docker run -d -p 8080:8080 nata-sort
 
 ## How state is stored
 
-A single JSON file, `nata-sort-db.json`, is written to the folder you open.
+A single JSON file, `nata-photo-db.json`, is written to the folder you open.
 It contains the sort folders, the per-file sort mapping (keyed by file name),
 the move mode, the recent operation log, and a metadata cache. Deleting this
 file resets the project; the app recreates it on the next open. The database

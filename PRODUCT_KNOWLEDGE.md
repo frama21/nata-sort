@@ -53,7 +53,7 @@
 | Bahasa kode/dokumen | Inggris (kode, komentar, README, CHANGELOG)                                                                   |
 | Browser             | **Chromium saja**: Chrome, Edge, Opera (butuh File System Access API dan secure context)                      |
 | Platform            | Web/PWA (dapat dipasang, bisa offline). Desktop target utama; mobile didukung bila browser punya API tersebut |
-| Model data          | Satu file JSON `nata-sort-db.json` yang disimpan **di dalam folder yang dibuka**                              |
+| Model data          | Satu file JSON `nata-photo-db.json` yang disimpan **di dalam folder yang dibuka**                              |
 | Server              | Hanya menyajikan file statis (Express 5 + helmet). Tidak memproses media.                                     |
 
 **Nilai inti dalam satu kalimat:** _sortir ribuan file secepat Anda bisa menekan tombol angka, tanpa menyerahkan foto ke layanan cloud._
@@ -201,7 +201,7 @@
 | F15 | Filmstrip dan grid (lazy, infinite scroll)         | Shipped      | v2.1.0 / v2.2.0                                                      |
 | F16 | Zoom, pan, loupe                                   | Shipped      | Loupe hanya desktop                                                  |
 | F17 | Log operasi dan statistik                          | Shipped      | Tampil 3 terakhir; simpan 50                                         |
-| F18 | Persistensi DB dan resume                          | Shipped      | `nata-sort-db.json`                                                  |
+| F18 | Persistensi DB dan resume                          | Shipped      | `nata-photo-db.json`                                                  |
 | F19 | PWA / offline                                      | Shipped      | App shell + WASM di-precache                                         |
 | F20 | Tema terang/gelap                                  | Shipped      | Toggle 2 arah (lihat 6.14)                                           |
 | F21 | Halaman Bantuan (`/help`)                          | Shipped      | 5 kartu statis                                                       |
@@ -341,11 +341,11 @@ Mode disimpan di DB dan dipilih lewat tab di `FolderManager`.
 
 ### 6.15 Persistensi dan resume (F18)
 
-- File `nata-sort-db.json` di dalam folder yang dibuka, JSON ber-indentasi 2 spasi, `version: "2.0"`.
+- File `nata-photo-db.json` di dalam folder yang dibuka, JSON ber-indentasi 2 spasi, `version: "2.0"`.
 - **Tidak ada timer autosave**: setiap mutasi langsung ditulis. Metadata di-debounce 1,5 detik.
 - Saat dibuka: folder, pemetaan, mode, `currentIndex` (dijepit), dan log operasi dipulihkan.
 - Hapus file DB = proyek direset.
-- Skema selengkapnya di [Bagian 11.5](#115-skema-database-nata-sort-dbjson).
+- Skema selengkapnya di [Bagian 11.5](#115-skema-database-nata-photo-dbjson).
 
 ---
 
@@ -513,14 +513,14 @@ src/
 | Hook `useFileSystem` (±960 baris) | `photos`, `currentIndex`, `folders`, `sortedPhotos`, `moveMode`, `operations`, `undoStack`, `rawPreviewUrls`, `metadataByKey`, status loading/error; ref untuk handle folder dan antrean. **Handle tak pernah masuk state ter-persist.** |
 | Zustand `status.store`         | Toast navbar: `{id, type idle/loading/success/error, message, icon db/folder/file/save}`; maks 3                 |
 | `ThemeProvider` + localStorage | Tema                                                                                                             |
-| `nata-sort-db.json`            | State durable per folder                                                                                         |
+| `nata-photo-db.json`            | State durable per folder                                                                                         |
 
 ### 11.3 Alur data
 
 ```
 showDirectoryPicker
    └─ revoke URL lama, reset antrean/undo
-   └─ initProjectDatabase  ──► baca/validasi/sanitize nata-sort-db.json (atau buat baru)
+   └─ initProjectDatabase  ──► baca/validasi/sanitize nata-photo-db.json (atau buat baru)
    └─ scan level atas ─► filter ekstensi terdaftar ─► blob URL (bila previewable)
    └─ ekstrak tanggal (8 worker, hanya yang belum ter-cache) ─► urut kronologis
    └─ pulihkan folder (by name), mode, index, operasi
@@ -546,7 +546,7 @@ showDirectoryPicker
 | `media/services/raw-decoder.service.ts`       | `decodeRawImage`, `decodeRawThumbnail`, `patchLibRawWorker`                               |
 | `shared/stores/status.store.ts`               | Toast; helper biasa untuk kode non-React                                                  |
 
-### 11.5 Skema database `nata-sort-db.json`
+### 11.5 Skema database `nata-photo-db.json`
 
 ```jsonc
 {
@@ -578,7 +578,7 @@ showDirectoryPicker
 - Tidak ada logika aplikasi di server → tidak ada permukaan injeksi, SSRF, autentikasi, atau sesi.
 - Tidak ada egress: `connect-src` dibatasi `'self' blob: data:`.
 - Akses file dibatasi pada folder yang dipilih pengguna.
-- **Input tak tepercaya:** file media, `nata-sort-db.json` (ada di folder yang dapat ditulis pengguna), nama folder yang diketik, dan rantai pasok dependensi.
+- **Input tak tepercaya:** file media, `nata-photo-db.json` (ada di folder yang dapat ditulis pengguna), nama folder yang diketik, dan rantai pasok dependensi.
 - Tanpa cookie, tanpa rahasia, tanpa `dangerouslySetInnerHTML`/`innerHTML`/`eval`; React meng-escape semua output.
 
 ### 12.2 Content-Security-Policy
@@ -691,7 +691,7 @@ curl -i http://localhost:8080/assets/x.js           # → 404
 | "SharedArrayBuffer is not defined"       | COOP/COEP hilang atau dibuang proxy. Pastikan `self.crossOriginIsolated === true`.            |
 | Metadata video kosong                    | Keterbatasan diketahui: WASM mediainfo tidak ter-emit saat build.                            |
 | Folder tak bisa dibuka                   | Bukan Chromium, atau bukan secure context (butuh HTTPS atau localhost).                      |
-| Progres hilang setelah rename ke NATA    | Ganti nama `photo-sorter-db.json` menjadi `nata-sort-db.json`.                               |
+| Progres hilang setelah rename ke NATA    | Tidak perlu tindakan: `nata-sort-db.json` dan `photo-sorter-db.json` dibaca otomatis lalu disimpan ulang sebagai `nata-photo-db.json`. |
 
 ---
 
@@ -886,7 +886,7 @@ Semua item wajib mempertahankan "tanpa upload, tanpa telemetri, local-first".
 | 2.0.1          | 2026-06-14             | Penguatan RAW: perbaikan hang worker libraw ("n is not a function"), potongan ARW terpotong, tambal worker, timeout 20 s + terminate, fallback `thumbnailData()`, preview JPEG ter-bounded, libraw-wasm ^1.4.0 |
 | **2.1.0**      | 2026-07-14             | Keamanan (audit bersih, ExifReader ^4.41.0, pengerasan jalur load DB, nama folder lebih ketat, `security.txt`, `firebase.json`), deployment (nginx dihapus → Express + helmet di `node:22-alpine`, compose dikeraskan), kualitas kode (enam prinsip, `mutateDatabase()`, `megapixelsFrom()`, Prettier), fitur (filmstrip/grid, zoom+loupe, multi-select + batch sort, dialog pintasan `?`, set `docs/` lengkap) |
 | 2.2.0          | 2026-07-15             | Grid lazy-render dengan append-on-scroll + loader; pintasan grid `Ctrl/Cmd+A`, `Shift+klik`, `Esc`; filmstrip dan grid di dalam `ScrollArea`                  |
-| _Unreleased_   | —                      | Rename ke **NATA / `nata-sort`**: paket, server, image/container Docker, tag log. Kunci tema → `nata-sort-theme` (tema ter-reset sekali). File state → `nata-sort-db.json` (`photo-sorter-db.json` lama tidak dibaca). Refactor ke arsitektur berbasis fitur + route discovery + `/help` + suite tes |
+| _Unreleased_   | —                      | Rename ke **NATA / `nata-sort`** (paket, server, Docker, tag log; kunci tema → `nata-sort-theme`). File state tetap `nata-photo-db.json` (`nata-sort-db.json` dan `photo-sorter-db.json` lama dibaca otomatis). Arsitektur berbasis fitur + route discovery menggantikan FSD, primitive UI in-house tanpa Radix, i18n untuk Help/route, perbaikan layout mobile, suite tes |
 
 Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 
@@ -933,7 +933,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | 8   | Toolchain                  | Docs: Node 22+, pnpm 9; Dockerfile pin pnpm `9.15.9`                                                                          | `engines`: node `>=22.23.4`, pnpm `>=12.0.0`                                                                       | Verifikasi nilai `pnpm >=12.0.0` dan samakan dengan Dockerfile          |
 | 9   | Versi dependensi           | TDD: React ^19.2.5, Vite ^8.1.4, Tailwind ^4.2.4, exifreader ^4.41.0, libraw-wasm ^1.4.0, mediainfo.js ^0.3.7                  | React ^19.3.1, Vite ^8.3.5, Tailwind ^4.3.3, exifreader ^4.51.0, libraw-wasm ^1.6.0, mediainfo.js ^0.3.8           | Perbarui                                                                |
 | 10  | Lokasi `pnpm.overrides`    | Docs: di `package.json`                                                                                                       | Di `pnpm-workspace.yaml`                                                                                           | Koreksi; aturan "Keep `pnpm.overrides`" tetap berlaku                   |
-| 11  | Nama file DB               | UI-Design: `.nata-sort-db.json` (titik di depan); CHANGELOG 2.0.0/PRD v2.0.0 menyebut nama baru padahal dulu `photo-sorter-db.json` | Kode: `nata-sort-db.json`                                                                                          | Koreksi typo; tandai catatan historis                                   |
+| 11  | Nama file DB               | UI-Design: `.nata-sort-db.json` (titik di depan, sudah dikoreksi); CHANGELOG 2.0.0/PRD v2.0.0 menyebut nama baru padahal dulu `photo-sorter-db.json` | Kode: `nata-photo-db.json`                                                                                          | Koreksi typo; tandai catatan historis                                   |
 | 12  | Field `moved`              | SPEC FR-SORT-2 dan PRINCIPLES masih menjelaskan `PhotoFile.moved`                                                              | CHANGELOG 2.1.0: field write-only itu dihapus                                                                      | Hapus dari SPEC/PRINCIPLES                                              |
 | 13  | Dekode RAW                 | README: "dekode libraw-wasm resolusi penuh"                                                                                   | Setengah ukuran (`halfSize`), AHD, sRGB                                                                            | Koreksi README                                                          |
 | 14  | Shortcut di README         | Tabel README tidak memuat `Ctrl/Cmd+A`, `Esc`, `Shift+klik`                                                                   | Ketiganya ada di kode dan CHANGELOG 2.2.0                                                                          | Tambahkan; jelaskan bahwa `1`–`9`/panah hanya single view               |
@@ -958,9 +958,9 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 
 **Browser apa yang didukung?** Chrome, Edge, Opera versi terbaru. Firefox dan Safari tidak punya File System Access API.
 
-**Di mana progres saya disimpan?** Di `nata-sort-db.json` di dalam folder yang Anda buka. Hapus file itu untuk memulai dari awal.
+**Di mana progres saya disimpan?** Di `nata-photo-db.json` di dalam folder yang Anda buka. Hapus file itu untuk memulai dari awal.
 
-**Saya memperbarui dan progres hilang?** Bila berasal dari versi sebelum rename NATA, ubah nama `photo-sorter-db.json` menjadi `nata-sort-db.json`.
+**Saya memperbarui dan progres hilang?** Tidak perlu apa-apa: file lama (`nata-sort-db.json`, `photo-sorter-db.json`) dibaca otomatis dan disimpan ulang sebagai `nata-photo-db.json`.
 
 **Apakah file asli bisa tertimpa?** Tidak. Bila nama sama, ditambah `_1`, `_2`, …. Default adalah Copy.
 
@@ -1010,7 +1010,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | Sorted mapping              | `{ fileName → folderId }`                                                                               |
 | Operasi                     | Catatan `SortOperation` tanpa handle                                                                    |
 | Undo stack                  | Tumpukan di memori, maks 20 entri                                                                       |
-| Project database            | `nata-sort-db.json`, skema 2.0                                                                          |
+| Project database            | `nata-photo-db.json`, skema 2.0                                                                          |
 | `createdName`               | Nama file yang benar-benar ditulis (dipakai undo)                                                       |
 | Previewable                 | Browser dapat merender langsung                                                                         |
 | Embedded preview            | JPEG yang disimpan kamera di dalam file RAW                                                             |

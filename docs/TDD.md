@@ -45,7 +45,7 @@ flowchart LR
 
   subgraph Disk["User's local disk"]
     Folder["Chosen folder"]
-    DB[("nata-sort-db.json")]
+    DB[("nata-photo-db.json")]
     Sub["Sort sub-folders 1..9"]
     Folder --> DB
     Folder --> Sub
@@ -70,7 +70,7 @@ flowchart LR
 3. Files are ordered **chronologically** by capture date/time, falling back to `File.lastModified`.
 4. The user previews each file and assigns it to a numbered sort sub-folder with single-key shortcuts (`1`–`9`).
 5. Files are **copied** (default) or **moved / cut** into sub-folders created inside the opened folder.
-6. All session state is auto-persisted to `nata-sort-db.json` in the opened folder, so reopening the same folder restores the session.
+6. All session state is auto-persisted to `nata-photo-db.json` in the opened folder, so reopening the same folder restores the session.
 
 ---
 
@@ -83,7 +83,8 @@ flowchart LR
 | Bundler / dev server | Vite (rolldown) | `^8.1.4` | Build + HMR |
 | Styling | Tailwind CSS | `^4.2.4` | Utility CSS, OKLCH tokens |
 | Styling helpers | `tw-animate-css`, `tailwind-merge`, `clsx`, `class-variance-authority` | `^1.4.0` / `^3.5.0` / `^2.1.1` / `^0.7.1` | Animations, class merging, variants |
-| UI primitives | `radix-ui` (shadcn "radix-nova", neutral base) | `^1.4.3` | Accessible primitives |
+| UI primitives | in-house (`src/shared/components/ui`) | — | Native `<dialog>`, ARIA tabs, CSS tooltip; no Radix |
+| i18n | `i18next`, `react-i18next`, `i18next-browser-languagedetector` | `^26.3.6` / `^17.0.10` / `^8.2.1` | English + Indonesian UI |
 | Icons | `lucide-react` | `^1.14.0` | Icon set |
 | State | `zustand` | `^5.0.13` | Transient status store |
 | Image EXIF | `exifreader` | `^4.41.0` | Image metadata (patched, see [SECURITY.md](SECURITY.md)) |
@@ -97,7 +98,6 @@ flowchart LR
 | **Server** | `compression` | `1.8.1` | gzip / brotli |
 | Runtime | Node.js | `22` (server `engines >=20`) | Build & serve |
 | Package manager | pnpm | `9.15.9` (lockfile v9) | Frontend deps |
-| Build tooling | shadcn CLI | `^4.7.0` (**devDependencies**) | `shadcn/tailwind.css` at build time |
 
 Build orchestration is a two-step `pnpm run build` → `tsc -b && vite build`. See [§13 Build pipeline](#13-build-pipeline).
 
@@ -105,7 +105,7 @@ Build orchestration is a two-step `pnpm run build` → `tsc -b && vite build`. S
 
 ## 4. Module-by-module technical design
 
-The source is organized around a single **controller hook** ([`useFileSystem`](../src/hooks/useFileSystem.ts)) that owns all app state and orchestrates three stateless **services** ([`dbService`](../src/services/dbService.ts), [`exifService`](../src/services/exifService.ts), [`rawDecoder`](../src/services/rawDecoder.ts)), backed by a **format registry** ([`fileFormats`](../src/config/fileFormats.ts)), a **name validator** ([`safeName`](../src/lib/safeName.ts)), and a **transient status store** ([`statusStore`](../src/stores/statusStore.ts)). See [ARCHITECTURE.md](ARCHITECTURE.md) for the component composition; this section documents the internals.
+The source is organized around a single **controller hook** ([`useFileSystem`](../src/features/sorter/hooks/useFileSystem.ts)) that owns all app state and orchestrates three stateless **services** ([`dbService`](../src/features/sorter/services/project-db.service.ts), [`exifService`](../src/features/media/services/metadata.service.ts), [`rawDecoder`](../src/features/media/services/raw-decoder.service.ts)), backed by a **format registry** ([`fileFormats`](../src/features/media/config/file-formats.ts)), a **name validator** ([`safeName`](../src/features/sorter/utils/folder-name.utils.ts)), and a **transient status store** ([`statusStore`](../src/shared/stores/status.store.ts)). See [ARCHITECTURE.md](ARCHITECTURE.md) for the component composition; this section documents the internals.
 
 ```mermaid
 flowchart TD
@@ -122,7 +122,7 @@ flowchart TD
 
 ### 4.1 `useFileSystem` — the controller hook
 
-[`src/hooks/useFileSystem.ts`](../src/hooks/useFileSystem.ts) (~860 lines) is the single source of truth. `App.tsx` calls it once and distributes its return value to the presentational components. It owns **all** app state, holds the non-serializable filesystem handles in refs, and orchestrates directory loading, chronological sorting, folder management, the copy/cut assign operation, undo, navigation, lazy metadata extraction, RAW decode, blob-URL lifecycle, and DB persistence.
+[`src/features/sorter/hooks/useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts) (~860 lines) is the single source of truth. `App.tsx` calls it once and distributes its return value to the presentational components. It owns **all** app state, holds the non-serializable filesystem handles in refs, and orchestrates directory loading, chronological sorting, folder management, the copy/cut assign operation, undo, navigation, lazy metadata extraction, RAW decode, blob-URL lifecycle, and DB persistence.
 
 #### 4.1.1 Public interface — `FileSystemHook`
 
@@ -215,7 +215,7 @@ Four handle-level helpers live at module scope (no component state):
 
 ### 4.2 `dbService` — persisted project state
 
-[`src/services/dbService.ts`](../src/services/dbService.ts) is the only module that reads or writes `nata-sort-db.json`. Every mutation is a **read-modify-write** of that single file.
+[`src/features/sorter/services/project-db.service.ts`](../src/features/sorter/services/project-db.service.ts) is the only module that reads or writes `nata-photo-db.json`. Every mutation is a **read-modify-write** of that single file.
 
 #### 4.2.1 Public API
 
@@ -228,7 +228,7 @@ Four handle-level helpers live at module scope (no component state):
 | `updateDatabaseMetadata` | `(dir, cache) => Promise<void>` | Persist the per-file metadata cache (debounced by caller). |
 | `loadProjectState` | `(dir) => Promise<CompleteProjectState \| null>` | Read + validate + sanitize; `null` on missing/corrupt/incompatible. |
 
-Constants: `DB_FILENAME = "nata-sort-db.json"`, `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`, `MAX_SORTED_ENTRIES = MAX_METADATA_ENTRIES = 100_000`, `MAX_FOLDERS = 1_000`.
+Constants: `DB_FILENAME = "nata-photo-db.json"`, `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`, `MAX_SORTED_ENTRIES = MAX_METADATA_ENTRIES = 100_000`, `MAX_FOLDERS = 1_000`.
 
 #### 4.2.2 Write-serialization chain
 
@@ -252,7 +252,7 @@ The DB file lives **inside the user's chosen folder**, so it is untrusted input:
 
 The load path is:
 
-1. **Read** `nata-sort-db.json`. Missing file → `return null` (normal on first open, no warning).
+1. **Read** `nata-photo-db.json`. Missing file → `return null` (normal on first open, no warning).
 2. **Parse** JSON. Parse error → warn `"Database rusak, dibuat ulang"`, return `null`.
 3. **Shape check** (`isValidState`): requires `version:string`, `folders:array`, `sortedPhotos:object!=null`, `operations:array`. Fail → warn `"Format database tidak valid, dibuat ulang"`, return `null`.
 4. **Version check**: `parsed.version !== "2.0"` → warn `"Database versi X tidak kompatibel, dibuat ulang"`, return `null`.
@@ -276,7 +276,7 @@ See [SECURITY.md](SECURITY.md) for the rationale and threat model behind these c
 
 ### 4.3 `exifService` — metadata extraction & date parsing
 
-[`src/services/exifService.ts`](../src/services/exifService.ts) exposes `extractMetadata(file)` plus `parseCaptureDate` and a family of formatters (`formatFileSize`, `formatDate`, `formatTimestamp`, `formatDuration`, `formatBitrate`).
+[`src/features/media/services/metadata.service.ts`](../src/features/media/services/metadata.service.ts) exposes `extractMetadata(file)` plus `parseCaptureDate` and a family of formatters (`formatFileSize`, `formatDate`, `formatTimestamp`, `formatDuration`, `formatBitrate`).
 
 `extractMetadata` dispatches on category (image vs video) and **always returns a `PhotoMetadata`** — on any failure it returns a default `{ fileSize, megapixels: 0, dimensions: {0,0}, isVideo }` and logs a warning. It never throws into the caller.
 
@@ -307,7 +307,7 @@ Returns `null` when unparseable — the caller then falls back to `File.lastModi
 
 ### 4.4 `rawDecoder` — the RAW preview pipeline
 
-[`src/services/rawDecoder.ts`](../src/services/rawDecoder.ts) exposes `decodeRawImage(file): Promise<string | null>` — a bounded, quality-first pipeline that prefers the camera's embedded JPEG preview and only falls back to a full sensor decode when necessary.
+[`src/features/media/services/raw-decoder.service.ts`](../src/features/media/services/raw-decoder.service.ts) exposes `decodeRawImage(file): Promise<string | null>` — a bounded, quality-first pipeline that prefers the camera's embedded JPEG preview and only falls back to a full sensor decode when necessary.
 
 Constants: `MAX_FULL_DECODE_BYTES = 80 MB`, `SHARP_PREVIEW_MIN_WIDTH = 800`, `MAX_CANDIDATE_BYTES = 40 MB`, `MAX_PREVIEW_DIM = 2048`, `LIBRAW_TIMEOUT_MS = 20000`.
 
@@ -336,26 +336,26 @@ See [§8 sequence diagrams](#8-sequence-diagrams) for the decode flow.
 
 ### 4.5 `fileFormats` — the format registry
 
-[`src/config/fileFormats.ts`](../src/config/fileFormats.ts) is the single registry of supported formats. `PHOTO_FORMATS` maps a format key to `{ extensions, mimeTypes?, label, category, previewable }`, with `category ∈ { standard | raw | vector | video | other }`. Derived lookups (`ALL_EXTENSIONS`, `PREVIEWABLE_EXTENSIONS`, `EXTENSION_TO_FORMAT`) power the helpers `isSupportedImage`, `isPreviewable`, and `getFileFormatInfo`, all keyed on the lowercased extension.
+[`src/features/media/config/file-formats.ts`](../src/features/media/config/file-formats.ts) is the single registry of supported formats. `PHOTO_FORMATS` maps a format key to `{ extensions, mimeTypes?, label, category, previewable }`, with `category ∈ { standard | raw | vector | video | other }`. Derived lookups (`ALL_EXTENSIONS`, `PREVIEWABLE_EXTENSIONS`, `EXTENSION_TO_FORMAT`) power the helpers `isSupportedImage`, `isPreviewable`, and `getFileFormatInfo`, all keyed on the lowercased extension.
 
 Coverage: standard raster (JPEG/JPE, PNG, GIF, WebP, AVIF, BMP/DIB, TIFF/TIF), **RAW** (Canon CR2/CR3/CRW, Nikon NEF/NRW, Sony ARW/SRF/SR2, Fuji RAF, Panasonic RW2/RAW, Olympus ORF, Pentax PEF/PTX, Leica/DNG + RWL, Hasselblad 3FR, Sigma X3F — all `previewable:false`, handled by `rawDecoder`), **vector** SVG, **other** ICO (previewable) and HEIC/HEIF (`previewable:false` — Chromium can't decode it in `<img>`), and **video** (MP4/M4V, WebM, OGV, MOV/QT, AVI, WMV, MKV, FLV, MPEG/MPG/MPE, TS, 3GP/3G2).
 
 ### 4.6 `statusStore` — transient toasts
 
-[`src/stores/statusStore.ts`](../src/stores/statusStore.ts) is a small Zustand store of status toasts (`{ id, type: "idle"|"loading"|"success"|"error", message, icon: "db"|"folder"|"file"|"save" }`). It keeps **at most 3** (`slice(0, 3)`), **auto-expires** `success`/`error` after **3 s** via `setTimeout`, and exposes `clearStatus()` to drop just the `loading` toasts (used in `finally` blocks). `addStatus`/`removeStatus`/`clearStatus` are exported as plain functions (`useStatusStore.getState()`) so services outside React can drive toasts.
+[`src/shared/stores/status.store.ts`](../src/shared/stores/status.store.ts) is a small Zustand store of status toasts (`{ id, type: "idle"|"loading"|"success"|"error", message, icon: "db"|"folder"|"file"|"save" }`). It keeps **at most 3** (`slice(0, 3)`), **auto-expires** `success`/`error` after **3 s** via `setTimeout`, and exposes `clearStatus()` to drop just the `loading` toasts (used in `finally` blocks). `addStatus`/`removeStatus`/`clearStatus` are exported as plain functions (`useStatusStore.getState()`) so services outside React can drive toasts.
 
 ### 4.7 `safeName` — folder-name validation
 
-[`src/lib/safeName.ts`](../src/lib/safeName.ts) exports `validateFolderName(raw)` used by the folder-add flow as **defense-in-depth** on top of the File System Access API's own path-segment rejection. It trims, then rejects: empty names, names > 200 chars, `.`/`..`, path separators / Windows-reserved punctuation (`\ / : * ? " < > |`), ASCII control chars (U+0000–U+001F), a trailing dot or space, and reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`). It returns `{ ok: true, name }` or `{ ok: false, reason }` with an Indonesian reason.
+[`src/features/sorter/utils/folder-name.utils.ts`](../src/features/sorter/utils/folder-name.utils.ts) exports `validateFolderName(raw)` used by the folder-add flow as **defense-in-depth** on top of the File System Access API's own path-segment rejection. It trims, then rejects: empty names, names > 200 chars, `.`/`..`, path separators / Windows-reserved punctuation (`\ / : * ? " < > |`), ASCII control chars (U+0000–U+001F), a trailing dot or space, and reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`). It returns `{ ok: true, name }` or `{ ok: false, reason }` with an Indonesian reason.
 
 ---
 
 ## 5. Data model (TypeScript interfaces)
 
-All types live in [`src/types/index.ts`](../src/types/index.ts) (plus `FileFormatConfig` in `fileFormats.ts`). The critical design decision is the split between **live, non-serializable objects** (handles, `File`, blob URLs) and the **serializable subset** persisted to the DB.
+All types live in [`src/features/sorter/types/sorter.types.ts`](../src/features/sorter/types/sorter.types.ts) (plus `FileFormatConfig` in `fileFormats.ts`). The critical design decision is the split between **live, non-serializable objects** (handles, `File`, blob URLs) and the **serializable subset** persisted to the DB.
 
 ```ts
-// src/config/fileFormats.ts
+// src/features/media/config/file-formats.ts
 export interface FileFormatConfig {
   extensions: string[];
   mimeTypes?: string[];
@@ -364,7 +364,7 @@ export interface FileFormatConfig {
   previewable: boolean;
 }
 
-// src/types/index.ts
+// src/features/sorter/types/sorter.types.ts
 export interface PhotoMetadata {
   cameraMake?: string;
   cameraModel?: string;
@@ -433,13 +433,13 @@ export interface ProjectState {
 }
 ```
 
-`CompleteProjectState` ([`dbService.ts`](../src/services/dbService.ts)) extends `ProjectState` with `operations: SortOperation[]`, an optional `metadataCache: Record<string, PhotoMetadata>`, and a `stats` block (`totalPhotos`, `sortedCount`, `successOperations`, `failedOperations`).
+`CompleteProjectState` ([`dbService.ts`](../src/features/sorter/services/project-db.service.ts)) extends `ProjectState` with `operations: SortOperation[]`, an optional `metadataCache: Record<string, PhotoMetadata>`, and a `stats` block (`totalPhotos`, `sortedCount`, `successOperations`, `failedOperations`).
 
 **Handle color palette** (9, indexed by folder position): `bg-red-500`, `bg-blue-500`, `bg-green-500`, `bg-yellow-500`, `bg-purple-500`, `bg-pink-500`, `bg-indigo-500`, `bg-orange-500`, `bg-teal-500`.
 
 ---
 
-## 6. `nata-sort-db.json` schema
+## 6. `nata-photo-db.json` schema
 
 A single JSON file written **inside the opened folder**. It is the durable session state; handles and blob URLs are never persisted (they are re-acquired on load by name).
 
@@ -638,7 +638,7 @@ NATA has several independent asynchronous flows; each has an explicit guard agai
 
 | Flow | Hazard | Guard |
 |---|---|---|
-| **DB writes** | Two read-modify-writes of `nata-sort-db.json` interleave (holding a shortcut key; metadata persist overlapping an assign) and drop updates. | Single `writeChain` promise; every mutator wraps its body in `enqueue()` so writes run **strictly one at a time**, and the chain survives rejections. |
+| **DB writes** | Two read-modify-writes of `nata-photo-db.json` interleave (holding a shortcut key; metadata persist overlapping an assign) and drop updates. | Single `writeChain` promise; every mutator wraps its body in `enqueue()` so writes run **strictly one at a time**, and the chain survives rejections. |
 | **RAW decode** | The same file is decoded repeatedly as the effect re-fires; a failed decode retries forever. | `rawDecodeQueueRef` (in-flight dedup), `rawPreviewKeysRef` (already-done skip), `failedRawDecodesRef` (no-retry). One decode per key ever. |
 | **Metadata extraction** | Neighbor prefetch double-extracts the same file. | `metaQueueRef` in-flight set + `metadataByKey.has(key)` check; a `cancelled` flag prevents setState-after-unmount. |
 | **Capture-date scan** | Reading hundreds of headers serially is slow; unbounded parallelism thrashes memory. | Fixed pool of **≤ 8** workers over a shared cursor. |
@@ -719,7 +719,7 @@ Express 5 + helmet 8 + compression. Behavior:
 | `X-XSS-Protection` | `0` (legacy auditor disabled) |
 | `Permissions-Policy` | denies all powerful features; allows only `fullscreen=(self)`, `picture-in-picture=(self)` |
 
-The CSP has **no `'unsafe-inline'`/`'unsafe-eval'` for scripts** — only `'wasm-unsafe-eval'` for WASM compilation. `style-src 'unsafe-inline'` is an accepted, documented requirement of Tailwind/Radix runtime-injected styles. Full rationale and threat model: [SECURITY.md](SECURITY.md).
+The CSP has **no `'unsafe-inline'`/`'unsafe-eval'` for scripts** — only `'wasm-unsafe-eval'` for WASM compilation. `style-src 'unsafe-inline'` is an accepted, documented requirement of Tailwind/runtime-injected styles. Full rationale and threat model: [SECURITY.md](SECURITY.md).
 
 ### 11.4 `docker-compose.yml` hardening
 
@@ -826,7 +826,7 @@ There is no server-side request/response logging of user content because the ser
 - **libraw-wasm is flaky.** The upstream hang-on-error bug is patched (`patchLibRawWorker`) and every decode is timeout- and worker-termination-guarded, but the full sensor decode remains the fallback of last resort; the embedded-preview path is the reliable route for almost every RAW.
 - **No schema migration.** A `DB_VERSION` bump is a hard reset by design.
 - **Undo depth 20; operation log 50.** History beyond those bounds is dropped.
-- **HSTS only matters over HTTPS** behind a TLS terminator; `style-src 'unsafe-inline'` is required by Tailwind/Radix.
+- **HSTS only matters over HTTPS** behind a TLS terminator; `style-src 'unsafe-inline'` is required by Tailwind.
 
 **Future work**
 
@@ -849,14 +849,14 @@ There is no server-side request/response logging of user content because the ser
 
 | Concern | File |
 |---|---|
-| Controller hook | [`src/hooks/useFileSystem.ts`](../src/hooks/useFileSystem.ts) |
-| DB service | [`src/services/dbService.ts`](../src/services/dbService.ts) |
-| Metadata | [`src/services/exifService.ts`](../src/services/exifService.ts) |
-| RAW decode | [`src/services/rawDecoder.ts`](../src/services/rawDecoder.ts) |
-| Format registry | [`src/config/fileFormats.ts`](../src/config/fileFormats.ts) |
-| Status store | [`src/stores/statusStore.ts`](../src/stores/statusStore.ts) |
-| Name safety | [`src/lib/safeName.ts`](../src/lib/safeName.ts) |
-| Types | [`src/types/index.ts`](../src/types/index.ts) |
+| Controller hook | [`src/features/sorter/hooks/useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts) |
+| DB service | [`src/features/sorter/services/project-db.service.ts`](../src/features/sorter/services/project-db.service.ts) |
+| Metadata | [`src/features/media/services/metadata.service.ts`](../src/features/media/services/metadata.service.ts) |
+| RAW decode | [`src/features/media/services/raw-decoder.service.ts`](../src/features/media/services/raw-decoder.service.ts) |
+| Format registry | [`src/features/media/config/file-formats.ts`](../src/features/media/config/file-formats.ts) |
+| Status store | [`src/shared/stores/status.store.ts`](../src/shared/stores/status.store.ts) |
+| Name safety | [`src/features/sorter/utils/folder-name.utils.ts`](../src/features/sorter/utils/folder-name.utils.ts) |
+| Types | [`src/features/sorter/types/sorter.types.ts`](../src/features/sorter/types/sorter.types.ts) |
 | Static server | [`server/index.js`](../server/index.js) |
 | Container | [`Dockerfile`](../Dockerfile) · [`docker-compose.yml`](../docker-compose.yml) |
 | Build config | [`vite.config.ts`](../vite.config.ts) |

@@ -10,9 +10,80 @@ All notable changes to this project are documented in this file.
   Docker image/container, and log tags use `nata-sort`; the UI, page titles, and
   the PWA manifest say "NATA". The theme preference key is now `nata-sort-theme`,
   so the theme resets to the default once.
-- **State file renamed to `nata-sort-db.json`.** Older `photo-sorter-db.json`
-  files are not read, so those folders start as new projects. To keep existing
-  progress, rename the file to `nata-sort-db.json` before opening the folder.
+- **State file stays `nata-photo-db.json`.** Existing `nata-sort-db.json` and
+  `photo-sorter-db.json` projects are read as a fallback and re-saved under it,
+  so no sort progress is lost.
+- **Feature-based project structure** replaces Feature-Sliced Design: `src/{app,features,shared}`
+  with automatic route discovery (`features/<name>/routes.ts`), per-feature tests, and
+  enforced import boundaries (ESLint + `pnpm check:architecture`).
+- **In-house UI primitives** replace Radix/shadcn (native `<dialog>`, ARIA tabs, CSS-only
+  `WithTooltip`), removing the `radix-ui` dependency.
+- Help, route fallbacks, navigation labels, and the leave-page confirmation are localized
+  (EN/ID). Route `title` and `nav.label` are i18n keys.
+- React Router 8, ESLint + JSDoc rules, Prettier, Vitest + Playwright test suites.
+
+### Fixed
+
+- **Mobile layout.** The page no longer overflows sideways on phones (closed tooltips
+  stay out of layout, the status badge floats under the navbar on small screens) and
+  the content now has side padding.
+
+### Notes
+
+- The Google Fonts `<link>` from 2.3.0 is not carried over: the CSP (`font-src 'self'`)
+  blocks it. The system font fallbacks apply until the fonts are self-hosted.
+
+## [2.3.0] - 2026-07-19
+
+> Rebranded from **Photo Sorter** to **Nata Photo**. The on-disk state file is now
+> `nata-photo-db.json`; existing `photo-sorter-db.json` projects are read as a
+> fallback and re-saved under the new name, so no sort progress is lost.
+
+### Added
+
+- **Internationalization (English + Indonesian).** The whole UI is now bilingual
+  via **i18next / react-i18next**, with a navbar language toggle. English is the
+  default; the choice persists to `localStorage` (`lumen-storage`) and `<html lang>`
+  follows it. Strings live one-file-per-language in
+  `src/shared/i18n/language/{en,id}.json`; a module-level `t()` also localizes
+  non-React code (services, the class error boundary).
+- **Customizable folder sort-shortcuts.** Click a folder's badge and press a key
+  to set its shortcut. Any key is accepted except reserved app actions (arrows,
+  `Space`, `U`, `Esc`), modifier combinations (e.g. `Ctrl+P`), and keys already
+  used by another folder — validated in `shared/lib/shortcut.ts`. Folders beyond
+  the first nine can now be bound too.
+- **Tooltips on every icon-only control** via a new shadcn `Tooltip` component
+  and `WithTooltip` wrapper (`shared/ui/tooltip.tsx`), each localized.
+- **`pages/` presentation layer** — the app shell now routes between a `welcome`
+  and an `editor` page instead of one monolithic `App.tsx`.
+
+### Changed
+
+- **Project restructured to Feature-Sliced Design** — `src/{app,pages,features,shared}`
+  with a one-way dependency rule and a public-API `index.ts` barrel per slice, for
+  readability, scalability, and easy handover. See
+  [docs/ARCHITECTURE.md §3](docs/ARCHITECTURE.md).
+- **UI/UX design revamp** — a distinctive "darkroom" identity: warm amber accent
+  over warm-tinted OKLCH neutrals, a three-family type system (Bricolage Grotesque
+  / Inter / JetBrains Mono), an ambient background, high-impact motion and
+  **skeleton-shimmer** loaders (all respecting `prefers-reduced-motion`), and a
+  stat-tile treatment across the sidebar panels.
+- Metadata extraction, RAW decoding, and the controller hook moved to
+  `shared/services/*` and `features/file-system/model/*` (behavior unchanged).
+
+### Fixed
+
+- **RAW dimensions & megapixels now read correctly.** EXIF exposed only the
+  embedded thumbnail's size for RAW files (e.g. a Nikon NEF reported 160×120); the
+  true sensor dimensions are now read from the largest embedded JPEG preview
+  (worker-free, so it never contends with an in-flight RAW decode). Verified: a
+  Nikon D3100 NEF now reports 4608×3072 / 14.2 MP.
+
+### Principles
+
+- Adopted the **longevity principles** — Readable · Understandable · Reusable ·
+  Scalable · Maintainable · Easy to Hand Over — realized through the FSD structure,
+  documented in [docs/PRINCIPLES.md](docs/PRINCIPLES.md).
 
 ## [2.2.0] - 2026-07-15
 

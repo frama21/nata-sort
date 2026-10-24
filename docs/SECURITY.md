@@ -39,9 +39,9 @@ NATA is a **local-first, zero-backend** single-page app. Its security model foll
 | No server-side application logic | No server-side injection, SSRF, auth, or session surface. |
 | No network egress at runtime | A compromised page cannot exfiltrate the user's files — `connect-src 'self'` blocks it. |
 | Explicit, user-granted file access | The app only touches the folder the user picks in the OS dialog, and only after an explicit gesture. |
-| State stored beside the user's data | Project state lives in `nata-sort-db.json` **inside the chosen folder** — never in a cloud or shared store. |
+| State stored beside the user's data | Project state lives in `nata-photo-db.json` **inside the chosen folder** — never in a cloud or shared store. |
 
-The remaining attack surface is the classic client-side one: malicious **media files** or a malicious **`nata-sort-db.json`** trying to crash/DoS the tab or pollute app state, cross-site attacks against the served page (XSS, clickjacking, framing), and supply-chain risk in dependencies. Each is addressed below.
+The remaining attack surface is the classic client-side one: malicious **media files** or a malicious **`nata-photo-db.json`** trying to crash/DoS the tab or pollute app state, cross-site attacks against the served page (XSS, clickjacking, framing), and supply-chain risk in dependencies. Each is addressed below.
 
 ### Trust boundaries
 
@@ -49,7 +49,7 @@ The remaining attack surface is the classic client-side one: malicious **media f
 flowchart LR
   subgraph Untrusted
     IMG[Image / video / RAW bytes]
-    DB[nata-sort-db.json]
+    DB[nata-photo-db.json]
     NET[The wider web]
   end
   subgraph Browser["Browser origin (sandboxed, cross-origin isolated)"]
@@ -84,7 +84,7 @@ connect-src 'self' blob: data:; manifest-src 'self'; upgrade-insecure-requests
 | --- | --- | --- |
 | `default-src` | `'self'` | Deny-by-default for anything not called out below. |
 | `script-src` | `'self' 'wasm-unsafe-eval'` | **No** `'unsafe-inline'`/`'unsafe-eval'`. `'wasm-unsafe-eval'` is the minimum needed to compile the libraw / mediainfo WASM. |
-| `style-src` | `'self' 'unsafe-inline'` | Required by Tailwind v4 / Radix runtime-injected styles. See [accepted risks](#8-accepted-risks--known-limitations). |
+| `style-src` | `'self' 'unsafe-inline'` | Required by Tailwind v4 / runtime-injected styles (e.g. the viewer's inline transforms). See [accepted risks](#8-accepted-risks--known-limitations). |
 | `img-src` / `media-src` | `'self' blob: data:` / `'self' blob:` | Previews are locally generated `blob:`/`data:` URLs. |
 | `worker-src` | `'self' blob:` | libraw-wasm and mediainfo spawn Web Workers. |
 | `connect-src` | `'self' blob: data:` | **No remote hosts** — the app never phones home. |
@@ -125,15 +125,15 @@ All responses carry the full header set (verified live):
 
 | Control | Where | What it does |
 | --- | --- | --- |
-| **Untrusted-DB sanitization** | [`dbService.ts`](../src/services/dbService.ts) `sanitizeState`/`safeRecord` | On load, the DB's object maps are copied into **null-prototype** objects with `__proto__`/`constructor`/`prototype` keys dropped (prototype-pollution guard); collection sizes are bounded (100 000 mappings / metadata entries, 1 000 folders, 50 operations); `moveMode`/`currentIndex` are coerced to safe defaults. |
-| **Folder-name validation** | [`safeName.ts`](../src/lib/safeName.ts) `validateFolderName` | Defense-in-depth over the File System Access API's own rejection of path segments: blocks path separators, Windows-reserved punctuation, ASCII control chars, `.`/`..`, reserved device names (`CON`, `NUL`, `COM1`…), trailing dot/space, and names > 200 chars. |
-| **Header-only, bounded decoding** | [`exifService.ts`](../src/services/exifService.ts), [`rawDecoder.ts`](../src/services/rawDecoder.ts) | Images are parsed from the first **2 MB** only; full RAW sensor decode is skipped above **80 MB**; previews are re-encoded to **≤ 2048 px**; libraw decodes are killed after **20 s** and the worker is terminated. This bounds the DoS impact of a hostile file. |
+| **Untrusted-DB sanitization** | [`dbService.ts`](../src/features/sorter/services/project-db.service.ts) `sanitizeState`/`safeRecord` | On load, the DB's object maps are copied into **null-prototype** objects with `__proto__`/`constructor`/`prototype` keys dropped (prototype-pollution guard); collection sizes are bounded (100 000 mappings / metadata entries, 1 000 folders, 50 operations); `moveMode`/`currentIndex` are coerced to safe defaults. |
+| **Folder-name validation** | [`safeName.ts`](../src/features/sorter/utils/folder-name.utils.ts) `validateFolderName` | Defense-in-depth over the File System Access API's own rejection of path segments: blocks path separators, Windows-reserved punctuation, ASCII control chars, `.`/`..`, reserved device names (`CON`, `NUL`, `COM1`…), trailing dot/space, and names > 200 chars. |
+| **Header-only, bounded decoding** | [`exifService.ts`](../src/features/media/services/metadata.service.ts), [`rawDecoder.ts`](../src/features/media/services/raw-decoder.service.ts) | Images are parsed from the first **2 MB** only; full RAW sensor decode is skipped above **80 MB**; previews are re-encoded to **≤ 2048 px**; libraw decodes are killed after **20 s** and the worker is terminated. This bounds the DoS impact of a hostile file. |
 | **Patched image parser** | `exifreader ^4.41.0` | Fixes two DoS advisories in the EXIF parser that runs on untrusted images (see §5). |
 | **Output escaping** | React | All metadata and user text render through React's JSX escaping — no `dangerouslySetInnerHTML`, no `innerHTML`, no `eval` anywhere in `src/`. |
-| **SVG safety** | [`ContentViewer.tsx`](../src/components/ContentViewer.tsx) | SVGs render via `<img src="blob:…">`; scripts embedded in an SVG **do not execute** in the `<img>` context. |
+| **SVG safety** | [`ContentViewer.tsx`](../src/features/sorter/components/ContentViewer.tsx) | SVGs render via `<img src="blob:…">`; scripts embedded in an SVG **do not execute** in the `<img>` context. |
 | **No secrets, no cookies** | — | The app stores no credentials and sets no cookies; there is nothing to steal via XSS beyond what the user already granted. |
-| **Blob-URL lifecycle** | [`useFileSystem.ts`](../src/hooks/useFileSystem.ts) | Object URLs are revoked on reload/unmount to prevent memory leaks. |
-| **Handle-free operation log** | [`types/index.ts`](../src/types/index.ts) | `SortOperation` intentionally stores no file handles, so the persisted log cannot smuggle live capabilities. |
+| **Blob-URL lifecycle** | [`useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts) | Object URLs are revoked on reload/unmount to prevent memory leaks. |
+| **Handle-free operation log** | [`types/index.ts`](../src/features/sorter/types/sorter.types.ts) | `SortOperation` intentionally stores no file handles, so the persisted log cannot smuggle live capabilities. |
 
 ---
 
@@ -154,7 +154,7 @@ All responses carry the full header set (verified live):
 | 1 | **High** + Moderate | `exifreader` DoS via crafted ICC `mluc` tag ([GHSA-h64w-w9pr-82m4](https://github.com/advisories/GHSA-h64w-w9pr-82m4)) and unbounded metadata decompression ([GHSA-rr89-w3h9-m66j](https://github.com/advisories/GHSA-rr89-w3h9-m66j)). ExifReader parses **untrusted user images**, so this was the most material finding. | Bump `exifreader` `^4.38.1 → ^4.41.0` (patched ≥ 4.39.0). |
 | 2 | Supply-chain | The `shadcn` **CLI** was listed under `dependencies`, pulling a large server-side tree (`hono`, `qs`, `js-yaml`, `@babel/core`, `@modelcontextprotocol/sdk`) into the **production** dependency graph. None of it ships in the browser bundle. | Move `shadcn` to `devDependencies` (still needed at build time for the `shadcn/tailwind.css` import in `globals.css`). |
 | 3 | Moderate/Low | Remaining **dev/build-only** transitive advisories (`hono`, `qs`, `js-yaml`, `@babel/core`, `vite` dev-server `fs.deny` bypass, `launch-editor`, `brace-expansion`). | Pin patched versions via `pnpm.overrides` and bump `vite` to `^8.1.4`. |
-| 4 | Hardening | Prototype-pollution / unbounded-memory risk when reading `nata-sort-db.json`. | `sanitizeState`/`safeRecord` (see §4.4). |
+| 4 | Hardening | Prototype-pollution / unbounded-memory risk when reading `nata-photo-db.json`. | `sanitizeState`/`safeRecord` (see §4.4). |
 | 5 | Hardening | Folder-name input only blocked a few characters. | `validateFolderName` (see §4.4). |
 | 6 | Hardening | nginx image shipped the whole toolchain and ran as root. | Minimal non-root Node runtime + hardened compose (see §6). |
 
@@ -221,7 +221,7 @@ curl -sSD - http://localhost:8080/ -o /dev/null
 
 ## 8. Accepted risks & known limitations
 
-- **`style-src 'unsafe-inline'`** — required by Tailwind v4 / Radix's runtime-injected styles. The residual risk (CSS injection) is low given React output-escaping and the absence of any HTML-injection sink; a nonce-based style policy is impractical with this component stack.
+- **`style-src 'unsafe-inline'`** — required by Tailwind v4 / runtime-injected styles. The residual risk (CSS injection) is low given React output-escaping and the absence of any HTML-injection sink; a nonce-based style policy is impractical with this component stack.
 - **HSTS requires HTTPS** — the container speaks HTTP; the header is inert unless TLS is terminated in front of it (see §6).
 - **`MediaInfoModule.wasm` is not emitted at build time** — Vite cannot statically resolve mediainfo's runtime `new URL(...)`, so **video metadata degrades gracefully** (the extractor catches the failure and returns default metadata). This is a functional note, not a security issue: nothing is fetched cross-origin, and CSP would block it if it were.
 - **Browser support** — the app requires the File System Access API (Chromium-based browsers only).

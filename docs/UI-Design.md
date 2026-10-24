@@ -27,17 +27,17 @@ NATA is a **utilitarian, content-first tool**. The interface exists to get out o
 
 **Foundation stack**
 
-- **Tailwind CSS v4** with the `@theme inline` token bridge in [src/assets/styles/globals.css](../src/assets/styles/globals.css).
-- **shadcn** (style `radix-nova`, base color `neutral`) primitives over **Radix UI**, under [src/components/ui](../src/components/ui).
+- **Tailwind CSS v4** with the `@theme inline` token bridge in [src/app/styles/globals.css](../src/app/styles/globals.css).
+- **In-house primitives** (no Radix/shadcn runtime; shadcn-style variants via `class-variance-authority`) under [src/shared/components/ui/](../src/shared/components/ui/).
 - **lucide-react** icon set.
 - **OKLCH** color space for perceptually-even light/dark tokens.
-- Utility class merging via `cn()` (clsx + tailwind-merge) in [src/lib/utils.ts](../src/lib/utils.ts).
+- Utility class merging via `cn()` (clsx + tailwind-merge) in [src/shared/lib/utils.ts](../src/shared/lib/utils.ts).
 
 ---
 
 ## 2. Design tokens
 
-All tokens are CSS custom properties defined in [src/assets/styles/globals.css](../src/assets/styles/globals.css). The light theme lives on `:root`; the dark theme overrides on `.dark` (toggled by `ThemeProvider`). The `@theme inline` block maps each `--<token>` to a Tailwind color/radius utility (e.g. `--color-primary` → `bg-primary`, `text-primary`).
+All tokens are CSS custom properties defined in [src/app/styles/globals.css](../src/app/styles/globals.css). The light theme lives on `:root`; the dark theme overrides on `.dark` (toggled by `ThemeProvider`). The `@theme inline` block maps each `--<token>` to a Tailwind color/radius utility (e.g. `--color-primary` → `bg-primary`, `text-primary`).
 
 ### 2.1 Color tokens — light theme (`:root`)
 
@@ -164,7 +164,7 @@ NATA ships **no custom web font**. It inherits the platform/Tailwind default san
 | Captions & metadata values | `text-xs text-muted-foreground` | Panel descriptions, filenames |
 | Micro-labels | `text-[10px]` / `text-xs` | Mobile hints, badges |
 | Folder shortcut swatch digit | `font-bold text-xs` | White on the folder color |
-| Code (`.nata-sort-db.json`) | `<code>` inline | Empty-state hint |
+| Code (`nata-photo-db.json`) | `<code>` inline | Empty-state hint |
 
 Guidelines: `leading-tight` on stacked headings; `truncate` / `line-clamp-1` on filenames, folder names, and operation rows; `break-words` on long metadata values (camera names, codecs) so narrow panels never overflow.
 
@@ -289,7 +289,7 @@ flowchart TD
 
 ## 6. Component inventory
 
-### 6.1 shadcn / Radix UI primitives — [src/components/ui](../src/components/ui)
+### 6.1 In-house UI primitives — [src/shared/components/ui/](../src/shared/components/ui/)
 
 | Component | Purpose in NATA |
 | --- | --- |
@@ -297,10 +297,14 @@ flowchart TD
 | `badge` | Format label, sort status, StatusIndicator toast, folder tag |
 | `button` | Every action (see variants below) |
 | `card` | Panel frame for viewer & all sidebar sections |
-| `dropdown-menu` | Radix menu primitive (available for menus) |
+| `dialog` | Native `<dialog>` modal (keyboard-shortcuts dialog) |
+| `tooltip` | CSS-only `WithTooltip` on icon-only controls (hover/keyboard focus) |
+| `scroll-area` | Filmstrip and grid scrolling |
+| `panel-header` | Icon tile + display title shared by every sidebar panel |
+| `kbd` | Keyboard key caps |
 | `empty` | Empty/loading/decoding/preview-unavailable/error compositions |
 | `field` / `label` | Form field wrapper + labels (add-folder input, progress labels) |
-| `input` / `input-group` / `textarea` | Text entry (new folder name) |
+| `input` | Text entry (new folder name) |
 | `item` | The repeating icon + title + description + actions row used across FolderManager, MetadataPanel, OperationLog, Stats |
 | `progress` | Photo-position and sorted-count bars |
 | `separator` | Divides metadata / stats sections |
@@ -311,23 +315,23 @@ flowchart TD
 
 **Badge variants** (`badgeVariants`): `default`, `secondary`, `destructive`, `outline`, `ghost`, `link`. Fixed `h-5`, pill radius `rounded-4xl`, `text-xs`.
 
-### 6.2 Application components — [src/components](../src/components)
+### 6.2 Application components — [src/features/sorter/components/](../src/features/sorter/components/)
 
 | Component | File | Purpose |
 | --- | --- | --- |
-| `App` | [src/App.tsx](../src/App.tsx) | Single view; composes everything, derives sorted/unsorted counts & all-sorted state, merges lazy metadata into the current photo |
-| `Navbar` | [src/components/app/Navbar.tsx](../src/components/app/Navbar.tsx) | Sticky, blurred header: logo, title, version, status toast, theme toggle |
-| `ContentViewer` | [src/components/ContentViewer.tsx](../src/components/ContentViewer.tsx) | Media stage: image/video/RAW-decoding/preview-unavailable states, filename + format + status badges, side chevrons, keyboard & swipe handling |
-| `FolderManager` | [src/components/FolderManager.tsx](../src/components/FolderManager.tsx) | Copy/Cut mode tabs, add-folder form, folder list with shortcut swatch + Sortir/delete, Undo & "Belum disortir" quick actions, shortcut tips |
-| `MetadataPanel` | [src/components/MetadataPanel.tsx](../src/components/MetadataPanel.tsx) | EXIF (image) or mediainfo (video) fields in a fluid `auto-fit minmax(140px,1fr)` grid |
-| `OperationLog` | [src/components/OperationLog.tsx](../src/components/OperationLog.tsx) | Last 3 operations (newest first), green/red tinted rows |
-| `Stats` | [src/components/Stats.tsx](../src/components/Stats.tsx) | Totals, sorted/unsorted, success/failed operation counts |
-| `ProgressBar` | [src/components/ProgressBar.tsx](../src/components/ProgressBar.tsx) | Two bars: current position and sorted count |
-| `MobileActionBar` | [src/components/MobileActionBar.tsx](../src/components/MobileActionBar.tsx) | Fixed bottom bar: prev/next + one colored button per folder |
-| `StatusIndicator` | [src/components/StatusIndicator.tsx](../src/components/StatusIndicator.tsx) | Reads the Zustand status store; shows the newest toast in the navbar |
-| `ThemeMode` | [src/components/ThemeMode.tsx](../src/components/ThemeMode.tsx) | Sun/Moon toggle (binary light↔dark) with `sr-only` label |
-| `ThemeProvider` | [src/components/ThemeProvider.tsx](../src/components/ThemeProvider.tsx) | Theme context; writes/reads `localStorage["nata-sort-theme"]`; applies `.dark`/`.light` on `<html>` |
-| `ErrorBoundary` | [src/components/ErrorBoundary.tsx](../src/components/ErrorBoundary.tsx) | Catches render errors; "Coba lagi" / "Muat ulang" recovery |
+| `App` | [src/app/App.tsx](../src/app/App.tsx) | Single view; composes everything, derives sorted/unsorted counts & all-sorted state, merges lazy metadata into the current photo |
+| `Navbar` | [src/app/layouts/Navbar.tsx](../src/app/layouts/Navbar.tsx) | Sticky, blurred header: logo, title, version, status toast, theme toggle |
+| `ContentViewer` | [src/features/sorter/components/ContentViewer.tsx](../src/features/sorter/components/ContentViewer.tsx) | Media stage: image/video/RAW-decoding/preview-unavailable states, filename + format + status badges, side chevrons, keyboard & swipe handling |
+| `FolderManager` | [src/features/sorter/components/FolderManager.tsx](../src/features/sorter/components/FolderManager.tsx) | Copy/Cut mode tabs, add-folder form, folder list with shortcut swatch + Sortir/delete, Undo & "Belum disortir" quick actions, shortcut tips |
+| `MetadataPanel` | [src/features/sorter/components/MetadataPanel.tsx](../src/features/sorter/components/MetadataPanel.tsx) | EXIF (image) or mediainfo (video) fields in a fluid `auto-fit minmax(140px,1fr)` grid |
+| `OperationLog` | [src/features/sorter/components/OperationLog.tsx](../src/features/sorter/components/OperationLog.tsx) | Last 3 operations (newest first), green/red tinted rows |
+| `Stats` | [src/features/sorter/components/Stats.tsx](../src/features/sorter/components/Stats.tsx) | Totals, sorted/unsorted, success/failed operation counts |
+| `ProgressBar` | [src/features/sorter/components/ProgressBar.tsx](../src/features/sorter/components/ProgressBar.tsx) | Two bars: current position and sorted count |
+| `MobileActionBar` | [src/features/sorter/components/MobileActionBar.tsx](../src/features/sorter/components/MobileActionBar.tsx) | Fixed bottom bar: prev/next + one colored button per folder |
+| `StatusIndicator` | [src/shared/components/feedback/StatusIndicator.tsx](../src/shared/components/feedback/StatusIndicator.tsx) | Reads the Zustand status store; shows the newest toast in the navbar |
+| `ThemeMode` | [src/app/layouts/ThemeToggle.tsx](../src/app/layouts/ThemeToggle.tsx) | Sun/Moon toggle (binary light↔dark) with `sr-only` label |
+| `ThemeProvider` | [src/app/providers/ThemeProvider.tsx](../src/app/providers/ThemeProvider.tsx) | Theme context; writes/reads `localStorage["nata-sort-theme"]`; applies `.dark`/`.light` on `<html>` |
+| `ErrorBoundary` | [src/app/errors/GlobalErrorBoundary.tsx](../src/app/errors/GlobalErrorBoundary.tsx) | Catches render errors; "Try again" / "Reload" recovery |
 
 ---
 
@@ -350,7 +354,7 @@ stateDiagram-v2
     RawDecoding --> NoPreview: decode fails
 ```
 
-1. **Empty (pick-folder)** — `totalPhotos === 0`. Full-height `Empty` (`h-[90dvh]`) with `ImageOff` media, title **"Mulai Sortir Foto"**, a description noting sort folders auto-create and state persists to `.nata-sort-db.json`, a large **"Pilih Folder Foto"** button (disabled → "Membaca…" while loading), and the note "Chrome/Edge/Opera terbaru diperlukan. File diproses secara lokal."
+1. **Empty (pick-folder)** — `totalPhotos === 0`. Full-height `Empty` (`h-[90dvh]`) with `ImageOff` media, title **"Start organizing photos"**, a description noting sort folders auto-create and state persists to `nata-photo-db.json`, a large **"Choose Photo Folder"** button (disabled → "Reading folder…" while loading), and the note that a recent Chrome/Edge/Opera is needed and everything is processed locally
 
 2. **Loading** — the pick button switches to **"Membaca…"** (disabled); the navbar `StatusIndicator` shows a `Spinner` badge. RAW/metadata work surfaces its own spinners downstream.
 
@@ -364,7 +368,7 @@ stateDiagram-v2
 
 7. **All sorted** — when `totalPhotos > 0 && unsortedCount === 0`: a green success `Alert` above the viewer — **"Semua N foto sudah disortir 🎉"** (`CheckCircle2`). The viewer still shows the current file so the user can review/re-sort.
 
-8. **Error** — `fs.error` renders a red `Alert` (`AlertTriangleIcon`) at the top of `main`; e.g. a reset warning when `.nata-sort-db.json` is missing/corrupt/incompatible. Uncaught render errors fall to the **ErrorBoundary** full-screen `Empty`: "Terjadi kesalahan" with **"Coba lagi"** (reset) and **"Muat ulang"** (reload).
+8. **Error** — `fs.error` renders a red `Alert` (`AlertTriangleIcon`) at the top of `main`; e.g. a reset warning when `nata-photo-db.json` is missing/corrupt/incompatible. Uncaught render errors fall to the **ErrorBoundary** full-screen `Empty`: "Something went wrong" with **"Try again"** (reset) and **"Reload"** (reload).
 
 9. **Transient toasts** — the Zustand status store (max 3; success/error auto-expire after 3s; loading cleared explicitly) feeds `StatusIndicator`: a `Spinner`, `CheckCircle2`, or `XCircle` badge with a short message in the navbar.
 
@@ -406,7 +410,7 @@ Text/icons on folder colors are forced to `text-white`. These are literal Tailwi
 
 ## 9. Theming
 
-Theme is owned by [ThemeProvider](../src/components/ThemeProvider.tsx) and applied by toggling the `.dark` / `.light` class on `<html>`, which flips the CSS variables in [globals.css](../src/assets/styles/globals.css).
+Theme is owned by [ThemeProvider](../src/app/providers/ThemeProvider.tsx) and applied by toggling the `.dark` / `.light` class on `<html>`, which flips the CSS variables in [globals.css](../src/app/styles/globals.css).
 
 | Aspect | Behavior |
 | --- | --- |
@@ -503,9 +507,9 @@ Configured via `vite-plugin-pwa` in [vite.config.ts](../vite.config.ts) and the 
 
 - The UI is authored in **Indonesian** — `index.html` sets `lang="id"`, and the PWA manifest `lang: "id"`.
 - Only the **user interface** is Indonesian; the codebase (comments), `README.md`, and `CHANGELOG.md` are English.
-- Representative strings: "Mulai Sortir Foto", "Pilih Folder Foto", "Folder Sortir", "Mode Pemindahan", "Copy (Duplikat)" / "Cut (Pindah)", "Belum di sortir", "Mendecode RAW…", "Preview tidak tersedia", "Semua N foto sudah disortir 🎉", "Terjadi kesalahan" / "Coba lagi" / "Muat ulang", "Informasi Foto/Video", "Statistik", "Log Operasi Terakhir".
+- The UI is bilingual (English default, Indonesian), via i18next. Strings live in `src/shared/i18n/language/{en,id}.json`; a navbar toggle switches language and the choice persists in `localStorage`. Every new string needs a key in both files and is rendered with `t()`.
 - Field labels in the metadata panel mix Indonesian ("Kamera", "Lensa", "Durasi", "Ukuran", "Dimensi", "Tanggal") with universal technical terms ("ISO", "Shutter", "Aperture", "Focal Length", "FPS", "Codec Video/Audio", "Bitrate", "Megapixel").
-- There is currently **no i18n framework**; strings are inline. Any future localization would need string extraction. React auto-escapes all interpolated metadata/user text, so folder names and filenames in any language render safely.
+- React auto-escapes all interpolated metadata/user text, so folder names and filenames in any language render safely.
 
 ---
 
@@ -515,7 +519,7 @@ Use this when adding or reviewing UI.
 
 - [ ] **Tokens only** — colors/radii come from the CSS variables / Tailwind token utilities (`bg-primary`, `text-muted-foreground`, `rounded-lg`), not hard-coded hex. Folder swatches are the one sanctioned exception (fixed 9-color palette).
 - [ ] **Both themes** — verified in light *and* dark; text contrast holds after the `.dark` inversion.
-- [ ] **Primitive reuse** — built from `src/components/ui` (Card, Item, Button, Badge, Alert, Empty…) rather than bespoke markup.
+- [ ] **Primitive reuse** — built from `src/shared/components/ui/` (Card, Item, Button, Badge, Alert, Empty…) rather than bespoke markup.
 - [ ] **Keyboard parity** — any new action has a keyboard path, and the typing-guard still holds (no hijacking while an input is focused).
 - [ ] **Focus visible** — interactive elements show the `focus-visible` ring; icon-only controls have `aria-label` (or `sr-only` text).
 - [ ] **Responsive** — checked at `< md`, `md`, and `lg`; nothing overflows; long names `truncate`/`line-clamp`; long values `break-words`.

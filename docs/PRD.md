@@ -207,7 +207,7 @@ flowchart TD
     A[Open app in Chromium browser] --> B[Click 'Open folder']
     B --> C[Grant read/write permission via showDirectoryPicker]
     C --> D[App scans TOP-LEVEL images & videos]
-    D --> E[Restore nata-sort-db.json if present]
+    D --> E[Restore nata-photo-db.json if present]
     E --> F[Files shown in chronological capture order]
     F --> G[Create sort sub-folders 1..9]
     G --> H[Preview current file + view metadata]
@@ -251,7 +251,7 @@ table in §6.
 
 > As a returning user, I want my previous sort state restored automatically.
 
-- **AC-1.2.1** Given a folder that already contains `nata-sort-db.json`, when
+- **AC-1.2.1** Given a folder that already contains `nata-photo-db.json`, when
   I reopen it, then folders, per-file sort mapping, move mode, and `currentIndex`
   are restored.
 - **AC-1.2.2** Given a missing, corrupt, or incompatible-version database, when
@@ -388,7 +388,7 @@ table in §6.
 > As a user, I want my progress saved without thinking about it.
 
 - **AC-5.1.1** Given any state-changing action, then the project state is written
-  to `nata-sort-db.json` inside the opened folder.
+  to `nata-photo-db.json` inside the opened folder.
 - **AC-5.1.2** Given rapid consecutive actions (e.g. holding a key), then writes
   are serialized through a single promise chain so no update is dropped.
 - **AC-5.1.3** Given the recent-operation log, then it is capped at **50**
@@ -437,7 +437,7 @@ desirable future enhancements; **Won't** = explicitly excluded for now.
 | FR-M9 | Filename-collision-safe writes (`_1`, `_2`, … suffixes). | US-3.3 | Shipped |
 | FR-M10 | Undo last sort with full copy/move reversal (stack ≤ 20). | US-3.4 | Shipped |
 | FR-M11 | Create/manage sort sub-folders with shortcut + color; validated names. | US-4.1 | Shipped |
-| FR-M12 | Auto-persist project state to `nata-sort-db.json` (serialized writes). | US-5.1 | Shipped |
+| FR-M12 | Auto-persist project state to `nata-photo-db.json` (serialized writes). | US-5.1 | Shipped |
 | FR-M13 | Reset corrupt/incompatible DB with a visible warning; sanitize on load. | US-1.2 | Shipped |
 | FR-M14 | Keyboard navigation (`←`/`→`/`Space`) and shortcut suppression in inputs. | US-3.6, US-3.1 | Shipped |
 | FR-M15 | Strict CSP, cross-origin isolation, and full security-header set. | US-5.3 | Shipped |
@@ -649,7 +649,7 @@ timeline
 #### v2.0.0 — Chronology, safety, PWA (2026-06-14) — *breaking*
 
 - **Breaking:** Database schema bumped to `2.0`; existing
-  `nata-sort-db.json` files are reset on first open.
+  `nata-photo-db.json` files are reset on first open.
 - **Added:** Chronological ordering by capture date; undo (`Ctrl/Cmd+Z`);
   jump-to-next-unsorted (`U`); "all sorted" state; installable PWA with offline
   support; lazy, cached metadata; automatic image-preview retry;
@@ -782,7 +782,7 @@ telemetry, local-first, hardened by default**.
 | **Copy mode** | Sorting duplicates the file into the target folder; the original stays. **Default.** |
 | **Cut mode** | Sorting moves the file into the target folder (native `handle.move()` or copy-then-delete). |
 | **Sort folder** | A destination sub-folder (created inside the opened folder) bound to a `1`–`9` shortcut and a color. |
-| **Project database** | `nata-sort-db.json` written inside the opened folder; holds folders, per-file mapping, mode, `currentIndex`, operation log, metadata cache, stats. Schema `2.0`. |
+| **Project database** | `nata-photo-db.json` written inside the opened folder; holds folders, per-file mapping, mode, `currentIndex`, operation log, metadata cache, stats. Schema `2.0`. |
 | **Embedded preview** | The JPEG a camera stores inside a RAW file; extracted for fast, sharp previews. |
 | **PWA** | Progressive Web App; installable with an offline-capable service worker. |
 | **Cross-origin isolation** | COOP + COEP + CORP configuration enabling powerful, isolated web-platform features. |
@@ -797,12 +797,12 @@ telemetry, local-first, hardened by default**.
 
 ### 12.3 Key source references
 
-- Controller / app state: [src/hooks/useFileSystem.ts](../src/hooks/useFileSystem.ts)
-- Single view: [src/App.tsx](../src/App.tsx) · Entry: [src/main.tsx](../src/main.tsx)
-- Persistence: [src/services/dbService.ts](../src/services/dbService.ts)
-- Metadata: [src/services/exifService.ts](../src/services/exifService.ts)
-- RAW decode: [src/services/rawDecoder.ts](../src/services/rawDecoder.ts)
-- Format registry: [src/config/fileFormats.ts](../src/config/fileFormats.ts)
-- Name safety: [src/lib/safeName.ts](../src/lib/safeName.ts)
-- Types: [src/types/index.ts](../src/types/index.ts)
+- Controller / app state: [src/features/sorter/hooks/useFileSystem.ts](../src/features/sorter/hooks/useFileSystem.ts)
+- Single view: [src/app/App.tsx](../src/app/App.tsx) · Entry: [src/app/main.tsx](../src/app/main.tsx)
+- Persistence: [src/features/sorter/services/project-db.service.ts](../src/features/sorter/services/project-db.service.ts)
+- Metadata: [src/features/media/services/metadata.service.ts](../src/features/media/services/metadata.service.ts)
+- RAW decode: [src/features/media/services/raw-decoder.service.ts](../src/features/media/services/raw-decoder.service.ts)
+- Format registry: [src/features/media/config/file-formats.ts](../src/features/media/config/file-formats.ts)
+- Name safety: [src/features/sorter/utils/folder-name.utils.ts](../src/features/sorter/utils/folder-name.utils.ts)
+- Types: [src/features/sorter/types/sorter.types.ts](../src/features/sorter/types/sorter.types.ts)
 - Static server: [server/index.js](../server/index.js)
