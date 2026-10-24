@@ -23,8 +23,12 @@ export const OperationLog = ({ operations }: OperationLogProps) => {
       <PanelHeader icon={<Logs />} title={t("log.title")} subtitle={t("log.subtitle")} />
       <CardContent>
         <ul className="flex flex-col gap-1.5">
-          {recentOps.map(op => (
-            <li key={op.timestamp} className="flex items-center gap-3 rounded-md border border-border px-3 py-2">
+          {recentOps.map((op, i) => (
+            // A batch can log several operations in the same millisecond.
+            <li
+              key={`${op.timestamp}-${i}`}
+              className="flex items-center gap-3 rounded-md border border-border px-3 py-2"
+            >
               <span
                 aria-hidden
                 className={cn(

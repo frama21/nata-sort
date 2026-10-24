@@ -145,6 +145,8 @@ export const useFileSystem = (): FileSystemHook => {
   // === REFS ===
   const rootDirHandleRef = useRef<FileSystemDirectoryHandle | null>(null)
   const folderDirHandlesRef = useRef<Map<string, FileSystemDirectoryHandle>>(new Map())
+  /** Keys of photos whose copy/move is in flight. */
+  const sortingKeysRef = useRef(new Set<string>())
   // Anchor index for shift-click range selection.
   const selectionAnchorRef = useRef<number | null>(null)
 
@@ -705,13 +707,17 @@ export const useFileSystem = (): FileSystemHook => {
   // `target`, then apply ONE batched state update + ONE undo entry.
   const assignManyToTarget = useCallback(
     async (
-      indices: number[],
+      requested: number[],
       target: { id: string; name: string; dirHandle: FileSystemDirectoryHandle },
       mode: MoveMode,
       opts: { advance: boolean }
     ) => {
       const rootHandle = rootDirHandleRef.current
+      // A photo already being sorted is skipped: key auto-repeat or a double-click would otherwise
+      // run the same copy/move twice (a duplicate log entry, and a spurious failure when moving).
+      const indices = requested.filter(i => photos[i] && !sortingKeysRef.current.has(photos[i].key))
       if (!rootHandle || indices.length === 0) return
+      for (const i of indices) sortingKeysRef.current.add(photos[i].key)
 
       const isBatch = indices.length > 1
       addStatus({
@@ -800,6 +806,7 @@ export const useFileSystem = (): FileSystemHook => {
           icon: "file"
         })
       } finally {
+        for (const i of indices) sortingKeysRef.current.delete(photos[i].key)
         clearStatus()
       }
     },
