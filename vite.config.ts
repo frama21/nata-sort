@@ -1,14 +1,38 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from "vite"
+import { defineConfig, type Plugin } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 import { VitePWA } from "vite-plugin-pwa"
 import path from "path"
 
+/**
+ * "/" is the only page and its chunk is lazy, so the browser would otherwise only discover it after
+ * the entry script has downloaded and run. Preloading it (and the chunks it imports) in index.html
+ * lets it download in parallel with the entry. Same-origin, so the CSP is unaffected.
+ */
+const preloadSorterPage = (): Plugin => ({
+  name: "preload-sorter-page",
+  transformIndexHtml: {
+    order: "post",
+    handler(html, ctx) {
+      const chunk = Object.values(ctx.bundle ?? {}).find(c => c.type === "chunk" && c.name === "SorterPage")
+      if (!chunk || chunk.type !== "chunk") return
+      return [chunk.fileName, ...chunk.imports]
+        .filter(file => !html.includes(`/${file}"`)) // Vite already preloads the entry's own imports
+        .map(file => ({
+          tag: "link",
+          attrs: { rel: "modulepreload", crossorigin: true, href: `/${file}` },
+          injectTo: "head" as const
+        }))
+    }
+  }
+})
+
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    preloadSorterPage(),
     VitePWA({
       registerType: "autoUpdate",
       // Registered manually in main.tsx via `virtual:pwa-register` so no inline

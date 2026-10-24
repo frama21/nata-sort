@@ -10,6 +10,106 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F3F3F3" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1C1C1C" />
     <script src="/theme-init.js"></script>
+    <!--
+      Boot splash. Paints before the app bundle and its stylesheet load, so it is inline (the CSP
+      allows inline styles, not inline scripts). BootSplash.tsx renders the same markup once React
+      takes over, so these rules are shared. Colours match the theme-color metas above and the
+      accent tokens in src/app/styles/tokens.css.
+    -->
+    <style>
+      html {
+        background: #f3f3f3;
+      }
+      html.dark {
+        background: #1c1c1c;
+      }
+      body {
+        margin: 0;
+      }
+      .boot {
+        display: flex;
+        min-height: 100dvh;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        color: #111111;
+      }
+      html.dark .boot {
+        color: #f3f3f3;
+      }
+      .boot-mark {
+        width: 64px;
+        height: 64px;
+      }
+      .boot-track {
+        width: 176px;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 3px;
+        background: rgb(127 127 127 / 0.28);
+      }
+      .boot-bar {
+        width: 40%;
+        height: 100%;
+        border-radius: 3px;
+        background: #0a6a6d;
+        animation: boot-slide 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      }
+      html.dark .boot-bar {
+        background: #4fd1c5;
+      }
+      .boot-sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      /* Only the static copy fades in, after a short delay: a warm load that mounts sooner never
+         shows it. The React copy must not repeat the delay or the splash would blink at handoff. */
+      .boot-html {
+        animation: boot-in 240ms ease-out 120ms backwards;
+      }
+      .boot-piece {
+        animation: boot-drop 560ms cubic-bezier(0.16, 1, 0.3, 1) 120ms backwards;
+      }
+      @keyframes boot-in {
+        from {
+          opacity: 0;
+        }
+      }
+      @keyframes boot-drop {
+        from {
+          opacity: 0;
+          transform: translate(10px, -10px);
+        }
+      }
+      @keyframes boot-slide {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(250%);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-bar {
+          width: 100%;
+          animation: boot-pulse 1.5s ease-in-out infinite;
+        }
+        .boot-html,
+        .boot-piece {
+          animation: none;
+        }
+      }
+      @keyframes boot-pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+    </style>
     <title>NATA — Sortir Foto & Video Lokal</title>
     <meta
       name="description"
@@ -18,7 +118,26 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Replaced by React on first render (BootSplash.tsx renders the same markup). -->
+      <div class="boot boot-html" role="status">
+        <svg class="boot-mark" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+          <g transform="translate(-6 2)">
+            <path
+              fill="currentColor"
+              d="M72 32H124A12 12 0 0 1 136 44V108A12 12 0 0 0 148 120H212A12 12 0 0 1 224 132V184A40 40 0 0 1 184 224H72A40 40 0 0 1 32 184V72A40 40 0 0 1 72 32Z"
+            />
+            <path
+              class="boot-piece"
+              fill="#14b8a6"
+              d="M176 20H224A12 12 0 0 1 236 32V80A12 12 0 0 1 224 92H176A12 12 0 0 1 164 80V32A12 12 0 0 1 176 20Z"
+            />
+          </g>
+        </svg>
+        <div class="boot-track" aria-hidden="true"><div class="boot-bar"></div></div>
+        <span class="boot-sr">NATA</span>
+      </div>
+    </div>
     <script type="module" src="/src/app/main.tsx"></script>
   </body>
 </html>

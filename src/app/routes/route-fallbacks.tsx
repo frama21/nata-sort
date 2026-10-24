@@ -11,18 +11,10 @@ import {
   EmptyMedia,
   EmptyTitle
 } from "@/shared/components/ui/empty"
-import { Spinner } from "@/shared/components/ui/spinner"
+import { BootSplash } from "@/shared/components/brand/BootSplash"
 
-/** Shown while a lazy route module is loading. */
-export const RouteLoading = () => {
-  const { t } = useTranslation()
-  return (
-    <div className="flex h-[60dvh] items-center justify-center" role="status" aria-live="polite">
-      <Spinner />
-      <span className="sr-only">{t("route.loading")}</span>
-    </div>
-  )
-}
+/** Shown while the first route module loads; continues the splash from `index.html`. */
+export const RouteLoading = BootSplash
 
 /** Catch-all for URLs no feature claims. */
 export const NotFoundPage = () => {
