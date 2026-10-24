@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Updates are visible.** A new version used to wait silently until every tab was closed. It now
+  downloads in the background and a bar under the top bar offers **Reload** or **Later**. **Reload** waits while a save is running, reloads only the tab
+  you clicked in, and cannot loop. The app checks for a new version hourly and when you return to a
+  tab left open for a while.
+- **Install from Settings.** **Settings → About** has an **Install app** button where the browser
+  allows installing, and a short browser-neutral hint where it does not. The app shows nothing on its own (Chrome may show its own small, dismissible hint).
+- **"Ready to work offline"** appears once, the first time everything is cached.
+- **Manifest:** install-dialog screenshots (`public/screenshots/`, regenerate with
+  `node scripts/capture-screenshots.mjs`), categories, and `launch_handler: navigate-existing` so
+  launching the installed app focuses the window that already holds your project. A missing file
+  now returns 404 instead of the app shell.
 - **A real boot screen.** While the app loads you now see the NATA mark over an indeterminate
   progress bar, instead of a blank page and a small spinner. It is part of `index.html` (inline
   styles, so it paints before the bundle) and `BootSplash` continues it once React takes over, so it

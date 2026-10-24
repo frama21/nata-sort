@@ -265,11 +265,11 @@ See [§6](#6-project-persistence--database) for the full state & persistence mod
 
 ### 5.10 PWA & offline
 
-- **FR-PWA-1.** The app is an installable PWA (standalone display, Indonesian manifest name *"NATA — Sortir Foto & Video Lokal"*, theme/background colour `#0a0f1a`, 192 & 512 px icons).
+- **FR-PWA-1.** The app is an installable PWA (standalone display, Indonesian manifest name *"NATA — Sortir Foto & Video Lokal"*, theme/background colour `#1C1C1C`, 192 & 512 px and maskable icons, install-dialog screenshots, `launch_handler: navigate-existing`).
 - **FR-PWA-2.** A Workbox service worker precaches JS/CSS/HTML/WASM and other assets for offline use, with `maximumFileSizeToCacheInBytes` of 4 MB to cover the ~1.3 MB `libraw` WASM.
-- **FR-PWA-3.** Update strategy is `autoUpdate` (`skipWaiting` + `clientsClaim`); the SW self-updates on reload.
-- **FR-PWA-4.** The service worker is registered **manually** in [src/app/main.tsx](../src/app/main.tsx) on `window` load — no inline registration script is injected, preserving the strict CSP.
-- **FR-PWA-5.** The app is a single view with no router; any non-`/` path is normalized back to `/` in `main.tsx`.
+- **FR-PWA-3.** Update strategy is `prompt`: a new SW waits, an update bar offers **Reload** / **Later**, and nothing reloads without the user. Reload is disabled while a save is running; only the clicked tab reloads, once.
+- **FR-PWA-4.** The service worker is registered by [pwa.store.ts](../src/shared/stores/pwa.store.ts) after the page loads, using the native API — no inline registration script is injected, preserving the strict CSP.
+- **FR-PWA-5.** Settings → About offers **Install app** only when the browser fired `beforeinstallprompt`, and a generic hint otherwise. The first-time "ready to work offline" message is shown once.
 - **Note:** offline covers the *application shell*. Opening a folder and processing files always works locally regardless of connectivity, because no network is involved in file handling.
 
 ### 5.11 Theming
@@ -552,7 +552,7 @@ Each feature is accepted when its criteria hold. IDs cross-reference [§5](#5-fu
 ### PWA & offline (5.10)
 
 - [ ] The app installs as a PWA and its shell loads offline via the service worker.
-- [ ] Any non-`/` path is normalized to `/`; the SW is registered without an inline script (CSP intact).
+- [ ] A new version waits for **Reload**; the SW is registered without an inline script (CSP intact).
 
 ### Theming & responsive (5.11 / 5.12)
 

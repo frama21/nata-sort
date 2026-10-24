@@ -202,7 +202,7 @@
 | F16 | Zoom, pan, loupe                                   | Shipped      | Loupe hanya desktop                                                  |
 | F17 | Log operasi dan statistik                          | Shipped      | Tampil 3 terakhir; simpan 50                                         |
 | F18 | Persistensi DB dan resume                          | Shipped      | `nata-sort-db.json`                                                  |
-| F19 | PWA / offline                                      | Shipped      | App shell + WASM di-precache                                         |
+| F19 | PWA / offline                                      | Shipped      | App shell + WASM di-precache; update menunggu tombol Muat ulang; pasang dari Pengaturan |
 | F20 | Tema terang/gelap ("Calm Light", aksen teal)       | Shipped      | Toggle 2 arah; default gelap (lihat 6.14 dan Bagian 14)              |
 | F21 | Dialog Pengaturan: Pintasan, Tampilan, Tentang, Changelog (`?`) | Shipped | Menggantikan halaman `/help` (dihapus); tema + bahasa pindah ke sini |
 | F22 | Dialog pintasan keyboard (`?`)                     | Shipped      | Tab "Pintasan" pada dialog Bantuan                                   |

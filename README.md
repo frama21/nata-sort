@@ -44,7 +44,8 @@ the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Fi
 - **Filename-collision safe** — copies/moves never silently overwrite; a
   `_1`, `_2`, … suffix is added when a name already exists.
 - **Installable PWA** — install to your desktop/home screen and keep working
-  offline thanks to a precaching service worker.
+  offline thanks to a precaching service worker. New versions wait until you
+  press **Reload**, so an open project is never swapped out from under you.
 - **Responsive** — desktop sidebar layout and a mobile action bar with swipe
   navigation. Light/dark themes.
 

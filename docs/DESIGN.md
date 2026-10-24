@@ -46,7 +46,7 @@ any file ever leaving the machine.
 | G4 | **Safe file operations.** | Copy is the default; collisions never overwrite; every sort is undoable. |
 | G5 | **Resilient sessions.** | Work survives a reload: state is auto-persisted to a JSON DB *inside* the opened folder. |
 | G6 | **Broad format support.** | Standard raster, RAW (12 vendors), SVG, video, ICO, HEIC — see [`fileFormats.ts`](../src/features/media/config/file-formats.ts). |
-| G7 | **Installable & offline.** | PWA with a Workbox service worker precaching JS/CSS/HTML/WASM. |
+| G7 | **Installable & offline.** | PWA with a Workbox service worker precaching JS/CSS/HTML/WASM; updates wait for the user (a slim bar under the top bar, Reload / Later); install lives in Settings → About. |
 
 ### 1.2 Constraints
 

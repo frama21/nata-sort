@@ -766,9 +766,9 @@ flowchart LR
 ```
 
 - `pnpm run build` = `tsc -b && vite build`. Type errors fail the build.
-- **PWA**: `registerType: "autoUpdate"` with `injectRegister: false` — the service worker is registered **manually** in `main.tsx` (`navigator.serviceWorker.register("/sw.js")` on `window` load) so **no inline `<script>`** is injected, preserving the strict CSP. Workbox precaches `**/*.{js,css,html,wasm,svg,png,ico,woff2}` with `maximumFileSizeToCacheInBytes: 4 MB` (to cover the ~1.3 MB libraw WASM), `cleanupOutdatedCaches`, and `navigateFallback: /index.html`. `autoUpdate` implies `skipWaiting` + `clientsClaim`, so a new SW takes over on reload.
-- **Manifest**: standalone display, theme/background `#0a0f1a`, 192 & 512 icons, Indonesian name `"NATA — Sortir Foto & Video Lokal"`, `lang: "id"`.
-- **Entry** (`main.tsx`): `StrictMode → ErrorBoundary → ThemeProvider (defaultTheme dark, storageKey "nata-sort-theme") → App`; it also normalizes any non-`/` path back to `/` (single-view app, no router).
+- **PWA**: `registerType: "prompt"` with `injectRegister: false` — `src/shared/stores/pwa.store.ts` registers `/sw.js` with the native `navigator.serviceWorker` API after page load (no inline `<script>`, no `workbox-window`). A new SW waits (no `skipWaiting`/`clientsClaim`) until the user presses **Reload** in `UpdateBanner`. Workbox precaches `**/*.{js,css,html,wasm,svg,png,ico,woff2}` (not `screenshots/**`) with `maximumFileSizeToCacheInBytes: 4 MB` (to cover the ~1.3 MB libraw WASM), `cleanupOutdatedCaches`, and `navigateFallback: /index.html` (denied for `/assets/*` and file-like paths).
+- **Manifest**: standalone display, theme/background `#1C1C1C`, 192 & 512 + maskable icons, two screenshots, `launch_handler: navigate-existing`, Indonesian name `"NATA — Sortir Foto & Video Lokal"`, `lang: "id"`.
+- **Entry** (`main.tsx`): `registerPwa()` then `StrictMode → ErrorBoundary → ThemeProvider (defaultTheme dark, storageKey "nata-sort-theme") → App`.
 
 ---
 

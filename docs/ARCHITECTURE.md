@@ -137,7 +137,7 @@ graph TD
 
 ## 4. Runtime React tree
 
-`src/app/main.tsx` normalizes any non-`/` path back to `/` (this is a single-view app with no router, so a deep link or tampered URL is rewritten with `history.replaceState`), then registers the generated service worker (`/sw.js`) on `window`'s `load` event, and finally mounts the tree:
+`src/app/main.tsx` calls `registerPwa()` ([`pwa.store.ts`](../src/shared/stores/pwa.store.ts)), which registers the generated service worker (`/sw.js`) after the page has loaded, then mounts the tree:
 
 ```mermaid
 graph TD
@@ -495,10 +495,11 @@ The build is **Vite 8 (rolldown)** with three plugins plus a small inline one ([
 
 **PWA / service worker:**
 
-- `registerType: "autoUpdate"` (skipWaiting + clientsClaim) so the app self-updates on reload.
-- `injectRegister: false` — the SW is registered **manually** in `main.tsx` so **no inline `<script>`** is injected, keeping the strict CSP intact (no `'unsafe-inline'` for scripts).
-- Workbox precaches `js,css,html,wasm,svg,png,ico,woff2` with `maximumFileSizeToCacheInBytes = 4 MB` to cover the ~1.3 MB libraw WASM, `cleanupOutdatedCaches`, and `navigateFallback: /index.html`.
-- Manifest: `display: standalone`, theme/background `#0a0f1a`, 192 & 512 icons, Indonesian name "NATA — Sortir Foto & Video Lokal".
+- `registerType: "prompt"` — a new SW **waits** (no `skipWaiting`/`clientsClaim`) until the user presses **Reload** in `UpdateBanner`, which posts `SKIP_WAITING` and reloads that tab once on `controllerchange`. Other tabs keep their version. Reload is disabled while a project write is in flight (`save.store`).
+- `injectRegister: false` — registration lives in `pwa.store.ts` using the native `navigator.serviceWorker` API (no `workbox-window` dependency, and **no inline `<script>`**, keeping the strict CSP intact). That store is the single owner of PWA state (waiting update, install event, installed flag); the offline-ready message goes through the existing toast store, which de-duplicates.
+- Install: the `beforeinstallprompt` event is kept and used by the **Install app** button in Settings → About; browsers without it get a generic hint. The app never shows an install prompt on its own (the event is not `preventDefault`ed, so Chrome may show its own dismissible hint).
+- Workbox precaches `js,css,html,wasm,svg,png,ico,woff2` with `maximumFileSizeToCacheInBytes = 4 MB` to cover the ~1.3 MB libraw WASM, `cleanupOutdatedCaches`, and `navigateFallback: /index.html` (denied for `/assets/*` and file-like paths, so a missing asset 404s). `public/screenshots/` is excluded from the precache. There is no runtime caching: the app makes no network requests for data.
+- Manifest: `display: standalone`, theme/background `#1C1C1C`, 192 & 512 + maskable icons, two screenshots (wide, narrow), `launch_handler: navigate-existing`, Indonesian name "NATA — Sortir Foto & Video Lokal". Screenshots are regenerated with `node scripts/capture-screenshots.mjs` against a running production build.
 
 **Dependency hygiene** ([package.json](../package.json)): the browser bundle depends only on runtime libraries (React, exifreader ≥ 4.41.0, libraw-wasm, mediainfo.js, i18next/react-i18next, react-router, zustand, lucide, small lodash utilities). Build tools are in `devDependencies`, and `pnpm.overrides` pin patched versions of dev/build-only transitive deps so `pnpm audit` is clean for both the full tree and `--prod`. See [SECURITY.md](SECURITY.md) for the audit findings.
 
