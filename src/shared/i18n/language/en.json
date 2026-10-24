@@ -221,7 +221,7 @@
   "help.browser.title": "Browser requirements",
   "help.browser.body": "Use a recent Chrome, Edge, or Opera. The app needs the File System Access API, which Firefox and Safari do not have yet.",
   "help.progress.title": "Saving progress",
-  "help.progress.body": "Sort folders, photo mappings, copy/move mode, and the operation log are saved in nata-photo-db.json inside the folder you open. Delete that file to start over.",
+  "help.progress.body": "Sort folders, photo mappings, copy/move mode, and the operation log are saved in nata-sort-db.json inside the folder you open. Delete that file to start over.",
   "help.safety.title": "File safety",
   "help.safety.body": "The default mode is Copy, so original files are untouched. Files are never overwritten: an existing name gets a _1, _2, … suffix. The last sort can be undone with Ctrl/Cmd+Z.",
   "shortcuts.click": "+ Click"

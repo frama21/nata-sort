@@ -4,10 +4,10 @@ import { t } from "@/shared/i18n"
 import type { PhotoMetadata } from "@/features/media"
 import type { ProjectState, SortFolder, SortedMapping, MoveMode, SortOperation } from "../types/sorter.types"
 
-const DB_FILENAME = "nata-photo-db.json"
+const DB_FILENAME = "nata-sort-db.json"
 // Pre-rebrand database filenames (newest first). Read as a fallback so users who sorted
 // under an old name keep their project state; the next write re-saves it under DB_FILENAME.
-const LEGACY_DB_FILENAMES = ["nata-sort-db.json", "photo-sorter-db.json"]
+const LEGACY_DB_FILENAMES = ["nata-photo-db.json", "photo-sorter-db.json"]
 // Bumped to 2.0: sortedPhotos is now keyed by file name (not array index) and
 // SortOperation is a slim, handle-free record. Older 1.0 databases are not
 // compatible and will start fresh (with a visible warning).
