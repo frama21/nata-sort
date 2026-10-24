@@ -31,10 +31,12 @@ export const BatchActionBar = ({ count, folders, moveMode, onAssignFolder, onCle
     <div
       role="toolbar"
       aria-label={t("batch.toolbarAria", { count })}
-      className="fixed inset-x-0 bottom-0 z-[60] border-t bg-card/95 p-2 backdrop-blur-lg"
+      className="fixed inset-x-0 bottom-0 z-60 border-t border-border bg-surface p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
     >
       <div className="mx-auto flex max-w-7xl items-center gap-2">
-        <span className="shrink-0 px-1 text-sm font-semibold">{t("editor.selectedCount", { count })}</span>
+        <span className="shrink-0 px-1 text-sm font-semibold tabular-nums">
+          {t("editor.selectedCount", { count })}
+        </span>
 
         {folders.length > 0 ? (
           <div className="flex flex-1 gap-2 overflow-x-auto">
@@ -44,10 +46,7 @@ export const BatchActionBar = ({ count, folders, moveMode, onAssignFolder, onCle
                 size="lg"
                 onClick={() => onAssignFolder(folder.id)}
                 aria-label={t("batch.assignAria", { verb, count, name: folder.name })}
-                className={cn(
-                  "min-w-[72px] flex-1 rounded-lg py-5 text-xs font-medium text-white transition-transform active:scale-95",
-                  folder.color
-                )}
+                className={cn("h-auto min-w-[72px] flex-1 py-3 text-xs font-medium text-white", folder.color)}
               >
                 <span className="flex flex-col items-center gap-0.5">
                   <span className="flex items-center gap-1">
@@ -69,7 +68,7 @@ export const BatchActionBar = ({ count, folders, moveMode, onAssignFolder, onCle
 
         <WithTooltip label={t("batch.clearAria")}>
           <Button size="icon-lg" variant="outline" onClick={onClear} aria-label={t("batch.clearAria")}>
-            <X className="size-6" />
+            <X />
           </Button>
         </WithTooltip>
       </div>

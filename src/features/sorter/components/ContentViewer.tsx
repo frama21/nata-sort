@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, Check, AlertCircle, FileImage, ZoomIn, ZoomO
 
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/components/ui/empty"
 import { Spinner } from "@/shared/components/ui/spinner"
-import { Card, CardHeader } from "@/shared/components/ui/card"
 import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
 import { WithTooltip } from "@/shared/components/ui/tooltip"
@@ -146,202 +145,206 @@ export const ContentViewer = ({
 
   if (!photo) {
     return (
-      <div className="flex items-center justify-center h-[50vh] md:h-[70vh] bg-card rounded-2xl border border-border">
+      <div className="flex h-[50vh] items-center justify-center rounded-lg border border-border bg-canvas lg:h-auto lg:flex-1">
         <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-400 text-sm">{t("viewer.noPhoto")}</p>
+          <AlertCircle className="mx-auto mb-3 size-10 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">{t("viewer.noPhoto")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <Card className="pb-0">
-      <CardHeader className="px-0">
-        <div className="relative overflow-hidden select-none">
-          <div className="flex justify-between items-start gap-2 pb-3 px-5">
-            <div className="flex flex-col gap-2 min-w-0">
-              <span className="text-sm truncate">{photo.name}</span>
-              <div className="flex flex-row flex-wrap gap-2 items-center">
-                <Badge>{photo.format.label}</Badge>
-                {currentFolder ? (
-                  <Badge className={cn("text-white", currentFolder.color)}>
-                    <Check className="w-3 h-3" />
-                    {currentFolder.name}
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="secondary"
-                    className="bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300"
-                  >
-                    {t("viewer.notSorted")}
-                  </Badge>
-                )}
-              </div>
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface-raised lg:flex-1">
+      <div className="relative flex min-h-0 flex-1 flex-col select-none">
+        <div className="flex shrink-0 items-start justify-between gap-2 px-4 py-3">
+          <div className="flex flex-col gap-2 min-w-0">
+            <span className="truncate text-sm font-medium">{photo.name}</span>
+            <div className="flex flex-row flex-wrap gap-2 items-center">
+              <Badge variant="secondary">{photo.format.label}</Badge>
+              {currentFolder ? (
+                <Badge className={cn("text-white", currentFolder.color)}>
+                  <Check className="w-3 h-3" />
+                  {currentFolder.name}
+                </Badge>
+              ) : (
+                <Badge variant="outline">{t("viewer.notSorted")}</Badge>
+              )}
             </div>
           </div>
+        </div>
 
-          {/* Image */}
-          <div className="flex items-center justify-center">
-            {hasPreview ? (
-              isVideo ? (
-                <video key={photo.key} src={displayUrl!} className="w-full max-h-[75vh] object-contain" controls />
-              ) : (
-                <div
-                  ref={bindContainer}
-                  className={cn(
-                    "relative w-full flex items-center justify-center min-h-[40dvh] overflow-hidden",
-                    isZoomed ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
-                  )}
-                  style={{ touchAction: touchAction }}
-                  {...zoomHandlers}
-                >
-                  {!imgLoaded && (
-                    <div className="absolute inset-0 skeleton rounded-none flex items-center justify-center">
-                      <Spinner className="size-8 opacity-70" />
-                    </div>
-                  )}
-                  <img
-                    ref={imgRef}
-                    key={photo.key}
-                    src={displayUrl!}
-                    alt={photo.name || t("viewer.photoPreviewAlt")}
-                    className="w-full max-h-[75vh] object-contain will-change-transform"
-                    style={{ transform: transform }}
-                    draggable={false}
-                    decoding="async"
-                    onMouseMove={updateLoupe}
-                    onMouseLeave={hideLoupe}
-                    onLoad={() => setImgLoaded(true)}
-                    onError={() => {
-                      // Some large images fail the first decode; recreate the
-                      // object URL and retry instead of needing a manual reload.
-                      if (!isRaw && imgRetries < 2) {
-                        setImgRetries(r => r + 1)
-                        onPreviewError(photo.key)
-                      } else {
-                        setImgLoaded(true) // give up: hide the spinner
-                      }
+        {/* Image */}
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-canvas">
+          {hasPreview ? (
+            isVideo ? (
+              <video
+                key={photo.key}
+                src={displayUrl!}
+                className="max-h-[75vh] w-full object-contain lg:max-h-full"
+                controls
+              />
+            ) : (
+              <div
+                ref={bindContainer}
+                className={cn(
+                  "relative flex h-full min-h-[40dvh] w-full items-center justify-center overflow-hidden",
+                  isZoomed ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
+                )}
+                style={{ touchAction: touchAction }}
+                {...zoomHandlers}
+              >
+                {!imgLoaded && (
+                  <div className="absolute inset-0 skeleton rounded-none flex items-center justify-center">
+                    <Spinner className="size-8 opacity-70" />
+                  </div>
+                )}
+                <img
+                  ref={imgRef}
+                  key={photo.key}
+                  src={displayUrl!}
+                  alt={photo.name || t("viewer.photoPreviewAlt")}
+                  className="max-h-[75vh] w-full object-contain will-change-transform lg:max-h-full"
+                  style={{ transform: transform }}
+                  draggable={false}
+                  decoding="async"
+                  onMouseMove={updateLoupe}
+                  onMouseLeave={hideLoupe}
+                  onLoad={() => setImgLoaded(true)}
+                  onError={() => {
+                    // Some large images fail the first decode; recreate the
+                    // object URL and retry instead of needing a manual reload.
+                    if (!isRaw && imgRetries < 2) {
+                      setImgRetries(r => r + 1)
+                      onPreviewError(photo.key)
+                    } else {
+                      setImgLoaded(true) // give up: hide the spinner
+                    }
+                  }}
+                />
+
+                {/* Desktop hover loupe (magnifier). Hidden on touch + while transform-zoomed. */}
+                {loupe && displayUrl && !isZoomed && (
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none fixed z-30 hidden overflow-hidden rounded-full border-2 border-white shadow-e2 md:block"
+                    style={{
+                      width: LOUPE_SIZE,
+                      height: LOUPE_SIZE,
+                      left: loupe.cx - LOUPE_SIZE / 2,
+                      top: loupe.cy - LOUPE_SIZE / 2,
+                      backgroundColor: "var(--surface-2)",
+                      backgroundImage: `url("${displayUrl}")`,
+                      backgroundRepeat: "no-repeat",
+                      backgroundSize: `${loupe.w * LOUPE_ZOOM}px ${loupe.h * LOUPE_ZOOM}px`,
+                      backgroundPosition: `${-(loupe.x * LOUPE_ZOOM - LOUPE_SIZE / 2)}px ${-(loupe.y * LOUPE_ZOOM - LOUPE_SIZE / 2)}px`
                     }}
                   />
+                )}
 
-                  {/* Desktop hover loupe (magnifier). Hidden on touch + while transform-zoomed. */}
-                  {loupe && displayUrl && !isZoomed && (
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none fixed z-30 hidden overflow-hidden rounded-full border-2 border-white/90 shadow-xl md:block"
-                      style={{
-                        width: LOUPE_SIZE,
-                        height: LOUPE_SIZE,
-                        left: loupe.cx - LOUPE_SIZE / 2,
-                        top: loupe.cy - LOUPE_SIZE / 2,
-                        backgroundColor: "var(--card)",
-                        backgroundImage: `url("${displayUrl}")`,
-                        backgroundRepeat: "no-repeat",
-                        backgroundSize: `${loupe.w * LOUPE_ZOOM}px ${loupe.h * LOUPE_ZOOM}px`,
-                        backgroundPosition: `${-(loupe.x * LOUPE_ZOOM - LOUPE_SIZE / 2)}px ${-(loupe.y * LOUPE_ZOOM - LOUPE_SIZE / 2)}px`
-                      }}
-                    />
-                  )}
+                {/* Zoom controls */}
+                <div
+                  className="absolute right-3 bottom-3 flex gap-1 rounded-md border border-border bg-surface-raised p-1 shadow-e1"
+                  onMouseDown={e => e.stopPropagation()}
+                  onTouchStart={e => e.stopPropagation()}
+                  onDoubleClick={e => e.stopPropagation()}
+                >
+                  <WithTooltip label={t("viewer.zoomOut")}>
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
 
-                  {/* Zoom controls */}
-                  <div
-                    className="absolute bottom-3 right-3 flex gap-1 rounded-lg bg-black/50 p-1 backdrop-blur"
-                    onMouseDown={e => e.stopPropagation()}
-                    onTouchStart={e => e.stopPropagation()}
-                    onDoubleClick={e => e.stopPropagation()}
-                  >
-                    <WithTooltip label={t("viewer.zoomOut")}>
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="text-white hover:bg-white/20"
-                        aria-label={t("viewer.zoomOut")}
-                        disabled={!isZoomed}
-                        onClick={zoomOut}
-                      >
-                        <ZoomOut className="size-4" />
-                      </Button>
-                    </WithTooltip>
-                    <WithTooltip label={t("viewer.zoomReset")}>
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="text-white hover:bg-white/20"
-                        aria-label={t("viewer.zoomReset")}
-                        disabled={!isZoomed}
-                        onClick={resetZoom}
-                      >
-                        <Maximize className="size-4" />
-                      </Button>
-                    </WithTooltip>
-                    <WithTooltip label={t("viewer.zoomIn")}>
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="text-white hover:bg-white/20"
-                        aria-label={t("viewer.zoomIn")}
-                        onClick={zoomIn}
-                      >
-                        <ZoomIn className="size-4" />
-                      </Button>
-                    </WithTooltip>
-                  </div>
-                </div>
-              )
-            ) : isRaw && isDecodingRaw ? (
-              <div className="relative w-full h-[50dvh] skeleton rounded-none flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3 text-center">
-                  <div className="grid place-items-center size-14 rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/25">
-                    <Spinner className="size-7" />
-                  </div>
-                  <div>
-                    <p className="font-display font-bold text-sm">{t("viewer.decodingRaw")}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{t("viewer.decodingRawHint")}</p>
-                  </div>
+                      aria-label={t("viewer.zoomOut")}
+                      disabled={!isZoomed}
+                      onClick={zoomOut}
+                    >
+                      <ZoomOut className="size-4" />
+                    </Button>
+                  </WithTooltip>
+                  <WithTooltip label={t("viewer.zoomReset")}>
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+
+                      aria-label={t("viewer.zoomReset")}
+                      disabled={!isZoomed}
+                      onClick={resetZoom}
+                    >
+                      <Maximize className="size-4" />
+                    </Button>
+                  </WithTooltip>
+                  <WithTooltip label={t("viewer.zoomIn")}>
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+
+                      aria-label={t("viewer.zoomIn")}
+                      onClick={zoomIn}
+                    >
+                      <ZoomIn className="size-4" />
+                    </Button>
+                  </WithTooltip>
                 </div>
               </div>
-            ) : (
-              <Empty className="h-[50dvh]">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon" className="w-16 h-16 border-2">
-                    <FileImage className="size-12" />
-                  </EmptyMedia>
-                  <EmptyTitle>{photo.format.label}</EmptyTitle>
-                  <EmptyDescription>{t("viewer.previewUnavailable")}</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-          </div>
-
-          {/* Navigation  */}
-          <WithTooltip label={t("viewer.prevPhoto")} side="right">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={t("viewer.prevPhoto")}
-              className="hidden md:flex absolute left-4 top-1/2 p-6 bg-white/50 hover:bg-white/70 rounded-full transition-all disabled:opacity-30"
-              disabled={currentIndex === 0}
-              onClick={() => onNavigate("prev")}
-            >
-              <ChevronLeft className="size-10" />
-            </Button>
-          </WithTooltip>
-
-          <WithTooltip label={t("viewer.nextPhoto")} side="left">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={t("viewer.nextPhoto")}
-              className="hidden md:flex absolute right-4 top-1/2 p-6 bg-white/50 hover:bg-white/70 rounded-full transition-all disabled:opacity-30"
-              disabled={currentIndex === totalPhotos - 1}
-              onClick={() => onNavigate("next")}
-            >
-              <ChevronRight className="size-10" />
-            </Button>
-          </WithTooltip>
+            )
+          ) : isRaw && isDecodingRaw ? (
+            <div className="skeleton relative flex h-[50dvh] w-full items-center justify-center rounded-none">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <Spinner className="size-6 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-semibold">{t("viewer.decodingRaw")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("viewer.decodingRawHint")}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Empty className="h-[50dvh]">
+              <EmptyHeader>
+                <EmptyMedia variant="icon" className="w-16 h-16 border-2">
+                  <FileImage className="size-12" />
+                </EmptyMedia>
+                <EmptyTitle>{photo.format.label}</EmptyTitle>
+                <EmptyDescription>{t("viewer.previewUnavailable")}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
         </div>
-      </CardHeader>
-    </Card>
+
+        {/* Navigation  */}
+        <WithTooltip
+          label={t("viewer.prevPhoto")}
+          side="right"
+          className="absolute top-1/2 left-3 hidden -translate-y-1/2 md:inline-flex"
+        >
+          <Button
+            variant="secondary"
+            size="icon-lg"
+            aria-label={t("viewer.prevPhoto")}
+            className="rounded-full border-border-strong bg-surface-raised shadow-e1 hover:bg-surface-hover"
+            disabled={currentIndex === 0}
+            onClick={() => onNavigate("prev")}
+          >
+            <ChevronLeft />
+          </Button>
+        </WithTooltip>
+
+        <WithTooltip
+          label={t("viewer.nextPhoto")}
+          side="left"
+          className="absolute top-1/2 right-3 hidden -translate-y-1/2 md:inline-flex"
+        >
+          <Button
+            variant="secondary"
+            size="icon-lg"
+            aria-label={t("viewer.nextPhoto")}
+            className="rounded-full border-border-strong bg-surface-raised shadow-e1 hover:bg-surface-hover"
+            disabled={currentIndex === totalPhotos - 1}
+            onClick={() => onNavigate("next")}
+          >
+            <ChevronRight />
+          </Button>
+        </WithTooltip>
+      </div>
+    </section>
   )
 }

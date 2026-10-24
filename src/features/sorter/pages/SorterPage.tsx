@@ -1,9 +1,10 @@
-import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { useBlocker } from "react-router"
 import { AlertTriangleIcon } from "lucide-react"
 
 import { Alert, AlertTitle } from "@/shared/components/ui/alert"
+import { Button } from "@/shared/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 
 import { EditorView } from "../components/EditorView"
 import { WelcomeView } from "../components/WelcomeView"
@@ -16,23 +17,15 @@ export const SorterPage = () => {
   const totalPhotos = fs.photos.length
 
   // Directory handles live only in memory, so leaving this page ends the session.
-  // Progress is already saved to the folder; still, confirm before navigating away.
+  // Progress is already saved to the folder; still, confirm (in-app) before navigating away.
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) => totalPhotos > 0 && currentLocation.pathname !== nextLocation.pathname
   )
-  useEffect(() => {
-    if (blocker.state !== "blocked") return
-    if (window.confirm(t("sorter.leaveConfirm"))) {
-      blocker.proceed()
-    } else {
-      blocker.reset()
-    }
-  }, [blocker, t])
 
   return (
     <>
       {fs.error && (
-        <Alert className="max-w-md border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-50">
+        <Alert variant="destructive" className="m-3 w-auto max-w-md">
           <AlertTriangleIcon />
           <AlertTitle> {fs.error}</AlertTitle>
         </Alert>
@@ -43,6 +36,26 @@ export const SorterPage = () => {
       ) : (
         <EditorView fs={fs} />
       )}
+
+      <Dialog
+        open={blocker.state === "blocked"}
+        onOpenChange={open => !open && blocker.state === "blocked" && blocker.reset()}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("sorter.leaveTitle")}</DialogTitle>
+            <DialogDescription>{t("sorter.leaveConfirm")}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => blocker.state === "blocked" && blocker.reset()}>
+              {t("sorter.leaveStay")}
+            </Button>
+            <Button variant="destructive" onClick={() => blocker.state === "blocked" && blocker.proceed()}>
+              {t("sorter.leaveGo")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

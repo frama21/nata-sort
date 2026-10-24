@@ -3,7 +3,7 @@ import { ChartColumnDecreasing, CheckCircle2, XCircle } from "lucide-react"
 
 import { Card, CardContent } from "@/shared/components/ui/card"
 import { PanelHeader } from "@/shared/components/ui/panel-header"
-import { cn } from "@/shared/lib/utils"
+import { Progress } from "@/shared/components/ui/progress"
 
 interface StatsProps {
   totalPhotos: number
@@ -15,19 +15,11 @@ interface StatsProps {
   }
 }
 
-/** A compact metric tile: big mono number over a small caption. */
-const Metric = ({ value, label, tone }: { value: number; label: string; tone: "base" | "good" | "warn" }) => (
-  <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5 text-center">
-    <p
-      className={cn(
-        "font-mono text-xl font-bold tabular-nums leading-none",
-        tone === "good" && "text-emerald-500 dark:text-emerald-400",
-        tone === "warn" && "text-primary"
-      )}
-    >
-      {value}
-    </p>
-    <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+/** A compact metric tile: a tabular number over a small caption. */
+const Metric = ({ value, label }: { value: number; label: string }) => (
+  <div className="rounded-md border border-border px-3 py-2.5 text-center">
+    <p className="text-lg leading-none font-semibold tabular-nums">{value.toLocaleString()}</p>
+    <p className="mt-1 text-xs text-muted-foreground">{label}</p>
   </div>
 )
 
@@ -41,40 +33,28 @@ export const Stats = ({ totalPhotos, sortedCount, stats }: StatsProps) => {
       <PanelHeader
         icon={<ChartColumnDecreasing />}
         title={t("stats.title")}
-        trailing={<span className="font-mono text-sm font-bold text-primary tabular-nums">{pct}%</span>}
+        trailing={<span className="text-[13px] font-medium tabular-nums">{pct}%</span>}
       />
       <CardContent className="space-y-3">
         {/* Sorting progress */}
-        <div
-          className="h-2 w-full overflow-hidden rounded-full bg-muted"
-          role="progressbar"
-          aria-valuenow={pct}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={t("progress.sortAria")}
-        >
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-primary to-chart-5 transition-[width] duration-500 ease-out"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+        <Progress value={pct} aria-label={t("progress.sortAria")} />
 
         <div className="grid grid-cols-3 gap-2">
-          <Metric value={totalPhotos} label={t("stats.total")} tone="base" />
-          <Metric value={sortedCount} label={t("stats.sorted")} tone="good" />
-          <Metric value={unsorted} label={t("stats.remaining")} tone="warn" />
+          <Metric value={totalPhotos} label={t("stats.total")} />
+          <Metric value={sortedCount} label={t("stats.sorted")} />
+          <Metric value={unsorted} label={t("stats.remaining")} />
         </div>
 
         {/* Operation tallies */}
-        <div className="flex items-center gap-2 border-t border-border/60 pt-3 text-xs">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-2.5 py-1 font-medium text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="size-3.5" />
-            <span className="font-mono tabular-nums">{stats.success}</span> {t("stats.success")}
+        <div className="flex items-center gap-4 border-t border-border pt-3 text-xs">
+          <span className="inline-flex items-center gap-1.5 font-medium">
+            <CheckCircle2 aria-hidden className="size-3.5 text-success" />
+            <span className="tabular-nums">{stats.success}</span> {t("stats.success")}
           </span>
           {stats.failed > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/12 px-2.5 py-1 font-medium text-destructive">
-              <XCircle className="size-3.5" />
-              <span className="font-mono tabular-nums">{stats.failed}</span> {t("stats.failed")}
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <XCircle aria-hidden className="size-3.5 text-destructive" />
+              <span className="tabular-nums">{stats.failed}</span> {t("stats.failed")}
             </span>
           )}
         </div>

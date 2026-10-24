@@ -86,10 +86,10 @@ export const ShortcutsDialog = () => {
     <Dialog>
       <WithTooltip label={t("shortcuts.triggerAria")}>
         <DialogTrigger
-          className={buttonVariants({ variant: "outline", size: "icon" })}
+          className={buttonVariants({ variant: "ghost", size: "icon" })}
           aria-label={t("shortcuts.triggerAria")}
         >
-          <CircleHelp className="h-[1.2rem] w-[1.2rem]" />
+          <CircleHelp className="size-4" />
         </DialogTrigger>
       </WithTooltip>
       <DialogContent>

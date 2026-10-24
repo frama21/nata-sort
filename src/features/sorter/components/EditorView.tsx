@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { CheckCircle2, Image as ImageIcon, LayoutGrid, CheckCheck } from "lucide-react"
+import { CheckCircle2, Image as ImageIcon, LayoutGrid, CheckCheck, FolderOpen, Info } from "lucide-react"
 
 import { Button } from "@/shared/components/ui/button"
 import { Alert, AlertTitle } from "@/shared/components/ui/alert"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import { useMediaQuery } from "@/shared/lib/useMediaQuery"
 
 import { ContentViewer } from "./ContentViewer"
 import { Filmstrip } from "./Filmstrip"
@@ -15,6 +17,7 @@ import { MobileActionBar } from "./MobileActionBar"
 import { OperationLog } from "./OperationLog"
 import { MetadataPanel } from "./MetadataPanel"
 import { Stats } from "./Stats"
+import { StatusBar } from "./StatusBar"
 
 import type { FileSystemHook } from "../hooks/useFileSystem"
 import type { ViewMode } from "../types/sorter.types"
@@ -24,15 +27,19 @@ interface EditorViewProps {
 }
 
 /**
- * The main sorting workspace, shown once a folder is open: the photo viewer /
- * grid on the left, the folder + metadata + log + stats sidebar on the right,
- * and the mobile/batch action bars. Owns the local view-mode toggle and the
+ * The main sorting workspace, shown once a folder is open. Desktop: a folders panel
+ * (left), the photo viewer / grid on a canvas (centre), a details panel (right) and a
+ * status bar. Phones/tablets: one column, with both panels in sheets and the
+ * mobile/batch action bars. Owns the local view-mode toggle and the
  * grid-only selection shortcuts; all session state comes from the `fs`
  * controller passed in by the app shell.
  */
 export const EditorView = ({ fs }: EditorViewProps) => {
   const { t } = useTranslation()
   const [viewMode, setViewMode] = useState<ViewMode>("single")
+  // Below 1024 px the side panels move into sheets; each renders in one place only.
+  const isDesktop = useMediaQuery("(min-width: 1024px)")
+  const [sheet, setSheet] = useState<"folders" | "info" | null>(null)
 
   const stats = fs.getOperationStats()
   const baseCurrentPhoto = fs.getCurrentPhoto()
@@ -84,42 +91,76 @@ export const EditorView = ({ fs }: EditorViewProps) => {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [viewMode, toggleSelectAll, clearSelection])
 
-  return (
+  const foldersPanel = (
+    <FolderManager
+      folders={fs.folders}
+      moveMode={fs.moveMode}
+      onAdd={fs.addFolder}
+      onRemove={fs.removeFolder}
+      onSetShortcut={fs.setFolderShortcut}
+      onAssign={assignToFolder}
+      onMoveModeChange={fs.setMoveMode}
+      currentIndex={fs.currentIndex}
+      canUndo={fs.canUndo}
+      onUndo={fs.undoLastOperation}
+      onJumpUnsorted={fs.jumpToNextUnsorted}
+    />
+  )
+
+  const infoPanel = (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 mb-26">
-        {/* Left: viewer / grid (8 cols) */}
-        <div className="lg:col-span-8 space-y-3 md:space-y-4">
-          {/* View toggle + selection controls */}
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+      <MetadataPanel photo={currentPhoto} />
+      <OperationLog operations={fs.operations} />
+      <Stats totalPhotos={totalPhotos} sortedCount={sortedCount} stats={stats} />
+    </>
+  )
+
+  return (
+    <div className="flex flex-col lg:h-full lg:min-h-0">
+      <div className="flex flex-col lg:min-h-0 lg:flex-1 lg:flex-row">
+        {isDesktop && (
+          <nav
+            aria-label={t("folder.title")}
+            className="flex w-62 shrink-0 flex-col gap-3 overflow-y-auto border-r border-border bg-surface p-3"
+          >
+            {foldersPanel}
+          </nav>
+        )}
+
+        {/* Canvas: view toggle + selection controls, progress, viewer / grid, filmstrip */}
+        <div className="flex min-w-0 flex-1 flex-col gap-3 bg-canvas p-3 pb-24 lg:min-h-0 lg:overflow-y-auto lg:pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1" role="group" aria-label={t("editor.viewMode")}>
               <Button
-                variant={viewMode === "single" ? "default" : "outline"}
+                variant="outline"
+                className={viewMode === "single" ? "bg-accent-soft hover:bg-accent-soft" : undefined}
                 size="sm"
                 aria-pressed={viewMode === "single"}
                 onClick={() => setViewMode("single")}
               >
-                <ImageIcon className="size-4" />
+                <ImageIcon />
                 {t("editor.single")}
               </Button>
               <Button
-                variant={viewMode === "grid" ? "default" : "outline"}
+                variant="outline"
+                className={viewMode === "grid" ? "bg-accent-soft hover:bg-accent-soft" : undefined}
                 size="sm"
                 aria-pressed={viewMode === "grid"}
                 onClick={() => setViewMode("grid")}
               >
-                <LayoutGrid className="size-4" />
+                <LayoutGrid />
                 {t("editor.grid")}
               </Button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {selectedCount > 0 && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground tabular-nums">
                   {t("editor.selectedCount", { count: selectedCount })}
                 </span>
               )}
               <Button variant="outline" size="sm" onClick={fs.selectAllUnsorted} disabled={unsortedCount === 0}>
-                <CheckCheck className="size-4" />
+                <CheckCheck />
                 {t("editor.selectUnsorted")}
               </Button>
               {selectedCount > 0 && (
@@ -127,12 +168,24 @@ export const EditorView = ({ fs }: EditorViewProps) => {
                   {t("common.clear")}
                 </Button>
               )}
+              {!isDesktop && (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setSheet("folders")}>
+                    <FolderOpen />
+                    {t("editor.openFolders")}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setSheet("info")}>
+                    <Info />
+                    {t("editor.openInfo")}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
           <ProgressBar current={fs.currentIndex} total={totalPhotos} sorted={sortedCount} />
           {allSorted && (
-            <Alert className="border-green-300 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950 dark:text-green-50">
+            <Alert variant="success">
               <CheckCircle2 />
               <AlertTitle>{t("editor.allSorted", { count: totalPhotos })}</AlertTitle>
             </Alert>
@@ -185,29 +238,38 @@ export const EditorView = ({ fs }: EditorViewProps) => {
           )}
         </div>
 
-        {/* Right: Sidebar (4 cols) */}
-        <div className="lg:col-span-4">
-          <div className="sticky top-24 space-y-4 stagger">
-            <FolderManager
-              folders={fs.folders}
-              moveMode={fs.moveMode}
-              onAdd={fs.addFolder}
-              onRemove={fs.removeFolder}
-              onSetShortcut={fs.setFolderShortcut}
-              onAssign={assignToFolder}
-              onMoveModeChange={fs.setMoveMode}
-              currentIndex={fs.currentIndex}
-              canUndo={fs.canUndo}
-              onUndo={fs.undoLastOperation}
-              onJumpUnsorted={fs.jumpToNextUnsorted}
-            />
-
-            <MetadataPanel photo={currentPhoto} />
-            <OperationLog operations={fs.operations} />
-            <Stats totalPhotos={totalPhotos} sortedCount={sortedCount} stats={stats} />
-          </div>
-        </div>
+        {isDesktop && (
+          <aside
+            aria-label={t("editor.infoPanel")}
+            className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto border-l border-border bg-surface p-3"
+          >
+            {infoPanel}
+          </aside>
+        )}
       </div>
+
+      <StatusBar total={totalPhotos} unsorted={unsortedCount} selected={selectedCount} />
+
+      {!isDesktop && (
+        <>
+          <Dialog open={sheet === "folders"} onOpenChange={open => !open && setSheet(null)}>
+            <DialogContent side="left" className="h-full content-start gap-3 overflow-y-auto p-3 pt-12">
+              <DialogHeader className="sr-only">
+                <DialogTitle>{t("folder.title")}</DialogTitle>
+              </DialogHeader>
+              {foldersPanel}
+            </DialogContent>
+          </Dialog>
+          <Dialog open={sheet === "info"} onOpenChange={open => !open && setSheet(null)}>
+            <DialogContent side="bottom" className="max-h-[85dvh] content-start gap-3 overflow-y-auto p-3 pt-12">
+              <DialogHeader className="sr-only">
+                <DialogTitle>{t("editor.infoPanel")}</DialogTitle>
+              </DialogHeader>
+              {infoPanel}
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
 
       {/* Mobile Action Bar — hidden while multi-selecting (batch bar takes over) */}
       {viewMode === "single" && selectedCount === 0 && (
@@ -228,6 +290,6 @@ export const EditorView = ({ fs }: EditorViewProps) => {
         onAssignFolder={fs.batchAssignToFolder}
         onClear={fs.clearSelection}
       />
-    </>
+    </div>
   )
 }

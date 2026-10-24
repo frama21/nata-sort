@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/shared/components/ui/card"
 import { Input } from "@/shared/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
 import { Button } from "@/shared/components/ui/button"
+import { Kbd } from "@/shared/components/ui/kbd"
 import { WithTooltip } from "@/shared/components/ui/tooltip"
 import { PanelHeader } from "@/shared/components/ui/panel-header"
 import { addStatus } from "@/shared/stores/status.store"
@@ -90,7 +91,7 @@ export const FolderManager = ({
         icon={<FolderOpen />}
         title={t("folder.title")}
         trailing={
-          <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-xs font-semibold text-muted-foreground tabular-nums">
+          <span className="rounded-full bg-surface-hover px-2 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
             {totalFolder}
           </span>
         }
@@ -98,30 +99,34 @@ export const FolderManager = ({
       <CardContent className="space-y-4">
         {/* Move mode */}
         <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("folder.moveMode")}
-          </p>
+          <p className="text-xs font-medium text-muted-foreground">{t("folder.moveMode")}</p>
           <Tabs
             value={moveMode}
             onValueChange={v => onMoveModeChange(v === "cut" ? "cut" : "copy")}
             className="w-full gap-2"
           >
-            <TabsList className="w-full">
-              <TabsTrigger value="copy">
+            <TabsList className="h-auto w-full">
+              <TabsTrigger value="copy" className="min-w-0 py-1.5 leading-4 whitespace-normal">
                 <Copy className="w-3.5 h-3.5" />
                 {t("folder.copy")}
               </TabsTrigger>
-              <TabsTrigger value="cut">
+              <TabsTrigger value="cut" className="min-w-0 py-1.5 leading-4 whitespace-normal">
                 <Scissors className="w-3.5 h-3.5" />
                 {t("folder.cut")}
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="copy" className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <TabsContent
+              value="copy"
+              className="rounded-md bg-surface-hover px-3 py-2 text-xs text-muted-foreground"
+            >
               {t("folder.copyHintPre")}
               <strong className="font-semibold text-foreground">{t("folder.copyHintStrong")}</strong>
               {t("folder.copyHintPost")}
             </TabsContent>
-            <TabsContent value="cut" className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <TabsContent
+              value="cut"
+              className="rounded-md bg-surface-hover px-3 py-2 text-xs text-muted-foreground"
+            >
               {t("folder.cutHintPre")}
               <strong className="font-semibold text-foreground">{t("folder.cutHintStrong")}</strong>
               {t("folder.cutHintPost")}
@@ -131,10 +136,7 @@ export const FolderManager = ({
 
         {/* Add folder */}
         <div className="space-y-2">
-          <label
-            htmlFor="new-folder-name"
-            className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-          >
+          <label htmlFor="new-folder-name" className="text-xs font-medium text-muted-foreground">
             {t("folder.add")}
           </label>
           <div className="flex gap-2">
@@ -152,6 +154,7 @@ export const FolderManager = ({
             />
             <WithTooltip label={t("folder.addAria")}>
               <Button
+                variant="secondary"
                 size="icon"
                 aria-label={t("folder.addAria")}
                 disabled={!newFolderName.trim()}
@@ -165,7 +168,7 @@ export const FolderManager = ({
 
         {/* Folder list */}
         {folders.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-6 text-center text-muted-foreground">
+          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border-strong py-6 text-center text-muted-foreground">
             <FolderPlus className="size-6 opacity-70" />
             <p className="text-xs">{t("folder.empty")}</p>
           </div>
@@ -174,15 +177,15 @@ export const FolderManager = ({
             {folders.map(folder => (
               <li
                 key={folder.id}
-                className="group flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 transition-colors hover:border-border hover:bg-muted/50"
+                className="group flex items-center gap-2 rounded-md border border-border px-2 py-1.5 transition-colors duration-(--dur-fast) hover:bg-surface-hover"
               >
                 <WithTooltip label={t("folder.editShortcutTitle")}>
                   <button
                     type="button"
                     onClick={() => setRecordingId(id => (id === folder.id ? null : folder.id))}
                     aria-label={t("folder.editShortcutAria", { name: folder.name })}
-                    className={`grid size-9 shrink-0 place-items-center rounded-lg text-sm font-bold text-white shadow-sm ring-offset-2 ring-offset-background transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${folder.color} ${
-                      recordingId === folder.id ? "animate-pulse ring-2 ring-ring" : "hover:brightness-110"
+                    className={`grid size-8 shrink-0 place-items-center rounded-md text-sm font-semibold text-white transition-[filter] duration-(--dur-fast) pointer-coarse:size-11 ${folder.color} ${
+                      recordingId === folder.id ? "ring-2 ring-accent" : "hover:brightness-110"
                     }`}
                   >
                     {recordingId === folder.id ? "?" : folder.shortcut ? folder.shortcut.toUpperCase() : "•"}
@@ -190,22 +193,19 @@ export const FolderManager = ({
                 </WithTooltip>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{folder.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="truncate text-xs whitespace-nowrap text-muted-foreground">
                     {recordingId === folder.id ? (
-                      <span className="text-primary">{t("folder.recording")}</span>
+                      <span className="font-medium text-foreground">{t("folder.recording")}</span>
                     ) : folder.shortcut ? (
                       <>
-                        {t("folder.press")}{" "}
-                        <kbd className="rounded bg-background px-1 font-mono text-[10px] ring-1 ring-border">
-                          {folder.shortcut.toUpperCase()}
-                        </kbd>
+                        {t("folder.press")} <Kbd>{folder.shortcut.toUpperCase()}</Kbd>
                       </>
                     ) : (
                       t("folder.setShortcutHint")
                     )}
                   </p>
                 </div>
-                <Button size="sm" onClick={() => onAssign(currentIndex, folder.id)}>
+                <Button variant="secondary" size="sm" onClick={() => onAssign(currentIndex, folder.id)}>
                   {t("common.sort")}
                 </Button>
                 <WithTooltip label={t("folder.removeAria", { name: folder.name })}>
@@ -213,7 +213,7 @@ export const FolderManager = ({
                     variant="ghost"
                     size="icon"
                     aria-label={t("folder.removeAria", { name: folder.name })}
-                    className="text-muted-foreground opacity-60 transition hover:text-destructive hover:opacity-100"
+                    className="text-muted-foreground hover:text-destructive"
                     onClick={() => onRemove(folder.id)}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -225,7 +225,7 @@ export const FolderManager = ({
         )}
 
         {/* Quick actions */}
-        <div className="flex flex-row gap-2 border-t border-border/60 pt-3">
+        <div className="flex flex-row gap-2 border-t border-border pt-3">
           <Button variant="outline" className="flex-1" disabled={!canUndo} onClick={onUndo}>
             <Undo2 className="w-3.5 h-3.5" />
             {t("common.undo")}

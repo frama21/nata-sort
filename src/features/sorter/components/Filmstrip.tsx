@@ -41,7 +41,7 @@ export const Filmstrip = ({
   if (photos.length === 0) return null
 
   return (
-    <ScrollArea orientation="horizontal" className="w-full rounded-lg border bg-card">
+    <ScrollArea orientation="horizontal" className="w-full rounded-md border border-border bg-surface">
       <ul aria-label={t("filmstrip.aria")} className="flex list-none gap-2 p-2">
         {photos.map((photo, i) => (
           <li key={photo.key} ref={i === currentIndex ? currentRef : undefined}>

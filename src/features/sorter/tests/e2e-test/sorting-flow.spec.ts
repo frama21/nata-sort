@@ -95,12 +95,14 @@ test("shortcuts are ignored while the shortcuts dialog is open", async ({ page }
 })
 
 test("leaving mid-session asks for confirmation", async ({ page }) => {
-  page.once("dialog", d => d.dismiss())
   await page.getByRole("link", { name: "Help" }).click()
+  const dialog = page.getByRole("dialog", { name: "Leave this page?" })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("button", { name: "Stay" }).click()
   await expect(page).toHaveURL("/")
   await expect(page.getByRole("img", { name: "photo_1.png" })).toBeVisible()
 
-  page.once("dialog", d => d.accept())
   await page.getByRole("link", { name: "Help" }).click()
+  await page.getByRole("dialog", { name: "Leave this page?" }).getByRole("button", { name: "Leave" }).click()
   await expect(page).toHaveURL("/help")
 })

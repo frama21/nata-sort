@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { PAGE_SIZE } from "../constants/sorter.constants"
 
 import { Thumbnail } from "./Thumbnail"
@@ -35,6 +36,7 @@ export const GridView = ({
   onOpen,
   onToggleSelect
 }: GridViewProps) => {
+  const { t } = useTranslation()
   const viewportRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const total = photos.length
@@ -73,7 +75,10 @@ export const GridView = ({
   if (total === 0) return null
 
   return (
-    <ScrollArea viewportRef={viewportRef} className="h-[72dvh] rounded-lg border">
+    <ScrollArea
+      viewportRef={viewportRef}
+      className="h-[72dvh] rounded-md border border-border bg-surface lg:h-auto lg:min-h-0 lg:flex-1"
+    >
       <div className="grid grid-cols-3 gap-2 p-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
         {photos.slice(0, visible).map((photo, i) => (
           <Thumbnail
@@ -98,7 +103,7 @@ export const GridView = ({
           className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground"
         >
           <Spinner className="size-4" />
-          Memuat {visible}/{total}…
+          {t("grid.loadingMore", { visible, total })}
         </div>
       )}
     </ScrollArea>

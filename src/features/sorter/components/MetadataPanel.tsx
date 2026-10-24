@@ -56,21 +56,18 @@ const StatTile = ({
   wide?: boolean
   pending?: boolean
 }) => (
-  <div
-    className={cn(
-      "rounded-xl border border-border/60 bg-muted/30 px-3 py-2 transition-colors hover:bg-muted/60 hover:border-border",
-      wide && "col-span-2"
-    )}
-  >
+  <div className={cn("rounded-md border border-border px-3 py-2", wide && "col-span-2")}>
     <div className="flex items-center gap-1.5 text-muted-foreground">
-      <span className="text-primary/80 [&>svg]:size-3.5">{icon}</span>
-      <span className="text-[10px] font-semibold uppercase tracking-wider">{label}</span>
+      <span aria-hidden className="[&>svg]:size-3.5">
+        {icon}
+      </span>
+      <span className="text-xs font-medium">{label}</span>
     </div>
     {pending ? (
-      <div className="skeleton mt-1.5 h-4 w-16 rounded" aria-label={i18n.t("info.calculating")} />
+      <div className="skeleton mt-1.5 h-4 w-16" role="status" aria-label={i18n.t("info.calculating")} />
     ) : (
       <p
-        className="mt-0.5 font-mono text-sm font-medium tabular-nums break-words leading-snug"
+        className="mt-0.5 text-[13px] font-medium tabular-nums break-words leading-snug"
         title={typeof value === "string" ? value : undefined}
       >
         {value}
@@ -99,7 +96,7 @@ export const MetadataPanel = ({ photo }: MetadataPanelProps) => {
   const captureDate = formatDate(metadata.dateTaken)
   const dateLabel = captureDate !== "-" ? captureDate : formatTimestamp(photo.file?.lastModified)
 
-  const iconCls = "w-3 h-3"
+  const iconCls = "size-3"
 
   // RAW dimensions are resolved by a deferred libraw-free pass; until then a RAW
   // photo reports 0, which we render as a shimmer rather than a bare "-".
@@ -155,7 +152,7 @@ export const MetadataPanel = ({ photo }: MetadataPanelProps) => {
       <PanelHeader
         icon={isVideo ? <Video /> : <Image />}
         title={isVideo ? t("info.titleVideo") : t("info.titlePhoto")}
-        subtitle={<span className="font-mono">{photo.name}</span>}
+        subtitle={photo.name}
       />
 
       <CardContent className="space-y-2">

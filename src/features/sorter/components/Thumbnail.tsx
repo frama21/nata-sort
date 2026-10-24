@@ -1,4 +1,5 @@
 import { Check, FileImage, Video } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { cn } from "@/shared/lib/utils"
 import type { PhotoFile } from "../types/sorter.types"
@@ -35,6 +36,7 @@ export const Thumbnail = ({
   onOpen,
   onToggleSelect
 }: ThumbnailProps) => {
+  const { t } = useTranslation()
   const isVideo = photo.format.category === "video"
   const isRaw = photo.format.category === "raw"
   const thumbSrc = isVideo ? null : isRaw ? (rawPreviewUrl ?? null) : photo.url
@@ -42,16 +44,16 @@ export const Thumbnail = ({
   return (
     <div
       className={cn(
-        "relative shrink-0 overflow-hidden rounded-lg border bg-muted",
+        "relative shrink-0 overflow-hidden rounded-md border bg-surface-hover",
         size === "sm" ? "h-16 w-16 md:h-20 md:w-20" : "aspect-square w-full",
-        isCurrent ? "border-primary ring-2 ring-primary" : "border-border",
-        isSelected && "ring-2 ring-blue-500"
+        // Current and selected both read as the accent ring; the check button tells them apart.
+        isCurrent || isSelected ? "border-accent ring-2 ring-accent" : "border-border"
       )}
     >
       <button
         type="button"
         onClick={e => (e.shiftKey ? onToggleSelect(index, true) : onOpen(index))}
-        aria-label={`Lihat ${photo.name}`}
+        aria-label={t("thumb.view", { name: photo.name })}
         aria-current={isCurrent ? "true" : undefined}
         className="block h-full w-full cursor-pointer"
       >
@@ -67,7 +69,7 @@ export const Thumbnail = ({
         ) : (
           <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
             {isVideo ? <Video className="size-5" /> : <FileImage className="size-5" />}
-            <span className="text-[9px] uppercase leading-none">{photo.format.label}</span>
+            <span className="text-xs leading-none">{photo.format.label}</span>
           </span>
         )}
       </button>
@@ -76,12 +78,12 @@ export const Thumbnail = ({
       <button
         type="button"
         onClick={e => onToggleSelect(index, e.shiftKey)}
-        aria-label={isSelected ? `Batalkan pilih ${photo.name}` : `Pilih ${photo.name}`}
+        aria-label={t(isSelected ? "thumb.deselect" : "thumb.select", { name: photo.name })}
         aria-pressed={isSelected}
         className={cn(
-          "absolute left-1 top-1 flex size-5 cursor-pointer items-center justify-center rounded border transition-colors",
+          "absolute left-1 top-1 flex size-6 cursor-pointer items-center justify-center rounded-sm border transition-colors duration-(--dur-fast)",
           isSelected
-            ? "border-blue-500 bg-blue-500 text-white"
+            ? "border-accent bg-accent text-accent-foreground"
             : "border-white/70 bg-black/40 text-transparent hover:text-white/80"
         )}
       >
@@ -91,7 +93,7 @@ export const Thumbnail = ({
       {folderMeta && (
         <span
           className={cn(
-            "absolute inset-x-1 bottom-1 flex items-center gap-1 rounded px-1 py-0.5 text-[9px] leading-none text-white",
+            "absolute inset-x-1 bottom-1 flex items-center gap-1 rounded-sm px-1 py-0.5 text-xs leading-none text-white",
             folderMeta.color
           )}
           title={folderMeta.name}
