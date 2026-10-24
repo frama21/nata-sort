@@ -61,8 +61,10 @@ Destructive or leave-the-page confirmations are in-app dialogs, never `window.co
 
 ## 5. Brand
 
-The mark is a photo frame split on a 60° diagonal into two piles ("sorting"): solid fills on a 256-unit canvas, left half ink/paper, right half `--brand-accent`
-(`src/shared/components/brand/NataMark.tsx`). App icons are an ink `#111111` tile (22 % radius) with the mark; the maskable icon is full-bleed with the mark inside the 80 % safe zone.
+The mark is a tile with one corner open and a teal piece about to drop into it ("every photo finds its place", from *menata*, to put in order): solid fills on a 256-unit canvas, the tile in ink/paper (`currentColor`), the piece in `--brand-accent`.
+The wordmark is a custom lowercase "nata" built as outlines (no font). Both live in `src/shared/components/brand/NataMark.tsx` (`NataMark`, `NataWordmark`); the navbar pairs them with a screen-reader-only "NATA" heading and hides the wordmark below 640 px.
+App icons are an ink `#111111` tile (22 % radius) with the mark; the maskable icon is full-bleed with the mark inside the 80 % safe zone; `public/favicon.svg` enlarges the mark in the tile so the piece survives 16 px.
+Kit, colours and usage rules: [`docs/brand/`](brand/README.md).
 
 ## 6. Accessibility floor (WCAG 2.2 AA)
 

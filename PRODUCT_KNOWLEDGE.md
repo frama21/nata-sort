@@ -745,7 +745,7 @@ Kosong (mark + "Mulai menata foto" + satu tombol "Pilih Folder Foto"; blok naik 
 
 ### 14.5 Komponen UI in-house (`shared/components/ui`)
 
-alert (default/success/destructive), badge, button, card, dialog, empty, field, input, item, kbd, label, panel-header, progress, scroll-area, separator, spinner, tabs, tooltip. Tombol: varian default (satu aksi utama per layar)/secondary/ghost/outline/destructive/link; ukuran default (h-8, sentuh h-11)/xs/sm/lg/icon/icon-xs/icon-sm/icon-lg; prop `loading` (spinner, `aria-busy`, klik diabaikan). `Dialog` memakai `<dialog>` native dengan `side="center" | "left" | "bottom"` (dipakai juga sebagai sheet). Mark: `shared/components/brand/NataMark` (bingkai foto terbelah diagonal 60°). README menyatakan **tanpa dependensi Radix/shadcn**.
+alert (default/success/destructive), badge, button, card, dialog, empty, field, input, item, kbd, label, panel-header, progress, scroll-area, separator, spinner, tabs, tooltip. Tombol: varian default (satu aksi utama per layar)/secondary/ghost/outline/destructive/link; ukuran default (h-8, sentuh h-11)/xs/sm/lg/icon/icon-xs/icon-sm/icon-lg; prop `loading` (spinner, `aria-busy`, klik diabaikan). `Dialog` memakai `<dialog>` native dengan `side="center" | "left" | "bottom"` (dipakai juga sebagai sheet). Mark: `shared/components/brand/NataMark` (ubin dengan satu sudut terbuka dan kepingan teal yang jatuh ke tempatnya) + `NataWordmark` ("nata" huruf kecil, outline kustom); kit dan aturan pakai di `docs/brand/`. README menyatakan **tanpa dependensi Radix/shadcn**.
 
 ### 14.6 Aksesibilitas
 
@@ -1054,7 +1054,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | Halaman Bantuan                         | `src/features/help/pages/HelpPage.tsx`                                                      |
 | Toast                                   | `src/shared/stores/status.store.ts`                                                         |
 | Tema dan token                          | `src/app/providers/ThemeProvider.tsx`, `src/app/styles/{tokens,globals}.css`, `public/theme-init.js`, `scripts/check-contrast.mjs` |
-| Mark dan ikon                           | `src/shared/components/brand/NataMark.tsx`, `public/{icon,pwa-192x192,pwa-512x512,pwa-maskable-512x512}.png` |
+| Mark dan ikon                           | `src/shared/components/brand/NataMark.tsx`, `public/{favicon.svg,icon.png,pwa-192x192.png,pwa-512x512.png,pwa-maskable-512x512.png}`, kit `docs/brand/` |
 | Spesifikasi desain visual               | `docs/UI-Design.md`, `redesign.md` (brief asal)                                              |
 | Server statis dan header                | `server/index.js`, `firebase.json`                                                          |
 | Build dan PWA                           | `vite.config.ts`                                                                            |

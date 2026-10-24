@@ -265,6 +265,7 @@ Detailed project documentation lives in [`docs/`](docs/):
 | [PRINCIPLES.md](docs/PRINCIPLES.md) | Engineering & product principles (Clean Code · YAGNI · DRY · KISS · Semantic · A11y). |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment guide — Docker Compose, the server, and Firebase Hosting. |
 | [SECURITY.md](docs/SECURITY.md) | Security policy, threat model, and audit report. |
+| [brand/](docs/brand/README.md) | Logo kit (SVG/PNG), colours, and usage rules. |
 
 ## Changelog
 

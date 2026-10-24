@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next"
 import { Link, NavLink } from "react-router"
 
 import { ShortcutsDialog } from "@/features/sorter"
-import { NataMark } from "@/shared/components/brand/NataMark"
+import { NataMark, NataWordmark } from "@/shared/components/brand/NataMark"
 import { cn } from "@/shared/lib/utils"
 import type { FeatureRoute } from "@/shared/types/route.types"
 import { appConfig } from "../config"
@@ -24,7 +24,10 @@ export const Navbar = ({ navRoutes }: NavbarProps) => {
       <div className="grid h-12 grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 md:px-4">
         <Link to="/" className="flex w-fit items-center gap-2 rounded-md">
           <NataMark className="size-6 text-brand-ink dark:text-brand-paper" />
-          <h1 className="text-base leading-6 font-semibold tracking-tight max-sm:sr-only">{appConfig.name}</h1>
+          <h1 className="flex">
+            <NataWordmark className="h-3.5 w-auto text-brand-ink max-sm:hidden dark:text-brand-paper" />
+            <span className="sr-only">{appConfig.name}</span>
+          </h1>
         </Link>
 
         {links.length > 1 ? (

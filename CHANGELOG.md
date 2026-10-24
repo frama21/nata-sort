@@ -20,7 +20,11 @@ All notable changes to this project are documented in this file.
 - Button gets a `loading` state; Dialog gets `side` (`center | left | bottom`). Hardcoded
   "Tutup", "Loading", thumbnail labels and the grid loader moved to i18n; Indonesian copy uses
   "kamu".
-- New app icons (ink tile + mark) incl. a maskable icon; `theme-color` / manifest colours are `#1C1C1C`.
+- **New logo**: a tile with one corner open and a teal piece dropping into it, plus a custom
+  lowercase "nata" wordmark drawn as outlines (`NataMark`, `NataWordmark`). The navbar shows the
+  wordmark instead of Inter text (the heading stays "NATA" for screen readers). New app icons
+  (ink tile + mark) incl. a maskable icon and an SVG favicon; `theme-color` / manifest colours are
+  `#1C1C1C`. The brand kit and usage rules live in `docs/brand/`.
 - `pnpm check:contrast` recomputes the WCAG pairs from the tokens and fails on colour literals
   in components.
 - Removed `tw-animate-css`.
