@@ -44,8 +44,8 @@
 
   "folder.title": "Folder Sortir",
   "folder.moveMode": "Mode Pemindahan",
-  "folder.copy": "Copy (Duplikat)",
-  "folder.cut": "Cut (Pindah)",
+  "folder.copy": "Copy",
+  "folder.cut": "Cut",
   "folder.copyHintPre": "File akan ",
   "folder.copyHintStrong": "diduplikat",
   "folder.copyHintPost": " ke folder target — file asli tetap ada.",

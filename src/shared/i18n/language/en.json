@@ -44,8 +44,8 @@
 
   "folder.title": "Sort Folders",
   "folder.moveMode": "Move mode",
-  "folder.copy": "Copy (Duplicate)",
-  "folder.cut": "Cut (Move)",
+  "folder.copy": "Copy",
+  "folder.cut": "Cut",
   "folder.copyHintPre": "Files are ",
   "folder.copyHintStrong": "duplicated",
   "folder.copyHintPost": " to the target folder — the original stays.",

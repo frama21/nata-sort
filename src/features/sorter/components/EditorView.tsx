@@ -121,7 +121,7 @@ export const EditorView = ({ fs }: EditorViewProps) => {
         {isDesktop && (
           <nav
             aria-label={t("folder.title")}
-            className="flex w-62 shrink-0 flex-col gap-3 overflow-y-auto border-r border-border bg-surface p-3"
+            className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto border-r border-border bg-surface p-3"
           >
             {foldersPanel}
           </nav>

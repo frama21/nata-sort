@@ -86,7 +86,7 @@ export const FolderManager = ({
   }
 
   return (
-    <Card size="sm" className="w-full">
+    <Card className="w-full">
       <PanelHeader
         icon={<FolderOpen />}
         title={t("folder.title")}
@@ -96,7 +96,7 @@ export const FolderManager = ({
           </span>
         }
       />
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {/* Move mode */}
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground">{t("folder.moveMode")}</p>
@@ -105,19 +105,19 @@ export const FolderManager = ({
             onValueChange={v => onMoveModeChange(v === "cut" ? "cut" : "copy")}
             className="w-full gap-2"
           >
-            <TabsList className="h-auto w-full">
-              <TabsTrigger value="copy" className="min-w-0 py-1.5 leading-4 whitespace-normal">
+            <TabsList className="w-full">
+              <TabsTrigger value="copy" className="min-w-0 py-1.5">
                 <Copy className="w-3.5 h-3.5" />
                 {t("folder.copy")}
               </TabsTrigger>
-              <TabsTrigger value="cut" className="min-w-0 py-1.5 leading-4 whitespace-normal">
+              <TabsTrigger value="cut" className="min-w-0 py-1.5">
                 <Scissors className="w-3.5 h-3.5" />
                 {t("folder.cut")}
               </TabsTrigger>
             </TabsList>
             <TabsContent
               value="copy"
-              className="rounded-md bg-surface-hover px-3 py-2 text-xs text-muted-foreground"
+              className="rounded-md bg-surface-hover px-3 py-2.5 text-xs leading-5 text-muted-foreground"
             >
               {t("folder.copyHintPre")}
               <strong className="font-semibold text-foreground">{t("folder.copyHintStrong")}</strong>
@@ -125,7 +125,7 @@ export const FolderManager = ({
             </TabsContent>
             <TabsContent
               value="cut"
-              className="rounded-md bg-surface-hover px-3 py-2 text-xs text-muted-foreground"
+              className="rounded-md bg-surface-hover px-3 py-2.5 text-xs leading-5 text-muted-foreground"
             >
               {t("folder.cutHintPre")}
               <strong className="font-semibold text-foreground">{t("folder.cutHintStrong")}</strong>
@@ -173,11 +173,11 @@ export const FolderManager = ({
             <p className="text-xs">{t("folder.empty")}</p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-2" aria-label={t("folder.listAria")}>
+          <ul className="flex flex-col gap-2.5" aria-label={t("folder.listAria")}>
             {folders.map(folder => (
               <li
                 key={folder.id}
-                className="group flex items-center gap-2 rounded-md border border-border px-2 py-1.5 transition-colors duration-(--dur-fast) hover:bg-surface-hover"
+                className="group flex items-center gap-2.5 rounded-md border border-border p-2.5 transition-colors duration-(--dur-fast) hover:bg-surface-hover"
               >
                 <WithTooltip label={t("folder.editShortcutTitle")}>
                   <button
@@ -225,7 +225,7 @@ export const FolderManager = ({
         )}
 
         {/* Quick actions */}
-        <div className="flex flex-row gap-2 border-t border-border pt-3">
+        <div className="flex flex-row gap-2 border-t border-border pt-4">
           <Button variant="outline" className="flex-1" disabled={!canUndo} onClick={onUndo}>
             <Undo2 className="w-3.5 h-3.5" />
             {t("common.undo")}

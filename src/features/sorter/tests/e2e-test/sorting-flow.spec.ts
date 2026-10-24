@@ -59,7 +59,7 @@ test("copy keeps the original; a shortcut sorts and advances", async ({ page }) 
 })
 
 test("cut moves the file and undo moves it back", async ({ page }) => {
-  await page.getByRole("tab", { name: "Cut (Move)" }).click()
+  await page.getByRole("tab", { name: "Cut" }).click()
   await page.getByRole("button", { name: "Single" }).focus()
 
   await page.keyboard.press("1")
@@ -71,9 +71,9 @@ test("cut moves the file and undo moves it back", async ({ page }) => {
 })
 
 test("arrow keys in the mode tabs switch tabs without changing the photo", async ({ page }) => {
-  await page.getByRole("tab", { name: "Copy (Duplicate)" }).focus()
+  await page.getByRole("tab", { name: "Copy" }).focus()
   await page.keyboard.press("ArrowRight")
-  await expect(page.getByRole("tab", { name: "Cut (Move)" })).toHaveAttribute("aria-selected", "true")
+  await expect(page.getByRole("tab", { name: "Cut" })).toHaveAttribute("aria-selected", "true")
   await expect(page.getByRole("img", { name: "photo_1.png" })).toBeVisible()
 })
 
