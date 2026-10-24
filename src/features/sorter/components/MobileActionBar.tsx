@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Scissors, Copy, FolderPlus } from "lucide-re
 
 import { Button } from "@/shared/components/ui/button"
 import { WithTooltip } from "@/shared/components/ui/tooltip"
+import { cn } from "@/shared/lib/utils"
 import type { SortFolder, MoveMode } from "../types/sorter.types"
 
 interface MobileActionBarProps {
@@ -14,6 +15,8 @@ interface MobileActionBarProps {
   /** Opens the folders sheet, where the first folder is created. */
   onOpenFolders: () => void
   totalPhotos: number
+  /** The project is closing: slide the bar away. */
+  leaving?: boolean
 }
 
 export const MobileActionBar = ({
@@ -23,13 +26,19 @@ export const MobileActionBar = ({
   onAssign,
   onNavigate,
   onOpenFolders,
-  totalPhotos
+  totalPhotos,
+  leaving = false
 }: MobileActionBarProps) => {
   const { t } = useTranslation()
   const isEmptyFolder = folders.length === 0
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 animate-slide-in-bottom h-18 border-t border-border bg-surface p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
+    <div
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-50 h-18 border-t border-border bg-surface p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden",
+        leaving ? "animate-slide-out-bottom" : "animate-slide-in-bottom"
+      )}
+    >
       <div className="flex h-full items-center justify-between gap-2">
         <div className="flex flex-row items-center gap-2">
           <WithTooltip label={t("viewer.prevPhoto")}>

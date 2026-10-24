@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useBlocker } from "react-router"
 import { AlertTriangleIcon, XIcon } from "lucide-react"
@@ -15,6 +15,9 @@ import { useFileSystem } from "../hooks/useFileSystem"
 
 /** How long the start screen stays to lift away once a project opens (matches `--dur-slow`). */
 const WELCOME_EXIT_MS = 300
+
+/** How long the workspace plays its exit before the project is actually closed (matches `--dur-slow`). */
+const WORKSPACE_EXIT_MS = 280
 
 /** The sorting workspace: pick a folder, then preview and file each photo. */
 export const SorterPage = () => {
@@ -40,13 +43,29 @@ export const SorterPage = () => {
     return () => clearTimeout(timer)
   }, [welcomeLeaving])
 
+  // Closing a project first plays the workspace's exit (the mirror of opening one), then closes it.
+  // The panels are inert meanwhile, so a second click or a stray key does nothing.
   const { projectName, closeProject } = fs
+  const [closing, setClosing] = useState(false)
+  const requestClose = useCallback(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) closeProject()
+    else setClosing(true)
+  }, [closeProject])
+  useEffect(() => {
+    if (!closing) return
+    const timer = setTimeout(() => {
+      setClosing(false)
+      closeProject()
+    }, WORKSPACE_EXIT_MS)
+    return () => clearTimeout(timer)
+  }, [closing, closeProject])
+
   // Tell the top bar a project is open so it can offer "Close project".
   useEffect(() => {
     if (totalPhotos === 0 || !projectName) return
-    useProjectStore.getState().open(projectName, closeProject)
+    useProjectStore.getState().open(projectName, requestClose)
     return () => useProjectStore.getState().clear()
-  }, [totalPhotos, projectName, closeProject])
+  }, [totalPhotos, projectName, requestClose])
 
   // Closing or reloading the tab mid-write would leave the project file (or a half-copied photo)
   // inconsistent. Warn only while a write is actually in flight; saved progress needs no prompt.
@@ -99,7 +118,7 @@ export const SorterPage = () => {
             />
           </div>
         )}
-        {totalPhotos > 0 && <EditorView fs={fs} />}
+        {totalPhotos > 0 && <EditorView fs={fs} closing={closing} />}
       </div>
 
       <Dialog

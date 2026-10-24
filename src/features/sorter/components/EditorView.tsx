@@ -5,6 +5,7 @@ import { CheckCircle2, Image as ImageIcon, LayoutGrid, CheckCheck, FolderOpen, I
 import { Button } from "@/shared/components/ui/button"
 import { Alert, AlertTitle } from "@/shared/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import { cn } from "@/shared/lib/utils"
 import { useMediaQuery } from "@/shared/lib/useMediaQuery"
 
 import { ContentViewer } from "./ContentViewer"
@@ -24,6 +25,8 @@ import type { ViewMode } from "../types/sorter.types"
 
 interface EditorViewProps {
   fs: FileSystemHook
+  /** The project is being closed: the panels play their exit and nothing is clickable. */
+  closing?: boolean
 }
 
 /**
@@ -34,7 +37,7 @@ interface EditorViewProps {
  * grid-only selection shortcuts; all session state comes from the `fs`
  * controller passed in by the app shell.
  */
-export const EditorView = ({ fs }: EditorViewProps) => {
+export const EditorView = ({ fs, closing = false }: EditorViewProps) => {
   const { t } = useTranslation()
   const [viewMode, setViewMode] = useState<ViewMode>("single")
   // Below 1024 px the side panels move into sheets; each renders in one place only.
@@ -122,20 +125,28 @@ export const EditorView = ({ fs }: EditorViewProps) => {
   )
 
   return (
-    <div className="flex min-h-full flex-col lg:h-full lg:min-h-0">
+    <div inert={closing} className="flex min-h-full flex-col lg:h-full lg:min-h-0">
       <div className="flex flex-1 flex-col lg:min-h-0 lg:flex-row">
         {isDesktop && (
           <nav
             aria-label={t("folder.title")}
             // Children keep their height (`*:shrink-0`): on a short screen the panel scrolls instead of squeezing its cards.
-            className="flex w-72 shrink-0 animate-slide-in-left flex-col gap-3 overflow-y-auto border-r border-border bg-surface p-3 *:shrink-0"
+            className={cn(
+              "flex w-72 shrink-0 flex-col gap-3 overflow-y-auto border-r border-border bg-surface p-3 *:shrink-0",
+              closing ? "animate-slide-out-left" : "animate-slide-in-left"
+            )}
           >
             {foldersPanel}
           </nav>
         )}
 
         {/* Canvas: view toggle + selection controls, progress, viewer / grid, filmstrip */}
-        <div className="flex min-w-0 flex-1 animate-rise-lg flex-col gap-3 bg-canvas p-3 pb-24 lg:min-h-0 lg:overflow-y-auto lg:pb-3 [animation-delay:45ms]">
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 flex-col gap-3 bg-canvas p-3 pb-24 lg:min-h-0 lg:overflow-y-auto lg:pb-3",
+            closing ? "animate-sink" : "animate-rise-lg [animation-delay:45ms]"
+          )}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1" role="group" aria-label={t("editor.viewMode")}>
               <Button
@@ -251,7 +262,10 @@ export const EditorView = ({ fs }: EditorViewProps) => {
         {isDesktop && (
           <aside
             aria-label={t("editor.infoPanel")}
-            className="flex w-80 shrink-0 animate-slide-in-right flex-col gap-3 overflow-y-auto border-l border-border bg-surface p-3 *:shrink-0 [animation-delay:90ms]"
+            className={cn(
+              "flex w-80 shrink-0 flex-col gap-3 overflow-y-auto border-l border-border bg-surface p-3 *:shrink-0",
+              closing ? "animate-slide-out-right" : "animate-slide-in-right [animation-delay:90ms]"
+            )}
           >
             {infoPanel}
           </aside>
@@ -296,6 +310,7 @@ export const EditorView = ({ fs }: EditorViewProps) => {
           onNavigate={fs.navigatePhoto}
           onOpenFolders={() => setSheet("folders")}
           totalPhotos={totalPhotos}
+          leaving={closing}
         />
       )}
 
