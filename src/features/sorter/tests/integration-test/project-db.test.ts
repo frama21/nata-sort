@@ -8,7 +8,7 @@ import {
   updateDatabaseFolders
 } from "../../services/project-db.service"
 
-const DB = "nata-sort-db.json"
+const DB = ".nata-sort-db.json"
 
 const validState = (overrides: Record<string, unknown> = {}) => ({
   version: "2.0",
@@ -71,16 +71,19 @@ describe("project database (service + folder handle)", () => {
     expect((await readDb(dir)).version).toBe("2.0")
   })
 
-  it.each(["nata-photo-db.json", "photo-sorter-db.json"])("migrates progress from the older %s", async legacy => {
-    const dir = new MemoryDirectoryHandle()
-    dir.addFile(legacy, JSON.stringify(validState()))
+  it.each(["nata-sort-db.json", "nata-photo-db.json", "photo-sorter-db.json"])(
+    "migrates progress from the older %s",
+    async legacy => {
+      const dir = new MemoryDirectoryHandle()
+      dir.addFile(legacy, JSON.stringify(validState()))
 
-    const state = await initProjectDatabase(dir.asHandle())
+      const state = await initProjectDatabase(dir.asHandle())
 
-    expect(state.folders.map(f => f.name)).toEqual(["Keep"])
-    await updateDatabaseFolders(dir.asHandle(), [])
-    expect(await readDb(dir)).toMatchObject({ version: "2.0", folders: [] }) // re-saved under the current name
-  })
+      expect(state.folders.map(f => f.name)).toEqual(["Keep"])
+      await updateDatabaseFolders(dir.asHandle(), [])
+      expect(await readDb(dir)).toMatchObject({ version: "2.0", folders: [] }) // re-saved under the current name
+    }
+  )
 
   it("strips prototype-pollution keys and coerces unsafe scalars on load", async () => {
     const dir = new MemoryDirectoryHandle()

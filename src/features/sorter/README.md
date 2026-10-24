@@ -2,7 +2,7 @@
 
 The sorting workspace. The user opens a local folder, previews each photo or
 video, and copies or moves it into sort folders with keyboard shortcuts. The
-project state is saved to `nata-sort-db.json` inside that folder.
+project state is saved to `.nata-sort-db.json` inside that folder.
 
 | | |
 | --- | --- |
@@ -26,7 +26,7 @@ project state is saved to `nata-sort-db.json` inside that folder.
 
 - **`services/recent-projects.service.ts`** keeps the start screen's recent list (name, photo
   count, last update, directory handle) in IndexedDB, separate from the project DB. Handles
-  stay in this store and out of `nata-sort-db.json`. `RecentProjects.tsx` renders it (virtualized
+  stay in this store and out of `.nata-sort-db.json`. `RecentProjects.tsx` renders it (virtualized
   past 7 rows); `closeProject` in the controller hook drops the session.
 
 ## Rules

@@ -8,10 +8,13 @@ describe("file format registry", () => {
     expect(getFileFormatInfo(name)).not.toBeNull()
   })
 
-  it.each(["notes.txt", "archive.zip", "noextension", "nata-sort-db.json"])("ignores %s", name => {
-    expect(isSupportedImage(name)).toBe(false)
-    expect(getFileFormatInfo(name)).toBeNull()
-  })
+  it.each(["notes.txt", "archive.zip", "noextension", ".nata-sort-db.json", "nata-sort-db.json"])(
+    "ignores %s",
+    name => {
+      expect(isSupportedImage(name)).toBe(false)
+      expect(getFileFormatInfo(name)).toBeNull()
+    }
+  )
 
   it("classifies RAW files as RAW", () => {
     expect(getFileFormatInfo("IMG_0001.NEF")?.category).toBe("raw")
