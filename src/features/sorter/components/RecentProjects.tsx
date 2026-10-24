@@ -84,12 +84,12 @@ export const RecentProjects = ({ disabled, onOpen }: RecentProjectsProps) => {
 
   return (
     <section aria-labelledby="recent-projects-title" className="w-full text-left">
-      <h3
+      <h2
         id="recent-projects-title"
         className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
       >
         {t("welcome.recent.title")}
-      </h3>
+      </h2>
       <div
         ref={scrollRef}
         className="rounded-lg border border-border bg-surface-raised p-1"

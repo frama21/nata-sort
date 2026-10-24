@@ -14,20 +14,22 @@ interface OperationLogProps {
 export const OperationLog = ({ operations }: OperationLogProps) => {
   const { t } = useTranslation()
 
-  if (operations.length === 0) return null
-
   const recentOps = operations.slice(-3).reverse()
 
   return (
     <Card size="sm" className="w-full">
       <PanelHeader icon={<Logs />} title={t("log.title")} subtitle={t("log.subtitle")} />
       <CardContent>
+        {recentOps.length === 0 && (
+          <p className="px-1 py-2 text-center text-xs text-muted-foreground">{t("log.empty")}</p>
+        )}
         <ul className="flex flex-col gap-1.5">
           {recentOps.map((op, i) => (
-            // A batch can log several operations in the same millisecond.
+            // A batch can log several operations in the same millisecond. The index counts from the
+            // start of the log, so a new entry mounts (and rises) alone instead of re-keying the rest.
             <li
-              key={`${op.timestamp}-${i}`}
-              className="flex items-center gap-3 rounded-md border border-border px-3 py-2"
+              key={`${op.timestamp}-${operations.length - 1 - i}`}
+              className="flex animate-rise items-center gap-3 rounded-md border border-border px-3 py-2"
             >
               <span
                 aria-hidden

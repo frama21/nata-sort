@@ -1,12 +1,13 @@
 import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { useBlocker } from "react-router"
-import { AlertTriangleIcon } from "lucide-react"
+import { AlertTriangleIcon, XIcon } from "lucide-react"
 
-import { Alert, AlertTitle } from "@/shared/components/ui/alert"
+import { Alert, AlertAction, AlertTitle } from "@/shared/components/ui/alert"
 import { Button } from "@/shared/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { useProjectStore } from "@/shared/stores/project.store"
+import { useSaveStore } from "@/shared/stores/save.store"
 
 import { EditorView } from "../components/EditorView"
 import { WelcomeView } from "../components/WelcomeView"
@@ -26,6 +27,17 @@ export const SorterPage = () => {
     return () => useProjectStore.getState().clear()
   }, [totalPhotos, projectName, closeProject])
 
+  // Closing or reloading the tab mid-write would leave the project file (or a half-copied photo)
+  // inconsistent. Warn only while a write is actually in flight; saved progress needs no prompt.
+  const sortingCount = fs.sortingKeys.size
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (sortingCount > 0 || useSaveStore.getState().pending > 0) e.preventDefault()
+    }
+    window.addEventListener("beforeunload", warn)
+    return () => window.removeEventListener("beforeunload", warn)
+  }, [sortingCount])
+
   // Directory handles live only in memory, so leaving this page ends the session.
   // Progress is already saved to the folder; still, confirm (in-app) before navigating away.
   const blocker = useBlocker(
@@ -37,7 +49,12 @@ export const SorterPage = () => {
       {fs.error && (
         <Alert variant="destructive" className="m-3 w-auto max-w-md">
           <AlertTriangleIcon />
-          <AlertTitle> {fs.error}</AlertTitle>
+          <AlertTitle>{fs.error}</AlertTitle>
+          <AlertAction>
+            <Button variant="ghost" size="icon-sm" aria-label={t("common.close")} onClick={fs.clearError}>
+              <XIcon />
+            </Button>
+          </AlertAction>
         </Alert>
       )}
 

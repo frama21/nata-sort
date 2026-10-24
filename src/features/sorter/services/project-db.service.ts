@@ -71,10 +71,7 @@ const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
 export const initProjectDatabase = async (dirHandle: FileSystemDirectoryHandle): Promise<CompleteProjectState> =>
   enqueue(async () => {
     const existing = await loadProjectState(dirHandle)
-    if (existing) {
-      addStatus({ type: "success", message: t("toast.projectLoaded"), icon: "db" })
-      return existing
-    }
+    if (existing) return existing
 
     const freshState: CompleteProjectState = {
       version: DB_VERSION,

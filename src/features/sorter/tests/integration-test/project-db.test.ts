@@ -96,7 +96,7 @@ describe("project database (service + folder handle)", () => {
     expect(state.folders).toHaveLength(1)
     expect(state.moveMode).toBe("copy")
     expect(state.currentIndex).toBe(0)
-    expect(lastStatus()).toBe("Project loaded successfully")
+    expect(lastStatus()).toBeUndefined() // the hook announces "loaded" once the scan is done, not the DB layer
   })
 
   it("serializes concurrent writes so no update is lost", async () => {

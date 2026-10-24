@@ -256,6 +256,11 @@ export const EditorView = ({ fs }: EditorViewProps) => {
         )}
       </div>
 
+      {/* Always mounted so screen readers announce selection changes (the visible counts come and go). */}
+      <p role="status" className="sr-only">
+        {selectedCount > 0 ? t("editor.selectedCount", { count: selectedCount }) : ""}
+      </p>
+
       <StatusBar total={totalPhotos} unsorted={unsortedCount} selected={selectedCount} />
 
       {!isDesktop && (

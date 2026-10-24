@@ -31,6 +31,7 @@ import type {
 
 import { addStatus, clearStatus } from "@/shared/stores/status.store"
 import { t } from "@/shared/i18n"
+import { haptic } from "@/shared/lib/haptics"
 import { validateFolderName } from "../utils/folder-name.utils"
 import { applyAssign, moveFileHandle } from "../utils/file-ops.utils"
 import { validateShortcut } from "../utils/shortcut.utils"
@@ -64,12 +65,18 @@ export interface FileSystemHook {
   sortedPhotos: SortedMapping
   isLoading: boolean
   error: string | null
+  /** Dismisses the current error message. */
+  clearError: () => void
+  /** Keys of photos whose copy/move is in flight (for busy feedback). */
+  sortingKeys: ReadonlySet<string>
   moveMode: MoveMode
   operations: SortOperation[]
   rawPreviewUrls: Map<string, string>
   /** Small RAW previews for the filmstrip/grid thumbnails. */
   rawThumbUrls: Map<string, string>
   isDecodingRaw: boolean
+  /** RAW photos whose preview could not be decoded (offered a retry). */
+  rawFailedKeys: ReadonlySet<string>
   metadataByKey: Map<string, PhotoMetadata>
   canUndo: boolean
   /** Keys of the currently multi-selected photos. */
@@ -93,6 +100,8 @@ export interface FileSystemHook {
   goToIndex: (index: number) => void
   jumpToNextUnsorted: () => void
   recreatePreviewUrl: (photoKey: string) => void
+  /** Retries a RAW preview decode that failed. */
+  retryRawDecode: (photoKey: string) => void
   setMoveMode: (mode: MoveMode) => void
   toggleSelect: (photoIndex: number) => void
   selectRangeTo: (photoIndex: number) => void
@@ -126,6 +135,8 @@ export const useFileSystem = (): FileSystemHook => {
   const rawDecodeQueueRef = useRef<Set<string>>(new Set())
   const rawPreviewKeysRef = useRef<Set<string>>(new Set())
   const failedRawDecodesRef = useRef<Set<string>>(new Set())
+  const [rawRetryTick, setRawRetryTick] = useState(0)
+  const [rawFailedKeys, setRawFailedKeys] = useState<ReadonlySet<string>>(new Set())
 
   // RAW thumbnails (filmstrip/grid) — small, decoded in the background.
   const [rawThumbUrls, setRawThumbUrls] = useState<Map<string, string>>(new Map())
@@ -148,6 +159,8 @@ export const useFileSystem = (): FileSystemHook => {
   const folderDirHandlesRef = useRef<Map<string, FileSystemDirectoryHandle>>(new Map())
   /** Keys of photos whose copy/move is in flight. */
   const sortingKeysRef = useRef(new Set<string>())
+  const [sortingKeys, setSortingKeys] = useState<ReadonlySet<string>>(new Set())
+  const undoingRef = useRef(false)
   // Anchor index for shift-click range selection.
   const selectionAnchorRef = useRef<number | null>(null)
 
@@ -212,6 +225,7 @@ export const useFileSystem = (): FileSystemHook => {
         revokeAllUrls()
         rawDecodeQueueRef.current.clear()
         failedRawDecodesRef.current.clear()
+        setRawFailedKeys(new Set())
         metaQueueRef.current.clear()
         rawDimsDoneRef.current.clear()
         setUndoStack([])
@@ -231,11 +245,19 @@ export const useFileSystem = (): FileSystemHook => {
 
         const imageFiles: PhotoFile[] = []
         let index = 0
+        let unreadable = 0
 
         // Scan directory for images (top level only).
         for await (const entry of dirHandle.values()) {
           if (entry.kind === "file" && isSupportedImage(entry.name)) {
-            const file = await entry.getFile()
+            let file: File
+            try {
+              file = await entry.getFile()
+            } catch {
+              // One unreadable file (locked, removed mid-scan) must not abort the whole open.
+              unreadable++
+              continue
+            }
             const formatInfo = getFileFormatInfo(entry.name)!
             const canPreview = isPreviewable(entry.name)
             const key = entry.name
@@ -307,7 +329,7 @@ export const useFileSystem = (): FileSystemHook => {
 
         setPhotos(imageFiles)
         setMetadataByKey(nextMetaMap)
-        void saveRecentProject(dirHandle, imageFiles.length)
+        if (imageFiles.length > 0) void saveRecentProject(dirHandle, imageFiles.length)
 
         // Persist the freshly-extracted metadata so future opens are instant.
         // Fire-and-forget: the write is queued and its errors are handled inside.
@@ -346,11 +368,20 @@ export const useFileSystem = (): FileSystemHook => {
 
         setIsLoading(false)
 
-        addStatus({
-          type: "success",
-          message: t("toast.projectLoaded"),
-          icon: "file"
-        })
+        if (imageFiles.length === 0) {
+          // Nothing to sort: say why instead of announcing success and silently
+          // returning to the start screen.
+          setError(t("toast.noSupportedPhotos", { name: dirHandle.name }))
+        } else {
+          addStatus({
+            type: "success",
+            message: t("toast.projectLoaded"),
+            icon: "file"
+          })
+          if (unreadable > 0) {
+            addStatus({ type: "error", message: t("toast.filesUnreadable", { count: unreadable }), icon: "file" })
+          }
+        }
       } catch (err) {
         if (err instanceof Error && err.name !== "AbortError") {
           setError(err.message)
@@ -371,14 +402,7 @@ export const useFileSystem = (): FileSystemHook => {
   const loadDirectory = useCallback(
     () =>
       openProject(async () => {
-        if (!("showDirectoryPicker" in window)) {
-          addStatus({
-            type: "error",
-            message: t("toast.browserUnsupported"),
-            icon: "folder"
-          })
-          throw new Error("Browser tidak mendukung File System Access API. Gunakan Chrome/Edge/Opera terbaru.")
-        }
+        if (!("showDirectoryPicker" in window)) throw new Error(t("toast.browserUnsupported"))
         return window.showDirectoryPicker()
       }),
     [openProject]
@@ -411,6 +435,7 @@ export const useFileSystem = (): FileSystemHook => {
     revokeAllUrls()
     rawDecodeQueueRef.current.clear()
     failedRawDecodesRef.current.clear()
+    setRawFailedKeys(new Set())
     metaQueueRef.current.clear()
     rawDimsDoneRef.current.clear()
     metadataCacheRef.current = {}
@@ -497,10 +522,12 @@ export const useFileSystem = (): FileSystemHook => {
           failedRawDecodesRef.current.delete(currentPhoto.key)
         } else {
           failedRawDecodesRef.current.add(currentPhoto.key)
+          setRawFailedKeys(new Set(failedRawDecodesRef.current))
         }
       } catch (err) {
         console.error("[Hook] RAW decode failed:", err)
         failedRawDecodesRef.current.add(currentPhoto.key)
+        setRawFailedKeys(new Set(failedRawDecodesRef.current))
       } finally {
         rawDecodeQueueRef.current.delete(currentPhoto.key)
         setIsDecodingRaw(false)
@@ -508,7 +535,7 @@ export const useFileSystem = (): FileSystemHook => {
     }
 
     decodeCurrentRaw()
-  }, [currentIndex, photos])
+  }, [currentIndex, photos, rawRetryTick])
 
   // === RAW THUMBNAILS: decode small embedded previews for ALL RAW photos in the
   // background (concurrency-capped) so the filmstrip/grid show them. Worker-free
@@ -628,7 +655,8 @@ export const useFileSystem = (): FileSystemHook => {
         try {
           await rootHandle.removeEntry(folder.name, { recursive: true })
         } catch (err) {
-          console.warn("[Hook] removeEntry failed:", err)
+          // Already gone is fine; anything else must not be reported as a deletion.
+          if (!(err instanceof DOMException && err.name === "NotFoundError")) throw err
         }
 
         folderDirHandlesRef.current.delete(folderId)
@@ -721,6 +749,7 @@ export const useFileSystem = (): FileSystemHook => {
       const indices = requested.filter(i => photos[i] && !sortingKeysRef.current.has(photos[i].key))
       if (!rootHandle || indices.length === 0) return
       for (const i of indices) sortingKeysRef.current.add(photos[i].key)
+      setSortingKeys(new Set(sortingKeysRef.current))
 
       const isBatch = indices.length > 1
       addStatus({
@@ -785,7 +814,8 @@ export const useFileSystem = (): FileSystemHook => {
         }
 
         let newIndex = currentIndex
-        if (opts.advance) {
+        // Stay on a photo that failed so the user sees it and can retry, rather than skipping past it.
+        if (opts.advance && failCount === 0) {
           newIndex = Math.min(indices[indices.length - 1] + 1, photos.length - 1)
           setCurrentIndex(newIndex)
         }
@@ -798,6 +828,7 @@ export const useFileSystem = (): FileSystemHook => {
           totalPhotos: photos.length
         })
 
+        haptic(okCount > 0 ? "success" : "error")
         addStatus({
           type: okCount > 0 ? "success" : "error",
           message: isBatch
@@ -808,8 +839,12 @@ export const useFileSystem = (): FileSystemHook => {
               : t("toast.singleFail"),
           icon: "file"
         })
+      } catch (err) {
+        console.warn("[Hook] assign failed:", err)
+        addStatus({ type: "error", message: t("toast.singleFail"), icon: "file" })
       } finally {
         for (const i of indices) sortingKeysRef.current.delete(photos[i].key)
+        setSortingKeys(new Set(sortingKeysRef.current))
         clearStatus()
       }
     },
@@ -858,7 +893,9 @@ export const useFileSystem = (): FileSystemHook => {
   const undoLastOperation = useCallback(async () => {
     const entry = undoStack[undoStack.length - 1]
     const rootHandle = rootDirHandleRef.current
-    if (!entry || !rootHandle) return
+    // A second Ctrl+Z while one is in flight would undo the same entry twice.
+    if (!entry || !rootHandle || undoingRef.current) return
+    undoingRef.current = true
 
     addStatus({ type: "loading", message: t("toast.undoing"), icon: "file" })
 
@@ -920,7 +957,11 @@ export const useFileSystem = (): FileSystemHook => {
             : t("toast.undoSingle", { name: entry.items[0]?.photoName ?? "" }),
         icon: "file"
       })
+    } catch (err) {
+      console.warn("[Hook] undo failed:", err)
+      addStatus({ type: "error", message: t("toast.undoFailed"), icon: "file" })
     } finally {
+      undoingRef.current = false
       clearStatus()
     }
   }, [undoStack, folders, photos.length])
@@ -1023,6 +1064,14 @@ export const useFileSystem = (): FileSystemHook => {
     )
   }, [])
 
+  const retryRawDecode = useCallback((photoKey: string) => {
+    failedRawDecodesRef.current.delete(photoKey)
+    setRawFailedKeys(new Set(failedRawDecodesRef.current))
+    setRawRetryTick(n => n + 1)
+  }, [])
+
+  const clearError = useCallback(() => setError(null), [])
+
   const setMoveMode = useCallback(async (mode: MoveMode) => {
     setMoveModeState(mode)
     const rootHandle = rootDirHandleRef.current
@@ -1066,11 +1115,14 @@ export const useFileSystem = (): FileSystemHook => {
     sortedPhotos,
     isLoading,
     error,
+    clearError,
+    sortingKeys,
     moveMode,
     operations,
     rawPreviewUrls,
     rawThumbUrls,
     isDecodingRaw,
+    rawFailedKeys,
     metadataByKey,
     canUndo: undoStack.length > 0,
     selectedKeys,
@@ -1087,6 +1139,7 @@ export const useFileSystem = (): FileSystemHook => {
     goToIndex,
     jumpToNextUnsorted,
     recreatePreviewUrl,
+    retryRawDecode,
     setMoveMode,
     toggleSelect,
     selectRangeTo,
