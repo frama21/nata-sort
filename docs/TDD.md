@@ -82,7 +82,7 @@ flowchart LR
 | Language | TypeScript | `~6.0.2` | Types, `tsc -b` project build |
 | Bundler / dev server | Vite (rolldown) | `^8.1.4` | Build + HMR |
 | Styling | Tailwind CSS | `^4.2.4` | Utility CSS, OKLCH tokens |
-| Styling helpers | `tw-animate-css`, `tailwind-merge`, `clsx`, `class-variance-authority` | `^1.4.0` / `^3.5.0` / `^2.1.1` / `^0.7.1` | Animations, class merging, variants |
+| Styling helpers | `tailwind-merge`, `clsx`, `class-variance-authority` | `^3.5.0` / `^2.1.1` / `^0.7.1` | Class merging, variants |
 | UI primitives | in-house (`src/shared/components/ui`) | — | Native `<dialog>`, ARIA tabs, CSS tooltip; no Radix |
 | i18n | `i18next`, `react-i18next`, `i18next-browser-languagedetector` | `^26.3.6` / `^17.0.10` / `^8.2.1` | English + Indonesian UI |
 | Icons | `lucide-react` | `^1.14.0` | Icon set |
@@ -842,7 +842,7 @@ There is no server-side request/response logging of user content because the ser
 ## 17. Related documents
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system structure, component composition, data flow at a higher altitude.
-- [DESIGN.md](DESIGN.md) — UI/UX, design tokens (OKLCH), layout, accessibility, PWA presentation.
+- [DESIGN.md](DESIGN.md) — UI/UX, design tokens, layout, accessibility, PWA presentation.
 - [SECURITY.md](SECURITY.md) — threat model, CSP rationale, dependency-audit findings and fixes, hardening controls.
 
 ### Source map (quick links)

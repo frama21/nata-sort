@@ -49,7 +49,7 @@
 | Judul aplikasi/PWA  | "NATA — Sortir Foto & Video Lokal"                                                                            |
 | Nama paket          | `nata-sort` (juga nama image/container Docker)                                                                |
 | Nama folder/remote  | `nata-photo` (lokal) dan `frama21/photo-sorter` (URL GitHub yang masih dipakai di `security.txt`)             |
-| Bahasa antarmuka    | **Hanya Bahasa Indonesia** (string inline; `lang="id"`). Tidak ada pengalih bahasa.                           |
+| Bahasa antarmuka    | **Inggris dan Indonesia** (i18next, `en.json`/`id.json`); default Inggris, pilihan disimpan; `<html lang>` mengikuti bahasa |
 | Bahasa kode/dokumen | Inggris (kode, komentar, README, CHANGELOG)                                                                   |
 | Browser             | **Chromium saja**: Chrome, Edge, Opera (butuh File System Access API dan secure context)                      |
 | Platform            | Web/PWA (dapat dipasang, bisa offline). Desktop target utama; mobile didukung bila browser punya API tersebut |
@@ -203,15 +203,16 @@
 | F17 | Log operasi dan statistik                          | Shipped      | Tampil 3 terakhir; simpan 50                                         |
 | F18 | Persistensi DB dan resume                          | Shipped      | `nata-photo-db.json`                                                  |
 | F19 | PWA / offline                                      | Shipped      | App shell + WASM di-precache                                         |
-| F20 | Tema terang/gelap                                  | Shipped      | Toggle 2 arah (lihat 6.14)                                           |
+| F20 | Tema terang/gelap ("Calm Light", aksen teal)       | Shipped      | Toggle 2 arah; default gelap (lihat 6.14 dan Bagian 14)              |
 | F21 | Halaman Bantuan (`/help`)                          | Shipped      | 5 kartu statis                                                       |
 | F22 | Dialog pintasan keyboard (`?`)                     | Shipped      |                                                                      |
-| F23 | Mobile (bar aksi bawah, swipe, pinch)              | Shipped      |                                                                      |
+| F23 | Mobile (bar aksi bawah, sheet panel, swipe, pinch) | Shipped      | Di bawah 1024 px panel folder/info jadi sheet                        |
 | F24 | Redo                                               | **Not built**| Backlog (FR-C1)                                                      |
 | F25 | Rename / template nama                             | **Not built**| Nama asli dipertahankan                                              |
 | F26 | Scan rekursif                                      | **Not built**| Non-goal N3 / Could                                                  |
 | F27 | Ekspor laporan sortir                              | **Not built**| Backlog (FR-C7)                                                      |
-| F28 | Pengalih bahasa EN/ID                              | **Not built**| UI hanya Indonesia                                                   |
+| F28 | Pengalih bahasa EN/ID                              | Shipped      | `LanguageToggle` di top bar; default Inggris                         |
+| F30 | Notifikasi toast + status bar                      | Shipped      | Toast kanan-bawah; status bar 28 px di desktop (lihat 14.3)          |
 | F29 | Pintasan untuk folder ke-10 dan seterusnya         | **Not built**| Hanya 9 folder pertama berpintasan                                   |
 
 ### 6.2 Buka folder dan scan (F1)
@@ -222,7 +223,7 @@
 - Browser tanpa API: toast "Browser tidak mendukung File System Access API" dan pesan untuk memakai Chrome/Edge/Opera terbaru.
 - Membatalkan picker (`AbortError`) tidak dianggap error; kembali diam ke state awal.
 - Membuka folder baru: blob URL dicabut; antrean RAW, set gagal-decode, antrean metadata, tumpukan undo, seleksi, error, dan operasi direset.
-- **Penjaga keluar halaman:** bila ada foto termuat dan pengguna berpindah rute, `window.confirm` memberi tahu bahwa folder akan ditutup (progres sudah tersimpan). Handle folder hanya ada di memori.
+- **Penjaga keluar halaman:** bila ada foto termuat dan pengguna berpindah rute, dialog in-app ("Tinggalkan halaman ini?", tombol Tetap di sini / Tinggalkan; sebelumnya `window.confirm`) memberi tahu bahwa folder akan ditutup (progres sudah tersimpan). Handle folder hanya ada di memori.
 - Tidak ada batas ukuran file atau jumlah item saat scan. Grid dipaginasi hanya demi performa.
 
 ### 6.3 Urutan kronologis (F2)
@@ -313,8 +314,8 @@ Mode disimpan di DB dan dipilih lewat tab di `FolderManager`.
 ### 6.12 Filmstrip dan grid (F15)
 
 - **Single view:** `ContentViewer` + `Filmstrip` (ScrollArea horizontal, otomatis memusatkan foto saat ini).
-- **Grid:** `PAGE_SIZE = 60`, ditambah via IntersectionObserver (`rootMargin` 300 px). Kolom: 3 (default), 4 (sm), 5 (md), 6 (lg), 8 (xl). Tinggi tetap 72 dvh. Klik thumbnail membuka single view.
-- Thumbnail: lencana warna folder bila tersortir, ring biru bila terpilih, ring primer bila saat ini; placeholder ikon + label format untuk video / non-previewable.
+- **Grid:** `PAGE_SIZE = 60`, ditambah via IntersectionObserver (`rootMargin` 300 px). Kolom: 3 (default), 4 (sm), 5 (md), 6 (lg), 8 (xl). Tinggi tetap 72 dvh di bawah `lg`; di desktop mengisi kanvas. Klik thumbnail membuka single view.
+- Thumbnail: lencana warna folder bila tersortir, ring aksen 2 px bila saat ini atau terpilih (kotak centang di pojok membedakan; ring fokus dua-tona terpisah); placeholder ikon + label format untuk video / non-previewable.
 
 ### 6.13 Zoom, pan, loupe (F16)
 
@@ -331,13 +332,15 @@ Mode disimpan di DB dan dipilih lewat tab di `FolderManager`.
 
 ### 6.14 Log operasi, statistik, tema, bantuan, PWA
 
-- **Log operasi:** UI menampilkan 3 operasi terakhir (hijau sukses / merah gagal); DB menyimpan hingga 50 (ring buffer). Tiap catatan: `photoName, folderId, folderName, mode, success, error?, timestamp`. Kartu disembunyikan bila kosong.
+- **Log operasi:** UI menampilkan 3 operasi terakhir (ikon centang hijau / silang merah); DB menyimpan hingga 50 (ring buffer). Tiap catatan: `photoName, folderId, folderName, mode, success, error?, timestamp`. Kartu disembunyikan bila kosong.
 - **Statistik:** total, tersortir, belum, operasi sukses/gagal. `ProgressBar` menampilkan "Foto n/total".
-- **Tema:** `dark | light | system`, **default dark**; disimpan di `localStorage["nata-sort-theme"]`; kelas `light`/`dark` pada `<html>`. `ThemeToggle` hanya membalik terang/gelap sehingga "system" tak bisa dipilih lagi dari UI setelah toggle; `system` dibaca sekali dan tidak mengikuti perubahan OS secara langsung.
+- **Tema:** `dark | light | system`, **default dark**; disimpan di `localStorage["nata-sort-theme"]`; kelas `dark` pada `<html>`, dipasang sebelum cat pertama oleh `public/theme-init.js` (berkas same-origin, CSP tidak dilonggarkan; nilai tersimpan divalidasi, jatuh ke default gelap). `ThemeToggle` hanya membalik terang/gelap sehingga "system" tak bisa dipilih lagi dari UI setelah toggle; `system` dibaca sekali dan tidak mengikuti perubahan OS secara langsung.
 - **Halaman Bantuan (`/help`):** 5 kartu: Privasi, Persyaratan browser, Penyimpanan progres, Keamanan file, Pintasan keyboard.
-- **Dialog pintasan:** tombol `?` di toolbar membuka `ShortcutsDialog` (daftar hard-coded; tidak memuat `Esc`).
-- **PWA:** `autoUpdate`; manifest standalone, tema `#0a0f1a`, ikon 192/512; Workbox precache `js, css, html, wasm, svg, png, ico, woff2` dengan batas 4 MB per file (agar WASM libraw ≈ 1,3 MB masuk); `navigateFallback: /index.html`; service worker didaftarkan manual di `main.tsx` (tanpa skrip inline, menjaga CSP). PWA nonaktif saat dev.
-- **Mobile:** `MobileActionBar` (di bawah `md`, hanya single view tanpa seleksi) berisi prev/next dan tombol per folder.
+- **Toast:** `StatusIndicator` (kanan-bawah desktop, tengah-atas di phone); dua live region (polite, dan assertive untuk error); tidak mengambil fokus; jeda saat hover/fokus; sukses hilang dalam 3 detik, **error bertahan sampai ditutup**, loading sampai dibersihkan; toast kembar hanya tampil sekali; tombol tutup.
+- **Status bar (desktop ≥ 1024 px):** titik + kata "Tersimpan / Menyimpan… / Gagal menyimpan" (dari status berikon `db`), jumlah foto, sisa belum disortir, jumlah terpilih.
+- **Dialog pintasan:** tombol `?` di top bar membuka `ShortcutsDialog` (daftar hard-coded; tidak memuat `Esc`).
+- **PWA:** `autoUpdate`; manifest standalone, `theme_color`/`background_color` `#1C1C1C`, ikon 192/512 + maskable 512 (ubin ink `#111111` dengan mark NATA); Workbox precache `js, css, html, wasm, svg, png, ico, woff2` dengan batas 4 MB per file (agar WASM libraw ≈ 1,3 MB masuk); `navigateFallback: /index.html`; service worker didaftarkan manual di `main.tsx` (tanpa skrip inline, menjaga CSP). PWA nonaktif saat dev.
+- **Mobile / tablet:** `MobileActionBar` (di bawah `lg`, 72 px, datar, hanya single view tanpa seleksi) berisi prev/next dan tombol per folder; panel folder dan info dibuka lewat tombol "Folder"/"Info" ke sheet (`Dialog side="left"|"bottom"`).
 
 ### 6.15 Persistensi dan resume (F18)
 
@@ -378,7 +381,7 @@ Grid → centang / Shift+klik / "Pilih belum disortir" / `Ctrl+A` → tekan angk
 | Decode RAW gagal                         | Dicatat, tidak diulang; tampil "Preview tidak tersedia"                                          |
 | Sortir gagal                             | Operasi gagal tercatat, error tampil, tidak maju                                                 |
 | Sortir ulang foto tersortir              | Pemetaan ditimpa; salinan lama tetap di disk                                                     |
-| Pindah rute saat ada foto                | `confirm` penjaga keluar halaman                                                                 |
+| Pindah rute saat ada foto                | Dialog in-app penjaga keluar halaman (Tetap di sini / Tinggalkan)                                |
 | Chunk halaman gagal dimuat               | Dilempar ke `RouteErrorBoundary` ("Halaman ini mengalami kesalahan")                             |
 | Error render fatal                       | `GlobalErrorBoundary` ("Terjadi kesalahan", "Coba lagi", "Muat ulang")                           |
 | Tulis DB gagal                           | Toast "Gagal menyimpan data" / "Gagal update folder" / "Gagal update mode" (tulis metadata gagal diam-diam) |
@@ -477,7 +480,7 @@ Catatan:
 | `LOUPE_SIZE` / `LOUPE_ZOOM`         | 176 px / 2,5×   |                                                     | `ContentViewer.tsx`                                 |
 | `MIN_SCALE` / `MAX_SCALE`           | 1 / 5           |                                                     | `sorter/hooks/useZoomPan.ts`                        |
 | `SWIPE_THRESHOLD`                   | 50 px           |                                                     | `useZoomPan.ts`                                     |
-| Toast tersimpan / kedaluwarsa       | 3 / 3 detik     | Sukses dan error; loading menetap                   | `shared/stores/status.store.ts`                     |
+| Toast tersimpan / kedaluwarsa       | 3 / 3 detik     | Hanya sukses; error menetap sampai ditutup; loading menetap | `status.store.ts`, `StatusIndicator.tsx`    |
 | Batas file precache PWA             | 4 MB            |                                                     | `vite.config.ts`                                    |
 | Port server / healthcheck           | 8080 / `/healthz`|                                                    | `server/index.js`, `Dockerfile`                     |
 
@@ -490,14 +493,15 @@ Catatan:
 ```
 src/
   app/        composition root: App.tsx, main.tsx, config/app.config.ts, errors/GlobalErrorBoundary,
-              layouts/{MainLayout,Navbar,ThemeToggle}, providers/{AppProviders,ThemeProvider},
-              routes/{routes.tsx,feature-routes.ts,route-discovery.ts,route-fallbacks.tsx}, styles/globals.css
+              layouts/{MainLayout,Navbar,ThemeToggle,LanguageToggle}, providers/{AppProviders,ThemeProvider},
+              routes/{routes.tsx,feature-routes.ts,route-discovery.ts,route-fallbacks.tsx},
+              styles/{globals.css,tokens.css}
   features/
-    sorter/   rute "/"      (nav "Sortir", order 0)  — controller, service DB, util file, 12 komponen UI
+    sorter/   rute "/"      (nav "Sortir", order 0)  — controller, service DB, util file, komponen UI (termasuk `StatusBar`)
     media/    tanpa UI/rute — registry format, metadata, dekoder RAW; API publik di index.ts
     help/     rute "/help"  (judul "Bantuan", order 10)
-  shared/     components/ui (primitif in-house), components/feedback/StatusIndicator,
-              lib/utils.ts (cn), stores/status.store.ts, types/route.types.ts
+  shared/     components/ui (primitif in-house), components/brand/NataMark, components/feedback/StatusIndicator (toast),
+              i18n/ (en.json, id.json), lib/{utils.ts (cn), useMediaQuery.ts}, stores/status.store.ts, types/route.types.ts
   test/       setup.ts, global-mocks (mock File System Access)
   types/      vite-env.d.ts
 ```
@@ -511,8 +515,8 @@ src/
 | Rumah state                    | Isi                                                                                                              |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | Hook `useFileSystem` (±960 baris) | `photos`, `currentIndex`, `folders`, `sortedPhotos`, `moveMode`, `operations`, `undoStack`, `rawPreviewUrls`, `metadataByKey`, status loading/error; ref untuk handle folder dan antrean. **Handle tak pernah masuk state ter-persist.** |
-| Zustand `status.store`         | Toast navbar: `{id, type idle/loading/success/error, message, icon db/folder/file/save}`; maks 3                 |
-| `ThemeProvider` + localStorage | Tema                                                                                                             |
+| Zustand `status.store`         | Toast: `{id, type idle/loading/success/error, message, icon db/folder/file/save}`; maks 3; `dismissStatus(id)`; duplikat (tipe + pesan sama) menggantikan yang lama |
+| `ThemeProvider` + localStorage | Tema (nilai tersimpan divalidasi; default gelap)                                                                 |
 | `nata-photo-db.json`            | State durable per folder                                                                                         |
 
 ### 11.3 Alur data
@@ -545,6 +549,7 @@ showDirectoryPicker
 | `media/services/metadata.service.ts`          | ExifReader untuk gambar, mediainfo.js untuk video, `parseCaptureDate`, helper format      |
 | `media/services/raw-decoder.service.ts`       | `decodeRawImage`, `decodeRawThumbnail`, `patchLibRawWorker`                               |
 | `shared/stores/status.store.ts`               | Toast; helper biasa untuk kode non-React                                                  |
+| `shared/lib/useMediaQuery.ts`                 | Hook media query; panel desktop/sheet dirender di satu tempat saja                        |
 
 ### 11.5 Skema database `nata-photo-db.json`
 
@@ -699,50 +704,57 @@ curl -i http://localhost:8080/assets/x.js           # → 404
 
 ### 14.1 Prinsip UI
 
-Utilitarian, mengutamakan konten, keyboard-first, kanvas netral dengan warna sebagai sinyal, gerak minimal, **gelap secara default**. Tanpa font web kustom (stack sans platform) sehingga `font-src 'self' data:` cukup. Ikon hanya `lucide-react` (`size-4`).
+Tema **"Calm Light"** (nuansa keluarga RONA; aksen dan mark milik NATA). Konten adalah antarmuka: chrome tenang, abu **netral murni** (R=G=B), garis 1 px, panel datar (tanpa gradient, glow, glass, atau blur), satu aksen dipakai hemat (aksi utama, seleksi, progres; hover selalu abu), angka tabular, tidak ada teks di bawah 12 px, gerak singkat dan tenang, **gelap secara default**. Font **Inter Variable** self-hosted (`@fontsource-variable/inter`, di-bundle same-origin) sehingga `font-src 'self' data:` tetap cukup. Ikon hanya `lucide-react`. Spesifikasi lengkap: `docs/UI-Design.md` (brief asal: `redesign.md`).
 
-### 14.2 Token tema (OKLCH, `src/app/styles/globals.css`)
+### 14.2 Token tema (`src/app/styles/tokens.css`)
 
-| Token                  | Terang                      | Gelap                       |
-| ---------------------- | --------------------------- | --------------------------- |
-| background             | `oklch(1 0 0)`              | `oklch(0.145 0 0)`          |
-| foreground             | `oklch(0.145 0 0)`          | `oklch(0.985 0 0)`          |
-| card / popover         | `oklch(1 0 0)`              | `oklch(0.205 0 0)`          |
-| primary                | `oklch(0.205 0 0)`          | `oklch(0.922 0 0)`          |
-| secondary / muted / accent | `oklch(0.97 0 0)`       | `oklch(0.269 0 0)`          |
-| muted-foreground       | `oklch(0.556 0 0)`          | `oklch(0.708 0 0)`          |
-| destructive            | `oklch(0.577 0.245 27.325)` | `oklch(0.704 0.191 22.216)` |
-| border / input         | `oklch(0.922 0 0)`          | `oklch(0.269 0 0)`          |
-| ring                   | `oklch(0.708 0 0)`          | `oklch(0.556 0 0)`          |
+Komponen hanya memakai token (tanpa literal warna); `pnpm check:contrast` menghitung ulang pasangan kontras WCAG 2.2 dan gagal bila ada literal hex/rgb/hsl/oklch di komponen. `globals.css` memetakan token ke Tailwind (`@theme inline`) dan menyimpan alias nama shadcn lama (`primary`→`--accent`, `card`→`--surface-2`, `muted`→`--surface-3`, dst.).
 
-Radius dasar `0.625rem` (10 px); skala sm ×0,6 · md ×0,8 · lg ×1 · xl ×1,4 · 2xl ×1,8 · 3xl ×2,2 · 4xl ×2,6. Warna manifest PWA `#0a0f1a` berbeda dari warna dalam aplikasi.
+| Token                     | Gelap                         | Terang                        | Pakai                                   |
+| ------------------------- | ----------------------------- | ----------------------------- | --------------------------------------- |
+| `--bg` / `--canvas`       | `#1C1C1C` / `#141414`         | `#F3F3F3` / `#E6E6E6`         | Latar app / kanvas konten               |
+| `--surface-1/2/3`         | `#232323` `#2C2C2C` `#363636` | `#FAFAFA` `#FFFFFF` `#EDEDED` | Panel · kartu/dialog · hover/sumur      |
+| `--border` / `--border-strong` | `#3B3B3B` / `#7A7A7A`    | `#DADADA` / `#8C8C8C`         | Garis tata letak / batas kontrol        |
+| `--fg` `--fg-muted` `--fg-subtle` | `#EDEDED` `#A8A8A8` `#939393` | `#1D1D1D` `#5A5A5A` `#6B6B6B` | Teks                              |
+| **`--accent`**            | **`#4FD1C5`** (teal)          | **`#0A6A6D`** (teal)          | Aksi utama, seleksi, progres            |
+| `--accent-fg`             | `#06201F`                     | `#FFFFFF`                     | Teks di atas aksen                      |
+| `--success` `--warning` `--danger` | `#4CC38A` `#E5B04A` `#FF7A72` | `#1B7A4B` `#8A5A00` `#C2302A` | Status (warna di ikon, bukan pesan) |
+| `--brand-accent`          | `#14B8A6`                     | `#14B8A6`                     | Hanya logo (bukan teks)                 |
+
+- **Aksen teal milik NATA**, bukan Ember RONA; hue ±180° jauh dari `--danger`. Rasio: aksen pada `surface-1` 8,43 (gelap) / 6,11 (terang); teks pada aksen 9,12 / 6,37.
+- **Bentuk:** radius 6 / 8 / 12 / 16 px; bayangan hanya popover/toast (`--shadow-e1`) dan dialog (`--shadow-e2`).
+- **Gerak:** `--dur-fast` 100 ms, `--dur-base` 160 ms, `--dur-slow` 240 ms, `--ease: cubic-bezier(.2,0,0,1)`; hanya `opacity`/`transform` beranimasi; tekan = skala 0,97. `prefers-reduced-motion` menolkan durasi dan menghentikan shimmer.
+- **Fokus:** ring dua-tona (`box-shadow` 2 px dalam + 4 px luar) pada `:focus-visible` di semua elemen.
+- **Tipe:** body 14/20, label 13–13,5, caption 12 (minimum), judul sambutan 28/34.
+- **Meta/PWA:** `theme-color` terang `#F3F3F3`, gelap `#1C1C1C`; manifest `#1C1C1C`.
 
 ### 14.3 Layout responsif
 
-| Lebar             | Layout                                                                                                         |
-| ----------------- | -------------------------------------------------------------------------------------------------------------- |
-| < 768 px          | Satu kolom; `MobileActionBar` tetap di bawah (blur, satu tombol berwarna per folder, dapat digulir); swipe 50 px |
-| ≥ 768 px (`md`)   | Satu kolom; chevron di sisi viewer; tanpa bar bawah                                                            |
-| ≥ 1024 px (`lg`)  | Grid 12 kolom: viewer `col-span-8`, sidebar lengket `col-span-4` (`top-24`) berisi `FolderManager`, `MetadataPanel`, `OperationLog`, `Stats` |
+| Lebar              | Layout                                                                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| < 1024 px          | Satu kolom; panel folder (sheet kiri 280 px) dan info (sheet bawah) dibuka lewat tombol "Folder"/"Info"; `MobileActionBar` 72 px datar di bawah (tombol berwarna per folder, dapat digulir); swipe 50 px |
+| ≥ 1024 px (`lg`)   | 3 panel + status bar 28 px: **folder 248 px** (`FolderManager`, `nav`), **kanvas** (toolbar Single/Grid, progres, viewer/grid, filmstrip), **detail 320 px** (`MetadataPanel`, `OperationLog`, `Stats`, `aside`); tiap panel scroll sendiri |
 
-Navbar lengket `z-50`, `backdrop-blur-xl`, `max-w-7xl`; berisi logo (`/icon.png`), versi, `StatusIndicator`, tombol `?`, `ThemeToggle`. Media dibatasi `max-h-[75vh]` dengan `object-contain`.
+- **Top bar** 48 px datar: mark + "NATA" (kata disembunyikan < 640 px), navigasi (bila rute > 1), lalu `?` (pintasan), `LanguageToggle`, `ThemeToggle`. **Skip link** paling awal; saat rute berganti, fokus pindah ke `main` (kecuali dialog terbuka) dan judul tab menjadi "<layar> — NATA".
+- Panel dirender di satu tempat saja (`useMediaQuery("(min-width: 1024px)")`), jadi id dan perekaman pintasan tidak ganda. Pemilih Single/Grid ada di toolbar kanvas (bukan top bar) karena state `viewMode` milik fitur sorter.
+- Media dibatasi `max-h-[75vh]` (di desktop mengisi kanvas) dengan `object-contain`. Target sentuh 44 px lewat varian `pointer-coarse:`.
 
 ### 14.4 State UI
 
-Kosong ("Mulai Sortir Foto" + "Pilih Folder Foto"), memuat ("Membaca…", "Memuat folder Project…"), gambar, video, mendekode RAW, preview tidak tersedia, semua tersortir (alert hijau), error (alert merah), error fatal (ErrorBoundary), 404 ("Halaman tidak ditemukan").
+Kosong (mark + "Mulai menata foto" + satu tombol "Pilih Folder Foto"; blok naik berurutan), memuat (tombol `loading`, toast "Membaca…"), gambar, video, mendekode RAW, preview tidak tersedia, semua tersortir (alert `success`), error (alert `destructive`), error fatal (ErrorBoundary), 404 ("Halaman tidak ditemukan").
 
 ### 14.5 Komponen UI in-house (`shared/components/ui`)
 
-alert, badge, button, card, dialog, empty, field, input, item, kbd, label, progress, scroll-area, separator, spinner, tabs. Tombol: varian default/outline/secondary/ghost/destructive/link; ukuran default (h-8)/xs/sm/lg (h-9)/icon/icon-xs/icon-sm/icon-lg. README menyatakan **tanpa dependensi Radix/shadcn**.
+alert (default/success/destructive), badge, button, card, dialog, empty, field, input, item, kbd, label, panel-header, progress, scroll-area, separator, spinner, tabs, tooltip. Tombol: varian default (satu aksi utama per layar)/secondary/ghost/outline/destructive/link; ukuran default (h-8, sentuh h-11)/xs/sm/lg/icon/icon-xs/icon-sm/icon-lg; prop `loading` (spinner, `aria-busy`, klik diabaikan). `Dialog` memakai `<dialog>` native dengan `side="center" | "left" | "bottom"` (dipakai juga sebagai sheet). Mark: `shared/components/brand/NataMark` (bingkai foto terbelah diagonal 60°). README menyatakan **tanpa dependensi Radix/shadcn**.
 
 ### 14.6 Aksesibilitas
 
-- Ada: `aria-label` pada tombol ikon dan folder, `sr-only` pada toggle tema, `alt` default nama file, ring fokus, `role="status"`/aria-live untuk toast, operasi penuh dengan keyboard.
-- **Celah:** viewport `maximum-scale=1, user-scalable=no` _(per UI-Design)_ membatasi zoom pengguna (perhatian WCAG 1.4.4/1.4.10); tidak ada guard `prefers-reduced-motion`; kontras tombol folder kuning/teal berteks putih paling lemah.
+- Ada: `aria-label` pada tombol ikon dan folder, `alt` default nama file, ring fokus dua-tona, dua live region toast, landmark (`banner`, `navigation`, `main`, `complementary`), skip link, target 44 px di sentuh, `prefers-reduced-motion`, viewport yang mengizinkan zoom, operasi penuh dengan keyboard.
+- **Celah:** kontras teks putih pada warna folder kuning/oranye lemah (kelas Tailwind tersimpan di DB skema `"2.0"`, jadi tidak diubah); switch "Reduce motion" di dalam app dan pemilih aksen belum dibangun; audit axe/Lighthouse belum dijalankan setelah redesign.
 
 ### 14.7 Bahasa
 
-Seluruh teks UI adalah Bahasa Indonesia, inline di komponen. Tanggal memakai locale `id-ID` dan tidak bisa diubah. Tidak ada kerangka i18n.
+Antarmuka dwibahasa (Inggris default, Indonesia) lewat i18next; semua string dari `en.json`/`id.json` (interpolasi `{nama}`). Salinan Indonesia memakai **"kamu"**. Tanggal metadata masih memakai locale `id-ID` dan tidak mengikuti bahasa UI.
 
 ---
 
@@ -759,6 +771,7 @@ Seluruh teks UI adalah Bahasa Indonesia, inline di komponen. Tanggal memakai loc
 | `format` / `format:check` | `prettier --write .` / `prettier --check .` |
 | `typecheck`          | `tsc -b`                                         |
 | `check:architecture` | `node scripts/check-architecture.mjs`            |
+| `check:contrast`     | `node scripts/check-contrast.mjs` (kontras WCAG + guard literal warna) |
 | `test`               | `vitest run`                                     |
 | `test:watch`         | `vitest`                                         |
 | `test:unit`          | `vitest run --project unit`                      |
@@ -791,7 +804,7 @@ Seluruh teks UI adalah Bahasa Indonesia, inline di komponen. Tanggal memakai loc
 
 ## 16. Tech stack dan dependensi
 
-Versi dari `package.json` aktual. Node `>=22.23.4`, pnpm `>=12.0.0` (lihat [Bagian 21](#21-ketidakkonsistenan-dokumen-vs-kode) tentang pnpm). Paket `nata-sort` v2.2.0, ESM, `private: true`.
+Versi dari `package.json` aktual. Node `>=22.23.4`, pnpm `>=12.0.0` (lihat [Bagian 21](#21-ketidakkonsistenan-dokumen-vs-kode) tentang pnpm). Paket `nata-sort` v2.3.0, ESM, `private: true`.
 
 **Runtime**
 
@@ -800,12 +813,13 @@ Versi dari `package.json` aktual. Node `>=22.23.4`, pnpm `>=12.0.0` (lihat [Bagi
 | react, react-dom                 | ^19.3.1  | UI                                      |
 | react-router                     | ^8.5.0   | Routing                                 |
 | zustand                          | ^5.0.16  | Store toast                             |
+| i18next, react-i18next, i18next-browser-languagedetector | ^26.3.6 / ^17.0.10 / ^8.2.1 | Dua bahasa (EN/ID) |
 | exifreader                       | ^4.51.0  | EXIF gambar                             |
 | libraw-wasm                      | ^1.6.0   | Dekode RAW (WASM ≈ 1,3 MB)              |
 | mediainfo.js                     | ^0.3.8   | Metadata video                          |
 | lucide-react                     | ^1.61.0  | Ikon                                    |
 | tailwind-merge, clsx, class-variance-authority | ^3.7.0 / ^2.1.1 / ^0.7.1 | Utilitas kelas |
-| tw-animate-css                   | ^1.4.0   | Animasi                                 |
+| @fontsource-variable/inter       | ^5.3.0   | Font Inter Variable (self-hosted)       |
 | embla-carousel-react             | ^8.6.0   | Carousel                                |
 | lodash.debounce                  | ^4.0.8   | Debounce                                |
 
@@ -869,7 +883,7 @@ Semua item wajib mempertahankan "tanpa upload, tanpa telemetri, local-first".
 
 1. Tambahkan konfirmasi sebelum menghapus folder tujuan, atau ubah menjadi "lepas dari daftar" tanpa menghapus isi disk.
 2. Cadangkan DB lama sebelum di-reset karena korup/versi beda.
-3. Batalkan `user-scalable=no` pada viewport; tambahkan guard `prefers-reduced-motion`.
+3. Tambahkan switch "Reduce motion" di dalam app dan pemilih aksen (butuh dialog Pengaturan); jalankan axe/Lighthouse pada Welcome dan Editor.
 4. Biarkan `ThemeToggle` menyediakan opsi "sistem" dan mengikuti perubahan OS.
 5. Pertimbangkan membatasi pembacaan file RAW (saat ini seluruh file dibaca ke memori).
 6. Selaraskan dokumen `docs/*` dan aturan i18n di CLAUDE.md dengan kode ([Bagian 21](#21-ketidakkonsistenan-dokumen-vs-kode)).
@@ -886,7 +900,7 @@ Semua item wajib mempertahankan "tanpa upload, tanpa telemetri, local-first".
 | 2.0.1          | 2026-06-14             | Penguatan RAW: perbaikan hang worker libraw ("n is not a function"), potongan ARW terpotong, tambal worker, timeout 20 s + terminate, fallback `thumbnailData()`, preview JPEG ter-bounded, libraw-wasm ^1.4.0 |
 | **2.1.0**      | 2026-07-14             | Keamanan (audit bersih, ExifReader ^4.41.0, pengerasan jalur load DB, nama folder lebih ketat, `security.txt`, `firebase.json`), deployment (nginx dihapus → Express + helmet di `node:22-alpine`, compose dikeraskan), kualitas kode (enam prinsip, `mutateDatabase()`, `megapixelsFrom()`, Prettier), fitur (filmstrip/grid, zoom+loupe, multi-select + batch sort, dialog pintasan `?`, set `docs/` lengkap) |
 | 2.2.0          | 2026-07-15             | Grid lazy-render dengan append-on-scroll + loader; pintasan grid `Ctrl/Cmd+A`, `Shift+klik`, `Esc`; filmstrip dan grid di dalam `ScrollArea`                  |
-| _Unreleased_   | —                      | Rename ke **NATA / `nata-sort`** (paket, server, Docker, tag log; kunci tema → `nata-sort-theme`). File state tetap `nata-photo-db.json` (`nata-sort-db.json` dan `photo-sorter-db.json` lama dibaca otomatis). Arsitektur berbasis fitur + route discovery menggantikan FSD, primitive UI in-house tanpa Radix, i18n untuk Help/route, perbaikan layout mobile, suite tes |
+| _Unreleased_   | —                      | **Redesign "Calm Light"**: token netral + aksen teal NATA, Inter Variable, shell 3 panel + status bar, toast, sheet di mobile, mark/ikon baru, `check:contrast`, dialog keluar halaman in-app, `tw-animate-css` dihapus. Rename ke **NATA / `nata-sort`** (paket, server, Docker, tag log; kunci tema → `nata-sort-theme`). File state tetap `nata-photo-db.json` (`nata-sort-db.json` dan `photo-sorter-db.json` lama dibaca otomatis). Arsitektur berbasis fitur + route discovery menggantikan FSD, primitive UI in-house tanpa Radix, i18n untuk Help/route, perbaikan layout mobile, suite tes |
 
 Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 
@@ -910,12 +924,13 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | R12 | Pintasan sortir/navigasi tidak aktif di grid view                                                                                                       | Bisa membingungkan; tidak didokumentasikan di README                                     | Rendah    |
 | R13 | Nomor pintasan tak diatur ulang setelah folder dihapus; folder ke-10+ tanpa pintasan                                                                    | Celah penomoran                                                                          | Rendah    |
 | R14 | `style-src 'unsafe-inline'`                                                                                                                             | Risiko diterima (Tailwind/gaya runtime)                                                  | Diterima  |
-| R15 | Viewport mematikan zoom pengguna; tidak ada `prefers-reduced-motion`                                                                                    | Celah aksesibilitas                                                                      | Sedang    |
+| R15 | Belum ada switch "Reduce motion" di dalam app (hanya `prefers-reduced-motion` OS); audit axe/Lighthouse belum dijalankan setelah redesign                | Celah aksesibilitas kecil                                                                | Rendah    |
 | R16 | `ThemeToggle` tak bisa kembali ke "system"; "system" tak mengikuti perubahan OS                                                                         | UX kecil                                                                                 | Rendah    |
-| R17 | Tanggal metadata selalu `id-ID`; komentar kode menyarankan `en-US` untuk Inggris                                                                        | Tak berubah mengikuti bahasa (memang tak ada pilihan bahasa)                             | Rendah    |
+| R17 | Tanggal metadata selalu `id-ID`, padahal UI kini dwibahasa                                                                                              | Tak berubah mengikuti bahasa UI                                                          | Rendah    |
 | R18 | `security.txt` kedaluwarsa 2027-01-01                                                                                                                   | Perlu diperbarui berkala                                                                 | Rendah    |
 | R19 | Folder DB tidak menyimpan handle; setelah reload pengguna harus membuka folder lagi                                                                     | Perilaku normal API; penjaga keluar halaman membantu                                     | Info      |
 | R20 | Kegagalan tulis metadata ke DB diam-diam                                                                                                                | Cache bisa tak tersimpan tanpa peringatan                                                | Rendah    |
+| R21 | Teks putih di atas warna folder kuning/oranye (kontras ≈ 2:1); kelas Tailwind tersimpan di DB skema `"2.0"`                                              | Kontras lemah; perlu peta kelas→token tanpa mengubah skema                               | Rendah    |
 
 ---
 
@@ -927,7 +942,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | 2   | Routing                    | "Tanpa router, single view"; `main.tsx` menormalkan path ke `/`                                                               | react-router 8, route discovery, `/help`, halaman 404                                                              | Hapus klaim "no router" dari PRD/SPEC/PRINCIPLES/ARCHITECTURE           |
 | 3   | Struktur sumber            | Path datar: `src/hooks/useFileSystem.ts`, `src/services/*`, `src/config/fileFormats.ts`, `src/stores/statusStore.ts`, `src/lib/safeName.ts`, `src/components/*` | `app/ features/{sorter,media,help}/ shared/`, nama kebab-case (`project-db.service.ts`, `file-formats.ts`, `folder-name.utils.ts`, …) | Perbarui peta file di docs; aturan proyek menyebut `fileFormats.ts` padahal file-nya `file-formats.ts` |
 | 4   | UI library                 | PRD/SPEC/PRINCIPLES/CHANGELOG: shadcn/Radix; TDD mencantumkan `radix-ui`, `shadcn`, `lodash.isempty`                           | Tidak ada paket `radix-ui`/`shadcn`/`lodash.isempty` di `package.json`; primitif in-house (README menegaskan)       | Koreksi docs                                                            |
-| 5   | i18n                       | `.claude/CLAUDE.md` proyek: tambah key ke `src/shared/i18n/language/en.json` dan `id.json`, render dengan `t()`               | Folder i18n **tidak ada**, tidak ada `i18next`; string inline Indonesia                                            | Hapus/ubah aturan di CLAUDE.md, atau putuskan membangun i18n            |
+| 5   | i18n                       | Versi lama dokumen ini: "folder i18n tidak ada, string inline Indonesia"                                                      | `src/shared/i18n` (i18next, `en.json`/`id.json`) ada; UI dwibahasa dengan `LanguageToggle`                         | Selesai: dokumen disinkronkan                   |
 | 6   | Pengujian                  | TDD §14: belum ada suite unit; E2E "masa depan"                                                                               | ±47 tes (Vitest + Playwright), `check:architecture`                                                                | Tulis ulang bagian testing di TDD                                       |
 | 7   | Batch / filmstrip / grid / zoom / dialog pintasan | PRD: bulk filing = Could; PRD/SPEC tidak menyebut filmstrip, grid, loupe, `?`, shortcut grid                       | Semua sudah shipped (2.1.0/2.2.0)                                                                                  | Tambahkan ke PRD/SPEC; SPEC undo harus menyebut batch = 1 entri         |
 | 8   | Toolchain                  | Docs: Node 22+, pnpm 9; Dockerfile pin pnpm `9.15.9`                                                                          | `engines`: node `>=22.23.4`, pnpm `>=12.0.0`                                                                       | Verifikasi nilai `pnpm >=12.0.0` dan samakan dengan Dockerfile          |
@@ -976,7 +991,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 
 **Bisakah saya memakainya offline?** Ya, setelah dimuat sekali sebagai PWA. Pemrosesan file selalu lokal.
 
-**Apakah ada versi bahasa Inggris?** Belum; UI hanya Bahasa Indonesia.
+**Apakah ada versi bahasa Inggris?** Ya. Pakai tombol bahasa (EN/ID) di bilah atas; pilihanmu diingat. Default Inggris.
 
 **Mengapa metadata video kosong?** Keterbatasan diketahui: modul WASM mediainfo tidak ikut dibuild.
 
@@ -988,7 +1003,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 4. Apa kebijakan HEIC bila dekoder in-browser yang layak muncul?
 5. Apakah redo, scan rekursif, atau tagging benar-benar diinginkan, atau tetap non-goal?
 6. Bagaimana metrik dikumpulkan tanpa telemetri (siapa, kapan, dengan protokol apa)?
-7. Apakah bahasa Inggris (atau lainnya) perlu didukung? Bila ya, kerangka i18n dan aturan CLAUDE.md harus dirancang.
+7. Apakah ada bahasa tambahan di luar EN/ID, dan apakah format tanggal metadata perlu mengikuti bahasa UI?
 8. Apakah dukungan mobile akan ditingkatkan dari "sekunder", mengingat ketergantungan pada API browser?
 9. Apakah nilai `engines.pnpm >=12.0.0` benar, dan nama proyek/site Firebase serta URL repo perlu disesuaikan dengan brand NATA?
 10. Apakah pintasan sortir perlu bekerja juga di grid view?
@@ -1038,14 +1053,16 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | Format, metadata, dekoder RAW           | `src/features/media/config/file-formats.ts`, `services/metadata.service.ts`, `services/raw-decoder.service.ts` |
 | Halaman Bantuan                         | `src/features/help/pages/HelpPage.tsx`                                                      |
 | Toast                                   | `src/shared/stores/status.store.ts`                                                         |
-| Tema                                    | `src/app/providers/ThemeProvider.tsx`, `src/app/styles/globals.css`                          |
+| Tema dan token                          | `src/app/providers/ThemeProvider.tsx`, `src/app/styles/{tokens,globals}.css`, `public/theme-init.js`, `scripts/check-contrast.mjs` |
+| Mark dan ikon                           | `src/shared/components/brand/NataMark.tsx`, `public/{icon,pwa-192x192,pwa-512x512,pwa-maskable-512x512}.png` |
+| Spesifikasi desain visual               | `docs/UI-Design.md`, `redesign.md` (brief asal)                                              |
 | Server statis dan header                | `server/index.js`, `firebase.json`                                                          |
 | Build dan PWA                           | `vite.config.ts`                                                                            |
 | Container                               | `Dockerfile`, `docker-compose.yml`                                                          |
 | Penegak arsitektur                      | `scripts/check-architecture.mjs`, `eslint.config.js`                                        |
 | Tes                                     | `src/**/tests/{unit-test,integration-test,e2e-test}/`, `playwright.config.ts`, `src/test/`  |
 | Dokumen                                 | `README.md`, `CHANGELOG.md`, `docs/PRD.md` (produk), `SPEC.md` (spesifikasi), `PRINCIPLES.md` (prinsip), `ARCHITECTURE.md`, `DESIGN.md` (desain perangkat lunak/ADR), `UI-Design.md` (desain visual), `SECURITY.md`, `DEPLOYMENT.md`, `TDD.md` |
-| Peta kode otomatis                      | `graphify-out/GRAPH_REPORT.md` (619 node, 1.308 edge, 49 komunitas; hub teratas: `cn()`, `react`, `Button()`, `useFileSystem()`) |
+| Peta kode otomatis                      | `graphify-out/GRAPH_REPORT.md` (1.119 node, 2.456 edge, 77 komunitas; hub teratas: `cn()`, `react`, `useFileSystem()`, `react-i18next`, `Button()`) |
 
 ---
 

@@ -6,6 +6,25 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **Redesign: "Calm Light" theme.** Pure-neutral surfaces, hairline borders, flat panels (no
+  gradients, glass or blur), Inter Variable (self-hosted via `@fontsource-variable/inter`),
+  a two-tone focus ring, calm 100–240 ms motion with `prefers-reduced-motion`, and dark as
+  the default theme. NATA keeps its own **teal** accent (not RONA's ember) and a new mark.
+  Tokens live in `src/app/styles/tokens.css`.
+- **App shell**: 48 px top bar, skip link, focus moves to `main` on a route change; the
+  sorter is a 3-panel workspace (folders · canvas · details) with a status bar on desktop,
+  and sheets + a 72 px action bar below 1024 px.
+- **Toasts** replace the navbar status badge: bottom-right (top on phones), two live regions,
+  paused on hover/focus, errors stay until dismissed, duplicates shown once.
+- Leaving a session mid-sort now asks in an in-app dialog instead of `window.confirm`.
+- Button gets a `loading` state; Dialog gets `side` (`center | left | bottom`). Hardcoded
+  "Tutup", "Loading", thumbnail labels and the grid loader moved to i18n; Indonesian copy uses
+  "kamu".
+- New app icons (ink tile + mark) incl. a maskable icon; `theme-color` / manifest colours are `#1C1C1C`.
+- `pnpm check:contrast` recomputes the WCAG pairs from the tokens and fails on colour literals
+  in components.
+- Removed `tw-animate-css`.
+
 - **Renamed to `nata-sort`; the brand is now NATA.** The package, server package,
   Docker image/container, and log tags use `nata-sort`; the UI, page titles, and
   the PWA manifest say "NATA". The theme preference key is now `nata-sort-theme`,
