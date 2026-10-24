@@ -99,8 +99,8 @@ const DIALOG_SIDES = {
 /** The modal itself. Closes on Escape, on a backdrop click, or via the close button. */
 function DialogContent({
   className,
-  children,
   dialogClassName,
+  children,
   side = "center",
   ...props
 }: React.ComponentProps<"div"> & {
