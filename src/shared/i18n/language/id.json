@@ -64,6 +64,10 @@
   "folder.press": "Tekan",
   "folder.setShortcutHint": "Klik badge untuk set pintasan",
   "folder.removeAria": "Hapus folder {name}",
+  "folder.deleteTitle": "Hapus folder “{name}”?",
+  "folder.deleteBody": "Folder beserta seluruh isinya akan dihapus dari disk kamu. Tindakan ini tidak bisa dibatalkan.",
+  "folder.deleteKeep": "Pertahankan folder",
+  "folder.deleteConfirm": "Hapus folder",
   "folder.jumpUnsorted": "Belum disortir",
 
   "info.titlePhoto": "Informasi Foto",

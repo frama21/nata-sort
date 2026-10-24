@@ -82,7 +82,8 @@ export interface FileSystemHook {
   openRecentProject: (id: string) => Promise<void>
   /** Closes the open project and returns to the start screen. Progress is already saved. */
   closeProject: () => void
-  addFolder: (name: string) => Promise<void>
+  /** Resolves to true when the folder was created (false: nothing was created, the reason is shown). */
+  addFolder: (name: string) => Promise<boolean>
   removeFolder: (folderId: string) => Promise<void>
   /** Set (or clear, with null) a folder's sort-shortcut key, with validation. */
   setFolderShortcut: (folderId: string, rawKey: string | null) => Promise<void>
@@ -551,7 +552,7 @@ export const useFileSystem = (): FileSystemHook => {
       const rootHandle = rootDirHandleRef.current
       if (!rootHandle) {
         setError(t("toast.pickFolderFirst"))
-        return
+        return false
       }
 
       const rawName = name.trim() || `Folder ${folders.length + 1}`
@@ -560,7 +561,7 @@ export const useFileSystem = (): FileSystemHook => {
       if (!validation.ok) {
         setError(validation.reason)
         addStatus({ type: "error", message: validation.reason, icon: "folder" })
-        return
+        return false
       }
       const folderName = validation.name
 
@@ -568,7 +569,7 @@ export const useFileSystem = (): FileSystemHook => {
         const msg = t("toast.folderExists", { name: folderName })
         setError(msg)
         addStatus({ type: "error", message: msg, icon: "folder" })
-        return
+        return false
       }
 
       addStatus({ type: "loading", message: t("toast.creatingFolder"), icon: "folder" })
@@ -599,11 +600,13 @@ export const useFileSystem = (): FileSystemHook => {
           message: t("toast.folderCreated", { name: folderName }),
           icon: "folder"
         })
+        return true
       } catch (err) {
         addStatus({ type: "error", message: t("toast.folderCreateFailed"), icon: "folder" })
         setError(
           t("toast.folderCreateError", { error: err instanceof Error ? err.message : t("common.unknownError") })
         )
+        return false
       } finally {
         clearStatus()
       }

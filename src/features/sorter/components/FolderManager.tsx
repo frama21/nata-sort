@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useId } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Trash2, FolderOpen, Scissors, Copy, Undo2, SkipForward } from "lucide-react"
+import { Plus, Trash2, FolderOpen, Scissors, Copy, Undo2, SkipForward, CircleAlert } from "lucide-react"
 
 import { Card, CardContent } from "@/shared/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Input } from "@/shared/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
 import { Button } from "@/shared/components/ui/button"
@@ -11,12 +12,14 @@ import { WithTooltip } from "@/shared/components/ui/tooltip"
 import { PanelHeader } from "@/shared/components/ui/panel-header"
 import { addStatus } from "@/shared/stores/status.store"
 
+import { validateFolderName } from "../utils/folder-name.utils"
 import type { SortFolder, MoveMode } from "../types/sorter.types"
 
 interface FolderManagerProps {
   folders: SortFolder[]
   moveMode: MoveMode
-  onAdd: (name: string) => Promise<void>
+  /** Resolves to true when the folder was created. */
+  onAdd: (name: string) => Promise<boolean>
   onRemove: (folderId: string) => Promise<void>
   onSetShortcut: (folderId: string, rawKey: string | null) => Promise<void>
   onAssign: (photoIndex: number, folderId: string) => Promise<void>
@@ -48,6 +51,11 @@ export const FolderManager = ({
   // Folder id currently "listening" for its next keypress, or null.
   const [recordingId, setRecordingId] = useState<string | null>(null)
   const totalFolder = folders.length
+  // Why the typed name was rejected; shown under the field until the name changes.
+  const [nameError, setNameError] = useState<string | null>(null)
+  const nameErrorId = useId()
+  // Folder waiting for the user to confirm its deletion (removing deletes it, and its files, from disk).
+  const [removing, setRemoving] = useState<SortFolder | null>(null)
 
   // While recording, capture the next keypress (in the capture phase, so the
   // app's global sort/navigate handlers never see it), validate + apply it, and
@@ -79,10 +87,14 @@ export const FolderManager = ({
 
   const handleAdd = async () => {
     const name = newFolderName.trim()
-    if (name) {
-      await onAdd(name)
-      setNewFolderName("")
+    if (!name) return
+    const validation = validateFolderName(name)
+    if (!validation.ok) return setNameError(validation.reason)
+    if (folders.some(f => f.name.toLowerCase() === validation.name.toLowerCase())) {
+      return setNameError(t("toast.folderExists", { name: validation.name }))
     }
+    // Keep what was typed if the folder could not be created, so it can be fixed and retried.
+    if (await onAdd(name)) setNewFolderName("")
   }
 
   return (
@@ -144,7 +156,12 @@ export const FolderManager = ({
               id="new-folder-name"
               placeholder={t("folder.namePlaceholder")}
               value={newFolderName}
-              onChange={e => setNewFolderName(e.target.value)}
+              aria-invalid={nameError ? true : undefined}
+              aria-describedby={nameError ? nameErrorId : undefined}
+              onChange={e => {
+                setNewFolderName(e.target.value)
+                setNameError(null)
+              }}
               onKeyDown={e => {
                 if (e.key === "Enter") {
                   e.preventDefault()
@@ -164,6 +181,12 @@ export const FolderManager = ({
               </Button>
             </WithTooltip>
           </div>
+          {nameError && (
+            <p id={nameErrorId} role="alert" className="flex items-start gap-1.5 text-xs leading-5">
+              <CircleAlert aria-hidden className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+              {nameError}
+            </p>
+          )}
         </div>
 
         {/* Folder list */}
@@ -212,7 +235,7 @@ export const FolderManager = ({
                     size="icon"
                     aria-label={t("folder.removeAria", { name: folder.name })}
                     className="text-muted-foreground hover:text-destructive"
-                    onClick={() => onRemove(folder.id)}
+                    onClick={() => setRemoving(folder)}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
@@ -234,6 +257,29 @@ export const FolderManager = ({
           </Button>
         </div>
       </CardContent>
+
+      <Dialog open={removing !== null} onOpenChange={open => !open && setRemoving(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("folder.deleteTitle", { name: removing?.name ?? "" })}</DialogTitle>
+            <DialogDescription>{t("folder.deleteBody")}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setRemoving(null)}>
+              {t("folder.deleteKeep")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (removing) void onRemove(removing.id)
+                setRemoving(null)
+              }}
+            >
+              {t("folder.deleteConfirm")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

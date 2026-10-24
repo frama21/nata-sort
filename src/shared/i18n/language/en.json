@@ -65,6 +65,10 @@
   "folder.press": "Press",
   "folder.setShortcutHint": "Click the badge to set a shortcut",
   "folder.removeAria": "Delete folder {name}",
+  "folder.deleteTitle": "Delete folder “{name}”?",
+  "folder.deleteBody": "The folder and every file inside it will be deleted from your disk. This can’t be undone.",
+  "folder.deleteKeep": "Keep folder",
+  "folder.deleteConfirm": "Delete folder",
   "folder.jumpUnsorted": "Unsorted",
 
   "info.titlePhoto": "Photo Info",
