@@ -6,13 +6,30 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **Changelog tab in the Help dialog.** A third tab, **Changelog**, shows this file as a vertical
+- **Close project.** While a project is open the top bar shows a **Close project** button (icon
+  only on phones). It returns to the start screen; progress is already saved in the folder.
+- **Recent projects on the start screen.** Folders you opened are listed with their name, photo
+  count and last update (relative time); click one to reopen it (the browser may ask for access
+  again). A ⋮ menu offers **Remove from recent**, which only forgets the list entry and never
+  touches the folder. Lists longer than 5 scroll and are virtualized. The list lives in this
+  browser's IndexedDB (`nata-recent-projects`, max 30 entries, handles never leave the device).
+- **App version** under the recent list, read from `package.json`.
+- A small `DropdownMenu` primitive (native popover) and shared placement helper
+  (`shared/lib/floating.ts`), also used by the tooltip.
+- **Changelog tab in the Settings dialog.** A tab, **Changelog**, shows this file as a vertical
   timeline (version, date, Added/Changed/Fixed/Security groups, rendered `code` and **bold**). The
   list is virtualized with `@tanstack/react-virtual`, and the tab loads lazily on first open, so
   the CHANGELOG text and the library stay out of the initial bundle.
 
 ### Fixed
 
+- **Toast alignment on touch screens.** The icon and message sat at the top while the close button
+  (44 px on touch) was centered, leaving them about 8 px off. The row is now vertically centered.
+- **Top bar wordmark on phones.** The "nata" wordmark next to the mark is no longer hidden below
+  640 px while a project is open.
+- **Changelog tab on phones.** The panel was as tall as the whole changelog (~9,500 px, every row
+  mounted) because its wrapper grew with `flex-1` in a column layout. It is now a fixed-height
+  panel that scrolls inside, and the virtual list mounts only the visible rows again.
 - **Tooltips are never clipped or covered.** `WithTooltip` is now a native `popover` (top layer),
   so panels with `overflow` no longer cut it off and it shows above modal dialogs. It opens above
   the control by default, flips below when there is no room, and is clamped to the viewport;
@@ -23,6 +40,25 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **One Settings dialog.** The top bar now has a single help icon ("Help & settings") that opens
+  **Settings** on the **Shortcuts** tab. Tabs: Shortcuts, Appearance (theme Light/Dark and
+  language English/Bahasa Indonesia, moved out of the top bar), About (app, version, open project,
+  privacy and safety notes) and Changelog. Layout: a vertical list beside the content on desktop,
+  a scrollable tab row under a centered title on phones. Arrow keys (either axis) move between
+  tabs. The dialog lives in `src/app/layouts/settings/`; the sorter feature only exports
+  `ShortcutsList`.
+- **State file renamed to `nata-sort-db.json`** (was `nata-photo-db.json`); see the note below
+  on the fallback for existing projects.
+- **Folders sheet is full width on phones** (a 360 px drawer from 640 px up, was 280 px), so folder
+  names and shortcut hints are no longer truncated. Both sheets get more top padding so the close
+  button no longer sits against the content.
+- **Sort Folders empty state** is plain muted text instead of a dashed box with a folder icon,
+  which looked like an upload drop zone.
+- **Start screen** is quieter: the top bar drops to just the help button, with no logo,
+  background or border (it returns once a project is open); the headline text is replaced by the
+  NATA mark over the wordmark; and the copy now says what the app does ("Sort photos and videos
+  into folders with a single keypress…") and where it runs ("Works in Chrome, Edge and Opera. Your
+  files never leave this device."). The page keeps a screen-reader-only "NATA" `h1` in the top bar.
 - **Move-mode tabs say just "Copy" and "Cut".** The "(Duplicate)" / "(Move)" suffixes are gone
   because the hint card under the tabs already explains each mode.
 - **Help moved into the `?` dialog.** The `/help` page and its nav link are gone; the top-bar
@@ -57,9 +93,9 @@ All notable changes to this project are documented in this file.
   Docker image/container, and log tags use `nata-sort`; the UI, page titles, and
   the PWA manifest say "NATA". The theme preference key is now `nata-sort-theme`,
   so the theme resets to the default once.
-- **State file stays `nata-photo-db.json`.** Existing `nata-sort-db.json` and
-  `photo-sorter-db.json` projects are read as a fallback and re-saved under it,
-  so no sort progress is lost.
+- **State file is now `nata-sort-db.json`** (was `nata-photo-db.json`), matching the app name.
+  Existing `nata-photo-db.json` and `photo-sorter-db.json` projects are read as a fallback and
+  re-saved under the new name, so no sort progress is lost.
 - **Feature-based project structure** replaces Feature-Sliced Design: `src/{app,features,shared}`
   with automatic route discovery (`features/<name>/routes.ts`), per-feature tests, and
   enforced import boundaries (ESLint + `pnpm check:architecture`).

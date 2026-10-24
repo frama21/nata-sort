@@ -32,7 +32,7 @@ Defined once in [`src/app/styles/tokens.css`](../src/app/styles/tokens.css) (`.d
 | `--success` `--warning` `--danger` | `#4CC38A` `#E5B04A` `#FF7A72` | `#1B7A4B` `#8A5A00` `#C2302A` | Status (on the icon, not the message) |
 | `--brand-accent` | `#14B8A6` | `#14B8A6` | Logo only (never text) |
 
-- **Type**: Inter Variable (400–700), body 14/20, label 13.5, caption 12 (minimum), `display` 28/34 for the welcome title.
+- **Type**: Inter Variable (400–700), body 14/20, label 13.5, caption 12 (minimum), `display` 28/34 (currently unused: the welcome screen shows the logo instead of a headline).
 - **Shape**: radius 6 / 8 / 12 / 16; `--shadow-e1` (popover, toast), `--shadow-e2` (dialog). Panels are flat.
 - **Motion**: `--dur-fast` 100 ms, `--dur-base` 160 ms, `--dur-slow` 240 ms, `--ease: cubic-bezier(.2,0,0,1)`; press scales to 0.97.
 - **Focus**: `box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer)` on `:focus-visible`, on every element.
@@ -44,7 +44,7 @@ Folder colours are Tailwind palette classes stored in the project file (schema `
 
 | Region | ≥ 1024 px | < 1024 px |
 | --- | --- | --- |
-| Top bar | 48 px: mark + name · main views (hidden while there is one) · help dialog, language, theme | same, wordmark hidden < 640 px |
+| Top bar | 48 px: mark + name · main views (hidden while there is one) · close project · help/settings | same, wordmark kept on phones |
 | Left | 248 px folders panel (`nav`) | sheet (opened by *Folders*) |
 | Centre | canvas: view toggle, viewer / grid, filmstrip | one column |
 | Right | 320 px details panel (`aside`): info, log, stats | bottom sheet (opened by *Info*) |

@@ -237,7 +237,7 @@ export interface SortOperation {
 ```
 
 **Rationale.**
-- The operation log is persisted into `nata-photo-db.json`; a handle cannot be
+- The operation log is persisted into `nata-sort-db.json`; a handle cannot be
   serialized to JSON and would silently corrupt the record.
 - Keeping handles out of the log means the log can never leak a live capability
   or a stale reference — a security-relevant property (the log stores *what
@@ -259,7 +259,7 @@ negligible cost for a large gain in robustness.
 ### ADR-5 — Single-writer DB promise chain
 
 **Context.** Every mutation (assign, undo, folder add/remove, mode change,
-metadata cache) is a **read-modify-write** of the same `nata-photo-db.json`.
+metadata cache) is a **read-modify-write** of the same `nata-sort-db.json`.
 Holding down a `1`–`9` shortcut fires assignments faster than a write completes.
 Concurrent read-modify-writes interleave and silently drop updates
 (last-writer-wins on a stale read).

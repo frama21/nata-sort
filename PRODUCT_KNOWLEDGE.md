@@ -53,7 +53,7 @@
 | Bahasa kode/dokumen | Inggris (kode, komentar, README, CHANGELOG)                                                                   |
 | Browser             | **Chromium saja**: Chrome, Edge, Opera (butuh File System Access API dan secure context)                      |
 | Platform            | Web/PWA (dapat dipasang, bisa offline). Desktop target utama; mobile didukung bila browser punya API tersebut |
-| Model data          | Satu file JSON `nata-photo-db.json` yang disimpan **di dalam folder yang dibuka**                              |
+| Model data          | Satu file JSON `nata-sort-db.json` yang disimpan **di dalam folder yang dibuka**                              |
 | Server              | Hanya menyajikan file statis (Express 5 + helmet). Tidak memproses media.                                     |
 
 **Nilai inti dalam satu kalimat:** _sortir ribuan file secepat Anda bisa menekan tombol angka, tanpa menyerahkan foto ke layanan cloud._
@@ -201,17 +201,18 @@
 | F15 | Filmstrip dan grid (lazy, infinite scroll)         | Shipped      | v2.1.0 / v2.2.0                                                      |
 | F16 | Zoom, pan, loupe                                   | Shipped      | Loupe hanya desktop                                                  |
 | F17 | Log operasi dan statistik                          | Shipped      | Tampil 3 terakhir; simpan 50                                         |
-| F18 | Persistensi DB dan resume                          | Shipped      | `nata-photo-db.json`                                                  |
+| F18 | Persistensi DB dan resume                          | Shipped      | `nata-sort-db.json`                                                  |
 | F19 | PWA / offline                                      | Shipped      | App shell + WASM di-precache                                         |
 | F20 | Tema terang/gelap ("Calm Light", aksen teal)       | Shipped      | Toggle 2 arah; default gelap (lihat 6.14 dan Bagian 14)              |
-| F21 | Dialog Bantuan: tab Pintasan + Tentang (`?`)       | Shipped      | Menggantikan halaman `/help` (dihapus)                               |
+| F21 | Dialog Pengaturan: Pintasan, Tampilan, Tentang, Changelog (`?`) | Shipped | Menggantikan halaman `/help` (dihapus); tema + bahasa pindah ke sini |
 | F22 | Dialog pintasan keyboard (`?`)                     | Shipped      | Tab "Pintasan" pada dialog Bantuan                                   |
+| F24 | Tutup proyek (navbar) + Proyek terbaru (welcome)   | Shipped      | Daftar di IndexedDB, virtual scroll > 5 baris, menu ⋮ hapus dari daftar, versi app |
 | F23 | Mobile (bar aksi bawah, sheet panel, swipe, pinch) | Shipped      | Di bawah 1024 px panel folder/info jadi sheet                        |
 | F24 | Redo                                               | **Not built**| Backlog (FR-C1)                                                      |
 | F25 | Rename / template nama                             | **Not built**| Nama asli dipertahankan                                              |
 | F26 | Scan rekursif                                      | **Not built**| Non-goal N3 / Could                                                  |
 | F27 | Ekspor laporan sortir                              | **Not built**| Backlog (FR-C7)                                                      |
-| F28 | Pengalih bahasa EN/ID                              | Shipped      | `LanguageToggle` di top bar; default Inggris                         |
+| F28 | Pengalih bahasa EN/ID                              | Shipped      | tab Tampilan di dialog Pengaturan; default Inggris                         |
 | F30 | Notifikasi toast + status bar                      | Shipped      | Toast kanan-bawah; status bar 28 px di desktop (lihat 14.3)          |
 | F29 | Pintasan untuk folder ke-10 dan seterusnya         | **Not built**| Hanya 9 folder pertama berpintasan                                   |
 
@@ -335,20 +336,20 @@ Mode disimpan di DB dan dipilih lewat tab di `FolderManager`.
 - **Log operasi:** UI menampilkan 3 operasi terakhir (ikon centang hijau / silang merah); DB menyimpan hingga 50 (ring buffer). Tiap catatan: `photoName, folderId, folderName, mode, success, error?, timestamp`. Kartu disembunyikan bila kosong.
 - **Statistik:** total, tersortir, belum, operasi sukses/gagal. `ProgressBar` menampilkan "Foto n/total".
 - **Tema:** `dark | light | system`, **default dark**; disimpan di `localStorage["nata-sort-theme"]`; kelas `dark` pada `<html>`, dipasang sebelum cat pertama oleh `public/theme-init.js` (berkas same-origin, CSP tidak dilonggarkan; nilai tersimpan divalidasi, jatuh ke default gelap). `ThemeToggle` hanya membalik terang/gelap sehingga "system" tak bisa dipilih lagi dari UI setelah toggle; `system` dibaca sekali dan tidak mengikuti perubahan OS secara langsung.
-- **Dialog Bantuan:** tombol `?` (tooltip "Bantuan") membuka dialog dengan tiga tab: **Pintasan**, **Tentang** (Privasi, Persyaratan browser, Penyimpanan progres, Keamanan file) dan **Changelog** (timeline dari `CHANGELOG.md`, virtual scroll via `@tanstack/react-virtual`, dimuat lazy). Rute `/help` sudah dihapus; navigasi utama otomatis tersembunyi selama hanya ada satu rute.
+- **Dialog Pengaturan:** satu tombol `?` (tooltip "Bantuan & pengaturan") membuka dialog yang selalu mendarat di tab **Pintasan**. Tab: **Pintasan**, **Tampilan** (Tema Terang/Gelap dan Bahasa EN/ID, dipindah dari top bar), **Tentang** (aplikasi, versi, proyek terbuka, Privasi, Persyaratan browser, Penyimpanan progres, Keamanan file) dan **Changelog** (timeline dari `CHANGELOG.md`, virtual scroll via `@tanstack/react-virtual`, dimuat lazy). Desktop: daftar tab vertikal di kiri; mobile: baris tab horizontal di bawah judul. Rute `/help` sudah dihapus; navigasi utama otomatis tersembunyi selama hanya ada satu rute.
 - **Toast:** `StatusIndicator` (kanan-bawah desktop, tengah-atas di phone); dua live region (polite, dan assertive untuk error); tidak mengambil fokus; jeda saat hover/fokus; sukses hilang dalam 3 detik, **error bertahan sampai ditutup**, loading sampai dibersihkan; toast kembar hanya tampil sekali; tombol tutup.
 - **Status bar (desktop ≥ 1024 px):** titik + kata "Tersimpan / Menyimpan… / Gagal menyimpan" (dari status berikon `db`), jumlah foto, sisa belum disortir, jumlah terpilih.
-- **Dialog pintasan:** tombol `?` di top bar membuka `ShortcutsDialog` (daftar hard-coded; tidak memuat `Esc`).
+- **Tab Pintasan:** `ShortcutsList` (daftar hard-coded; tidak memuat `Esc`), diekspor dari fitur sorter dan dirender oleh `SettingsDialog` di layer app.
 - **PWA:** `autoUpdate`; manifest standalone, `theme_color`/`background_color` `#1C1C1C`, ikon 192/512 + maskable 512 (ubin ink `#111111` dengan mark NATA); Workbox precache `js, css, html, wasm, svg, png, ico, woff2` dengan batas 4 MB per file (agar WASM libraw ≈ 1,3 MB masuk); `navigateFallback: /index.html`; service worker didaftarkan manual di `main.tsx` (tanpa skrip inline, menjaga CSP). PWA nonaktif saat dev.
 - **Mobile / tablet:** `MobileActionBar` (di bawah `lg`, 72 px, datar, hanya single view tanpa seleksi) berisi prev/next dan tombol per folder; panel folder dan info dibuka lewat tombol "Folder"/"Info" ke sheet (`Dialog side="left"|"bottom"`).
 
 ### 6.15 Persistensi dan resume (F18)
 
-- File `nata-photo-db.json` di dalam folder yang dibuka, JSON ber-indentasi 2 spasi, `version: "2.0"`.
+- File `nata-sort-db.json` di dalam folder yang dibuka, JSON ber-indentasi 2 spasi, `version: "2.0"`.
 - **Tidak ada timer autosave**: setiap mutasi langsung ditulis. Metadata di-debounce 1,5 detik.
 - Saat dibuka: folder, pemetaan, mode, `currentIndex` (dijepit), dan log operasi dipulihkan.
 - Hapus file DB = proyek direset.
-- Skema selengkapnya di [Bagian 11.5](#115-skema-database-nata-photo-dbjson).
+- Skema selengkapnya di [Bagian 11.5](#115-skema-database-nata-sort-dbjson).
 
 ---
 
@@ -493,7 +494,7 @@ Catatan:
 ```
 src/
   app/        composition root: App.tsx, main.tsx, config/app.config.ts, errors/GlobalErrorBoundary,
-              layouts/{MainLayout,Navbar,ThemeToggle,LanguageToggle}, providers/{AppProviders,ThemeProvider},
+              layouts/{MainLayout,Navbar,settings/*}, providers/{AppProviders,ThemeProvider},
               routes/{routes.tsx,feature-routes.ts,route-discovery.ts,route-fallbacks.tsx},
               styles/{globals.css,tokens.css}
   features/
@@ -516,14 +517,14 @@ src/
 | Hook `useFileSystem` (±960 baris) | `photos`, `currentIndex`, `folders`, `sortedPhotos`, `moveMode`, `operations`, `undoStack`, `rawPreviewUrls`, `metadataByKey`, status loading/error; ref untuk handle folder dan antrean. **Handle tak pernah masuk state ter-persist.** |
 | Zustand `status.store`         | Toast: `{id, type idle/loading/success/error, message, icon db/folder/file/save}`; maks 3; `dismissStatus(id)`; duplikat (tipe + pesan sama) menggantikan yang lama |
 | `ThemeProvider` + localStorage | Tema (nilai tersimpan divalidasi; default gelap)                                                                 |
-| `nata-photo-db.json`            | State durable per folder                                                                                         |
+| `nata-sort-db.json`            | State durable per folder                                                                                         |
 
 ### 11.3 Alur data
 
 ```
 showDirectoryPicker
    └─ revoke URL lama, reset antrean/undo
-   └─ initProjectDatabase  ──► baca/validasi/sanitize nata-photo-db.json (atau buat baru)
+   └─ initProjectDatabase  ──► baca/validasi/sanitize nata-sort-db.json (atau buat baru)
    └─ scan level atas ─► filter ekstensi terdaftar ─► blob URL (bila previewable)
    └─ ekstrak tanggal (8 worker, hanya yang belum ter-cache) ─► urut kronologis
    └─ pulihkan folder (by name), mode, index, operasi
@@ -550,7 +551,7 @@ showDirectoryPicker
 | `shared/stores/status.store.ts`               | Toast; helper biasa untuk kode non-React                                                  |
 | `shared/lib/useMediaQuery.ts`                 | Hook media query; panel desktop/sheet dirender di satu tempat saja                        |
 
-### 11.5 Skema database `nata-photo-db.json`
+### 11.5 Skema database `nata-sort-db.json`
 
 ```jsonc
 {
@@ -582,7 +583,7 @@ showDirectoryPicker
 - Tidak ada logika aplikasi di server → tidak ada permukaan injeksi, SSRF, autentikasi, atau sesi.
 - Tidak ada egress: `connect-src` dibatasi `'self' blob: data:`.
 - Akses file dibatasi pada folder yang dipilih pengguna.
-- **Input tak tepercaya:** file media, `nata-photo-db.json` (ada di folder yang dapat ditulis pengguna), nama folder yang diketik, dan rantai pasok dependensi.
+- **Input tak tepercaya:** file media, `nata-sort-db.json` (ada di folder yang dapat ditulis pengguna), nama folder yang diketik, dan rantai pasok dependensi.
 - Tanpa cookie, tanpa rahasia, tanpa `dangerouslySetInnerHTML`/`innerHTML`/`eval`; React meng-escape semua output.
 
 ### 12.2 Content-Security-Policy
@@ -695,7 +696,7 @@ curl -i http://localhost:8080/assets/x.js           # → 404
 | "SharedArrayBuffer is not defined"       | COOP/COEP hilang atau dibuang proxy. Pastikan `self.crossOriginIsolated === true`.            |
 | Metadata video kosong                    | Keterbatasan diketahui: WASM mediainfo tidak ter-emit saat build.                            |
 | Folder tak bisa dibuka                   | Bukan Chromium, atau bukan secure context (butuh HTTPS atau localhost).                      |
-| Progres hilang setelah rename ke NATA    | Tidak perlu tindakan: `nata-sort-db.json` dan `photo-sorter-db.json` dibaca otomatis lalu disimpan ulang sebagai `nata-photo-db.json`. |
+| Progres hilang setelah rename ke NATA    | Tidak perlu tindakan: `nata-photo-db.json` dan `photo-sorter-db.json` dibaca otomatis lalu disimpan ulang sebagai `nata-sort-db.json`. |
 
 ---
 
@@ -734,7 +735,7 @@ Komponen hanya memakai token (tanpa literal warna); `pnpm check:contrast` menghi
 | < 1024 px          | Satu kolom; panel folder (sheet kiri 280 px) dan info (sheet bawah) dibuka lewat tombol "Folder"/"Info"; `MobileActionBar` 72 px datar di bawah (tombol berwarna per folder, dapat digulir); swipe 50 px |
 | ≥ 1024 px (`lg`)   | 3 panel + status bar 28 px: **folder 248 px** (`FolderManager`, `nav`), **kanvas** (toolbar Single/Grid, progres, viewer/grid, filmstrip), **detail 320 px** (`MetadataPanel`, `OperationLog`, `Stats`, `aside`); tiap panel scroll sendiri |
 
-- **Top bar** 48 px datar: mark + "NATA" (kata disembunyikan < 640 px), navigasi (bila rute > 1), lalu `?` (pintasan), `LanguageToggle`, `ThemeToggle`. **Skip link** paling awal; saat rute berganti, fokus pindah ke `main` (kecuali dialog terbuka) dan judul tab menjadi "<layar> — NATA".
+- **Top bar** 48 px datar: mark + wordmark "nata" (juga di layar kecil), navigasi (bila rute > 1), lalu "Tutup proyek" (saat ada proyek) dan satu tombol `?` (bantuan + pengaturan). **Skip link** paling awal; saat rute berganti, fokus pindah ke `main` (kecuali dialog terbuka) dan judul tab menjadi "<layar> — NATA".
 - Panel dirender di satu tempat saja (`useMediaQuery("(min-width: 1024px)")`), jadi id dan perekaman pintasan tidak ganda. Pemilih Single/Grid ada di toolbar kanvas (bukan top bar) karena state `viewMode` milik fitur sorter.
 - Media dibatasi `max-h-[75vh]` (di desktop mengisi kanvas) dengan `object-contain`. Target sentuh 44 px lewat varian `pointer-coarse:`.
 
@@ -883,7 +884,7 @@ Semua item wajib mempertahankan "tanpa upload, tanpa telemetri, local-first".
 1. Tambahkan konfirmasi sebelum menghapus folder tujuan, atau ubah menjadi "lepas dari daftar" tanpa menghapus isi disk.
 2. Cadangkan DB lama sebelum di-reset karena korup/versi beda.
 3. Tambahkan switch "Reduce motion" di dalam app dan pemilih aksen (butuh dialog Pengaturan); jalankan axe/Lighthouse pada Welcome dan Editor.
-4. Biarkan `ThemeToggle` menyediakan opsi "sistem" dan mengikuti perubahan OS.
+4. Biarkan pengaturan Tema menyediakan opsi "sistem" dan mengikuti perubahan OS.
 5. Pertimbangkan membatasi pembacaan file RAW (saat ini seluruh file dibaca ke memori).
 6. Selaraskan dokumen `docs/*` dan aturan i18n di CLAUDE.md dengan kode ([Bagian 21](#21-ketidakkonsistenan-dokumen-vs-kode)).
 
@@ -899,7 +900,7 @@ Semua item wajib mempertahankan "tanpa upload, tanpa telemetri, local-first".
 | 2.0.1          | 2026-06-14             | Penguatan RAW: perbaikan hang worker libraw ("n is not a function"), potongan ARW terpotong, tambal worker, timeout 20 s + terminate, fallback `thumbnailData()`, preview JPEG ter-bounded, libraw-wasm ^1.4.0 |
 | **2.1.0**      | 2026-07-14             | Keamanan (audit bersih, ExifReader ^4.41.0, pengerasan jalur load DB, nama folder lebih ketat, `security.txt`, `firebase.json`), deployment (nginx dihapus → Express + helmet di `node:22-alpine`, compose dikeraskan), kualitas kode (enam prinsip, `mutateDatabase()`, `megapixelsFrom()`, Prettier), fitur (filmstrip/grid, zoom+loupe, multi-select + batch sort, dialog pintasan `?`, set `docs/` lengkap) |
 | 2.2.0          | 2026-07-15             | Grid lazy-render dengan append-on-scroll + loader; pintasan grid `Ctrl/Cmd+A`, `Shift+klik`, `Esc`; filmstrip dan grid di dalam `ScrollArea`                  |
-| _Unreleased_   | —                      | **Redesign "Calm Light"**: token netral + aksen teal NATA, Inter Variable, shell 3 panel + status bar, toast, sheet di mobile, mark/ikon baru, `check:contrast`, dialog keluar halaman in-app, `tw-animate-css` dihapus. Rename ke **NATA / `nata-sort`** (paket, server, Docker, tag log; kunci tema → `nata-sort-theme`). File state tetap `nata-photo-db.json` (`nata-sort-db.json` dan `photo-sorter-db.json` lama dibaca otomatis). Arsitektur berbasis fitur + route discovery menggantikan FSD, primitive UI in-house tanpa Radix, i18n untuk Help/route, perbaikan layout mobile, suite tes |
+| _Unreleased_   | —                      | **Redesign "Calm Light"**: token netral + aksen teal NATA, Inter Variable, shell 3 panel + status bar, toast, sheet di mobile, mark/ikon baru, `check:contrast`, dialog keluar halaman in-app, `tw-animate-css` dihapus. Rename ke **NATA / `nata-sort`** (paket, server, Docker, tag log; kunci tema → `nata-sort-theme`). File state kini `nata-sort-db.json` (sebelumnya `nata-photo-db.json`; `nata-photo-db.json` dan `photo-sorter-db.json` lama dibaca otomatis lalu disimpan ulang). Arsitektur berbasis fitur + route discovery menggantikan FSD, primitive UI in-house tanpa Radix, i18n untuk Help/route, perbaikan layout mobile, suite tes |
 
 Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 
@@ -924,7 +925,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | R13 | Nomor pintasan tak diatur ulang setelah folder dihapus; folder ke-10+ tanpa pintasan                                                                    | Celah penomoran                                                                          | Rendah    |
 | R14 | `style-src 'unsafe-inline'`                                                                                                                             | Risiko diterima (Tailwind/gaya runtime)                                                  | Diterima  |
 | R15 | Belum ada switch "Reduce motion" di dalam app (hanya `prefers-reduced-motion` OS); audit axe/Lighthouse belum dijalankan setelah redesign                | Celah aksesibilitas kecil                                                                | Rendah    |
-| R16 | `ThemeToggle` tak bisa kembali ke "system"; "system" tak mengikuti perubahan OS                                                                         | UX kecil                                                                                 | Rendah    |
+| R16 | Pengaturan Tema tak bisa kembali ke "system"; "system" tak mengikuti perubahan OS                                                                         | UX kecil                                                                                 | Rendah    |
 | R17 | Tanggal metadata selalu `id-ID`, padahal UI kini dwibahasa                                                                                              | Tak berubah mengikuti bahasa UI                                                          | Rendah    |
 | R18 | `security.txt` kedaluwarsa 2027-01-01                                                                                                                   | Perlu diperbarui berkala                                                                 | Rendah    |
 | R19 | Folder DB tidak menyimpan handle; setelah reload pengguna harus membuka folder lagi                                                                     | Perilaku normal API; penjaga keluar halaman membantu                                     | Info      |
@@ -947,7 +948,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | 8   | Toolchain                  | Docs: Node 22+, pnpm 9; Dockerfile pin pnpm `9.15.9`                                                                          | `engines`: node `>=22.23.4`, pnpm `>=12.0.0`                                                                       | Verifikasi nilai `pnpm >=12.0.0` dan samakan dengan Dockerfile          |
 | 9   | Versi dependensi           | TDD: React ^19.2.5, Vite ^8.1.4, Tailwind ^4.2.4, exifreader ^4.41.0, libraw-wasm ^1.4.0, mediainfo.js ^0.3.7                  | React ^19.3.1, Vite ^8.3.5, Tailwind ^4.3.3, exifreader ^4.51.0, libraw-wasm ^1.6.0, mediainfo.js ^0.3.8           | Perbarui                                                                |
 | 10  | Lokasi `pnpm.overrides`    | Docs: di `package.json`                                                                                                       | Di `pnpm-workspace.yaml`                                                                                           | Koreksi; aturan "Keep `pnpm.overrides`" tetap berlaku                   |
-| 11  | Nama file DB               | UI-Design: `.nata-sort-db.json` (titik di depan, sudah dikoreksi); CHANGELOG 2.0.0/PRD v2.0.0 menyebut nama baru padahal dulu `photo-sorter-db.json` | Kode: `nata-photo-db.json`                                                                                          | Koreksi typo; tandai catatan historis                                   |
+| 11  | Nama file DB               | UI-Design: `.nata-sort-db.json` (titik di depan, sudah dikoreksi); CHANGELOG 2.0.0/PRD v2.0.0 menyebut nama baru padahal dulu `photo-sorter-db.json` | Kode: `nata-sort-db.json`                                                                                          | Koreksi typo; tandai catatan historis                                   |
 | 12  | Field `moved`              | SPEC FR-SORT-2 dan PRINCIPLES masih menjelaskan `PhotoFile.moved`                                                              | CHANGELOG 2.1.0: field write-only itu dihapus                                                                      | Hapus dari SPEC/PRINCIPLES                                              |
 | 13  | Dekode RAW                 | README: "dekode libraw-wasm resolusi penuh"                                                                                   | Setengah ukuran (`halfSize`), AHD, sRGB                                                                            | Koreksi README                                                          |
 | 14  | Shortcut di README         | Tabel README tidak memuat `Ctrl/Cmd+A`, `Esc`, `Shift+klik`                                                                   | Ketiganya ada di kode dan CHANGELOG 2.2.0                                                                          | Tambahkan; jelaskan bahwa `1`–`9`/panah hanya single view               |
@@ -972,9 +973,9 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 
 **Browser apa yang didukung?** Chrome, Edge, Opera versi terbaru. Firefox dan Safari tidak punya File System Access API.
 
-**Di mana progres saya disimpan?** Di `nata-photo-db.json` di dalam folder yang Anda buka. Hapus file itu untuk memulai dari awal.
+**Di mana progres saya disimpan?** Di `nata-sort-db.json` di dalam folder yang Anda buka. Hapus file itu untuk memulai dari awal.
 
-**Saya memperbarui dan progres hilang?** Tidak perlu apa-apa: file lama (`nata-sort-db.json`, `photo-sorter-db.json`) dibaca otomatis dan disimpan ulang sebagai `nata-photo-db.json`.
+**Saya memperbarui dan progres hilang?** Tidak perlu apa-apa: file lama (`nata-photo-db.json`, `photo-sorter-db.json`) dibaca otomatis dan disimpan ulang sebagai `nata-sort-db.json`.
 
 **Apakah file asli bisa tertimpa?** Tidak. Bila nama sama, ditambah `_1`, `_2`, …. Default adalah Copy.
 
@@ -1024,7 +1025,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | Sorted mapping              | `{ fileName → folderId }`                                                                               |
 | Operasi                     | Catatan `SortOperation` tanpa handle                                                                    |
 | Undo stack                  | Tumpukan di memori, maks 20 entri                                                                       |
-| Project database            | `nata-photo-db.json`, skema 2.0                                                                          |
+| Project database            | `nata-sort-db.json`, skema 2.0                                                                          |
 | `createdName`               | Nama file yang benar-benar ditulis (dipakai undo)                                                       |
 | Previewable                 | Browser dapat merender langsung                                                                         |
 | Embedded preview            | JPEG yang disimpan kamera di dalam file RAW                                                             |
@@ -1050,7 +1051,7 @@ Skema DB tetap `"2.0"` sepanjang 2.0 → 2.2.
 | DB proyek                               | `src/features/sorter/services/project-db.service.ts`                                        |
 | Operasi file / validasi nama folder     | `src/features/sorter/utils/file-ops.utils.ts`, `folder-name.utils.ts`                       |
 | Format, metadata, dekoder RAW           | `src/features/media/config/file-formats.ts`, `services/metadata.service.ts`, `services/raw-decoder.service.ts` |
-| Dialog Bantuan (Pintasan + Tentang)     | `src/features/sorter/components/ShortcutsDialog.tsx`                                        |
+| Dialog Bantuan (Pintasan + Tentang)     | `src/app/layouts/settings/SettingsDialog.tsx`                                              |
 | Toast                                   | `src/shared/stores/status.store.ts`                                                         |
 | Tema dan token                          | `src/app/providers/ThemeProvider.tsx`, `src/app/styles/{tokens,globals}.css`, `public/theme-init.js`, `scripts/check-contrast.mjs` |
 | Mark dan ikon                           | `src/shared/components/brand/NataMark.tsx`, `public/{favicon.svg,icon.png,pwa-192x192.png,pwa-512x512.png,pwa-maskable-512x512.png}`, kit `docs/brand/` |

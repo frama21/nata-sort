@@ -46,7 +46,7 @@ graph TB
         direction TB
         media["Top-level images & videos"]
         subfolders["Sort sub-folders 1..9"]
-        db[("nata-photo-db.json")]
+        db[("nata-sort-db.json")]
     end
 
     subgraph edge["Public edge (optional)"]
@@ -176,8 +176,10 @@ NATA keeps three distinct kinds of state, each in exactly one place. Understandi
 | State kind | Home | Lifetime | Examples |
 | --- | --- | --- | --- |
 | **Live application state** | [`useFileSystem`](../src/features/sorter/hooks/useFileSystem.ts) hook (React state + refs) | The mounted session | `photos`, `currentIndex`, `folders`, `sortedPhotos`, `moveMode`, `operations`, `undoStack`, `rawPreviewUrls`, `metadataByKey` |
+| **Open-project flag (top bar)** | [`useProjectStore`](../src/shared/stores/project.store.ts) (Zustand): project name + `close` callback, set by `SorterPage` while a project is open | While a project is open | Lets the navbar show "Close project" without owning the session |
+| **Recent projects** | [`recent-projects.service.ts`](../src/features/sorter/services/recent-projects.service.ts) (IndexedDB, directory handles) | Across reloads, per browser profile | Start-screen list; separate from the project DB |
 | **Transient UI feedback** | [`statusStore`](../src/shared/stores/status.store.ts) (Zustand) | Seconds (auto-expires) | Loading/success/error toasts shown in the navbar |
-| **Durable project state** | `nata-photo-db.json` (on disk, via [`dbService`](../src/features/sorter/services/project-db.service.ts)) | Across reloads/sessions | Folders, per-file sort mapping, mode, `currentIndex`, operation log, metadata cache, stats |
+| **Durable project state** | `nata-sort-db.json` (on disk, via [`dbService`](../src/features/sorter/services/project-db.service.ts)) | Across reloads/sessions | Folders, per-file sort mapping, mode, `currentIndex`, operation log, metadata cache, stats |
 
 The `useFileSystem` hook is the **controller** in an MVC-ish sense: `App` and its children are the view, the services are the model/IO layer, and the hook wires them together and owns all mutable session state. It is `~860` lines and is the single most important module to read: [src/features/sorter/hooks/useFileSystem.ts](../src/features/sorter/hooks/useFileSystem.ts).
 
@@ -225,7 +227,7 @@ sequenceDiagram
     FS-->>H: root dirHandle
     H->>H: revoke old blob URLs, reset queues/undo
     H->>DB: initProjectDatabase(dirHandle)
-    DB->>FS: read/create nata-photo-db.json
+    DB->>FS: read/create nata-sort-db.json
     DB-->>H: CompleteProjectState (folders, mapping, cache, ...)
     loop dirHandle.values() (top-level only)
         H->>FS: getFile() for each supported image/video
@@ -266,7 +268,7 @@ sequenceDiagram
     end
     H->>H: update sortedPhotos, operations, undoStack (max 20), currentIndex++
     H->>DB: updateDatabaseAfterOperation(...)  %% enqueued write
-    DB->>FS: read-modify-write nata-photo-db.json
+    DB->>FS: read-modify-write nata-sort-db.json
     H-->>A: state updates → advance to next photo
 ```
 
@@ -302,7 +304,7 @@ The services are **stateless, framework-free modules** (no React) that the contr
 
 ### 7.1 `dbService.ts` — persistence
 
-[src/features/sorter/services/project-db.service.ts](../src/features/sorter/services/project-db.service.ts). Owns `nata-photo-db.json` (schema `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`). Public surface: `initProjectDatabase`, `updateDatabaseAfterOperation`, `updateDatabaseFolders`, `updateDatabaseMode`, `updateDatabaseMetadata`, `loadProjectState`. All writes go through `enqueue()`/`writeChain`. The load path validates shape + version, then runs `sanitizeState()` which strips prototype-pollution keys (`__proto__`/`constructor`/`prototype`) via `safeRecord()` into `Object.create(null)` maps, bounds every collection (`MAX_SORTED_ENTRIES`/`MAX_METADATA_ENTRIES` = 100 000, `MAX_FOLDERS` = 1 000, operations sliced to 50), and coerces `moveMode`/`currentIndex` to safe defaults. A missing, corrupt, or version-mismatched file returns `null` (reset) with a visible warning — it never throws.
+[src/features/sorter/services/project-db.service.ts](../src/features/sorter/services/project-db.service.ts). Owns `nata-sort-db.json` (schema `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`). Public surface: `initProjectDatabase`, `updateDatabaseAfterOperation`, `updateDatabaseFolders`, `updateDatabaseMode`, `updateDatabaseMetadata`, `loadProjectState`. All writes go through `enqueue()`/`writeChain`. The load path validates shape + version, then runs `sanitizeState()` which strips prototype-pollution keys (`__proto__`/`constructor`/`prototype`) via `safeRecord()` into `Object.create(null)` maps, bounds every collection (`MAX_SORTED_ENTRIES`/`MAX_METADATA_ENTRIES` = 100 000, `MAX_FOLDERS` = 1 000, operations sliced to 50), and coerces `moveMode`/`currentIndex` to safe defaults. A missing, corrupt, or version-mismatched file returns `null` (reset) with a visible warning — it never throws.
 
 ### 7.2 `exifService.ts` — metadata & chronology
 
@@ -351,7 +353,7 @@ Because the API is Chromium-only, `loadDirectory` guards on `"showDirectoryPicke
 
 ## 9. Persistence architecture (single-writer promise chain)
 
-The durable project state is one file, `nata-photo-db.json`, written **inside the opened folder**. Its shape (`CompleteProjectState`) holds: `version`, `folders[]`, `sortedPhotos` (keyed by **file name**), `moveMode`, `currentIndex`, `operations[]` (max 50), an optional `metadataCache`, `stats`, and a `timestamp`.
+The durable project state is one file, `nata-sort-db.json`, written **inside the opened folder**. Its shape (`CompleteProjectState`) holds: `version`, `folders[]`, `sortedPhotos` (keyed by **file name**), `moveMode`, `currentIndex`, `operations[]` (max 50), an optional `metadataCache`, `stats`, and a `timestamp`.
 
 The central design decision is the **single-writer promise chain**:
 
@@ -427,11 +429,11 @@ classDiagram
 
 `App.tsx` is the only view module; everything else under `components/` is presentational and prop-driven.
 
-- **Layout**: a flat 48 px `Navbar` (mark + "NATA", main views — hidden while there is only one —, help dialog, language, theme) over a full-height `main`; the toast region (`StatusIndicator`) floats bottom-right. On `lg` (≥ 1024 px) `EditorView` is three panels plus a 28 px `StatusBar`: a 248 px folders panel (`FolderManager`), the canvas (view toggle, `ContentViewer` / `GridView`, `Filmstrip`) and a 320 px details panel (`MetadataPanel`, `OperationLog`, `Stats`); each panel scrolls on its own. Below `lg` it is one column, the two panels open as sheets (`DialogContent side="left" | "bottom"`, rendered once via `useMediaQuery`), and a fixed 72 px `MobileActionBar` shows prev/next plus one colored button per folder. See [UI-Design.md](UI-Design.md).
+- **Layout**: a flat 48 px `Navbar` (mark + "NATA", main views — hidden while there is only one —, close project, and one help/settings button that opens the Settings dialog: Shortcuts, Appearance (theme, language), About, Changelog) over a full-height `main`; the toast region (`StatusIndicator`) floats bottom-right. On `lg` (≥ 1024 px) `EditorView` is three panels plus a 28 px `StatusBar`: a 248 px folders panel (`FolderManager`), the canvas (view toggle, `ContentViewer` / `GridView`, `Filmstrip`) and a 320 px details panel (`MetadataPanel`, `OperationLog`, `Stats`); each panel scrolls on its own. Below `lg` it is one column, the two panels open as sheets (`DialogContent side="left" | "bottom"`, rendered once via `useMediaQuery`), and a fixed 72 px `MobileActionBar` shows prev/next plus one colored button per folder. See [UI-Design.md](UI-Design.md).
 - **Keyboard & touch** (in `ContentViewer`): `←/→` navigate, `Space` = next, `1`–`9` assign to the matching folder, `U` = jump to next unsorted, `Ctrl/Cmd+Z` = undo. Shortcuts are **ignored while typing** in an `input`/`textarea`/`contentEditable`. Mobile swipe uses a 50 px threshold.
 - **States**: empty (pick-folder), loading (spinner + progress text), viewer (image / video / RAW-decoding / preview-unavailable), all-sorted (green alert), error (`Alert` / `ErrorBoundary`). Transient feedback is via the status-store toasts.
 - **Design tokens**: `src/app/styles/globals.css` in OKLCH, light on `:root`, dark on `.dark`, radius scale derived from `--radius: 0.625rem`. UI primitives are in-house components (native `<dialog>`, ARIA tabs, popover tooltip; no Radix/shadcn) with lucide icons. All user-facing text goes through i18next (`src/shared/i18n`, English + Indonesian).
-- **Accessibility**: aria-labels on nav/folder buttons, an sr-only theme-toggle label, full keyboard operation, and a focus-visible ring (`outline-ring/50`).
+- **Accessibility**: aria-labels on nav/folder buttons, labelled radio groups for theme and language in Settings, full keyboard operation, and a focus-visible ring (`outline-ring/50`).
 
 The UI copy is **Indonesian** (`lang="id"`); the code, comments, README, and this document are English.
 
@@ -580,7 +582,7 @@ For **public HTTPS**, terminate TLS at the platform edge (Cloudflare, a load bal
 | [`src/app/main.tsx`](../src/app/main.tsx) | Bootstrap: path normalization, SW registration, mount `StrictMode → ErrorBoundary → ThemeProvider → App` |
 | [`src/app/App.tsx`](../src/app/App.tsx) | The single view; composes all components, derives sorted/unsorted counts and "all sorted" |
 | [`src/features/sorter/hooks/useFileSystem.ts`](../src/features/sorter/hooks/useFileSystem.ts) | **Controller**: owns all session state, orchestrates loading, sorting, undo, decode, persistence |
-| [`src/features/sorter/services/project-db.service.ts`](../src/features/sorter/services/project-db.service.ts) | `nata-photo-db.json` read-modify-write via the single-writer chain; load-time sanitization |
+| [`src/features/sorter/services/project-db.service.ts`](../src/features/sorter/services/project-db.service.ts) | `nata-sort-db.json` read-modify-write via the single-writer chain; load-time sanitization |
 | [`src/features/media/services/metadata.service.ts`](../src/features/media/services/metadata.service.ts) | Image EXIF + video mediainfo extraction; capture-date parsing; display formatters |
 | [`src/features/media/services/raw-decoder.service.ts`](../src/features/media/services/raw-decoder.service.ts) | RAW preview pipeline (embedded-JPEG scan + libraw fallback) |
 | [`src/features/media/config/file-formats.ts`](../src/features/media/config/file-formats.ts) | Format registry + `isSupportedImage`/`isPreviewable`/`getFileFormatInfo` |

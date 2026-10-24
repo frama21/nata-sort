@@ -45,7 +45,7 @@ flowchart LR
 
   subgraph Disk["User's local disk"]
     Folder["Chosen folder"]
-    DB[("nata-photo-db.json")]
+    DB[("nata-sort-db.json")]
     Sub["Sort sub-folders 1..9"]
     Folder --> DB
     Folder --> Sub
@@ -70,7 +70,7 @@ flowchart LR
 3. Files are ordered **chronologically** by capture date/time, falling back to `File.lastModified`.
 4. The user previews each file and assigns it to a numbered sort sub-folder with single-key shortcuts (`1`–`9`).
 5. Files are **copied** (default) or **moved / cut** into sub-folders created inside the opened folder.
-6. All session state is auto-persisted to `nata-photo-db.json` in the opened folder, so reopening the same folder restores the session.
+6. All session state is auto-persisted to `nata-sort-db.json` in the opened folder, so reopening the same folder restores the session.
 
 ---
 
@@ -215,7 +215,7 @@ Four handle-level helpers live at module scope (no component state):
 
 ### 4.2 `dbService` — persisted project state
 
-[`src/features/sorter/services/project-db.service.ts`](../src/features/sorter/services/project-db.service.ts) is the only module that reads or writes `nata-photo-db.json`. Every mutation is a **read-modify-write** of that single file.
+[`src/features/sorter/services/project-db.service.ts`](../src/features/sorter/services/project-db.service.ts) is the only module that reads or writes `nata-sort-db.json`. Every mutation is a **read-modify-write** of that single file.
 
 #### 4.2.1 Public API
 
@@ -228,7 +228,7 @@ Four handle-level helpers live at module scope (no component state):
 | `updateDatabaseMetadata` | `(dir, cache) => Promise<void>` | Persist the per-file metadata cache (debounced by caller). |
 | `loadProjectState` | `(dir) => Promise<CompleteProjectState \| null>` | Read + validate + sanitize; `null` on missing/corrupt/incompatible. |
 
-Constants: `DB_FILENAME = "nata-photo-db.json"`, `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`, `MAX_SORTED_ENTRIES = MAX_METADATA_ENTRIES = 100_000`, `MAX_FOLDERS = 1_000`.
+Constants: `DB_FILENAME = "nata-sort-db.json"`, `DB_VERSION = "2.0"`, `MAX_OPERATIONS = 50`, `MAX_SORTED_ENTRIES = MAX_METADATA_ENTRIES = 100_000`, `MAX_FOLDERS = 1_000`.
 
 #### 4.2.2 Write-serialization chain
 
@@ -252,7 +252,7 @@ The DB file lives **inside the user's chosen folder**, so it is untrusted input:
 
 The load path is:
 
-1. **Read** `nata-photo-db.json`. Missing file → `return null` (normal on first open, no warning).
+1. **Read** `nata-sort-db.json`. Missing file → `return null` (normal on first open, no warning).
 2. **Parse** JSON. Parse error → warn `"Database rusak, dibuat ulang"`, return `null`.
 3. **Shape check** (`isValidState`): requires `version:string`, `folders:array`, `sortedPhotos:object!=null`, `operations:array`. Fail → warn `"Format database tidak valid, dibuat ulang"`, return `null`.
 4. **Version check**: `parsed.version !== "2.0"` → warn `"Database versi X tidak kompatibel, dibuat ulang"`, return `null`.
@@ -439,7 +439,7 @@ export interface ProjectState {
 
 ---
 
-## 6. `nata-photo-db.json` schema
+## 6. `nata-sort-db.json` schema
 
 A single JSON file written **inside the opened folder**. It is the durable session state; handles and blob URLs are never persisted (they are re-acquired on load by name).
 
@@ -638,7 +638,7 @@ NATA has several independent asynchronous flows; each has an explicit guard agai
 
 | Flow | Hazard | Guard |
 |---|---|---|
-| **DB writes** | Two read-modify-writes of `nata-photo-db.json` interleave (holding a shortcut key; metadata persist overlapping an assign) and drop updates. | Single `writeChain` promise; every mutator wraps its body in `enqueue()` so writes run **strictly one at a time**, and the chain survives rejections. |
+| **DB writes** | Two read-modify-writes of `nata-sort-db.json` interleave (holding a shortcut key; metadata persist overlapping an assign) and drop updates. | Single `writeChain` promise; every mutator wraps its body in `enqueue()` so writes run **strictly one at a time**, and the chain survives rejections. |
 | **RAW decode** | The same file is decoded repeatedly as the effect re-fires; a failed decode retries forever. | `rawDecodeQueueRef` (in-flight dedup), `rawPreviewKeysRef` (already-done skip), `failedRawDecodesRef` (no-retry). One decode per key ever. |
 | **Metadata extraction** | Neighbor prefetch double-extracts the same file. | `metaQueueRef` in-flight set + `metadataByKey.has(key)` check; a `cancelled` flag prevents setState-after-unmount. |
 | **Capture-date scan** | Reading hundreds of headers serially is slow; unbounded parallelism thrashes memory. | Fixed pool of **≤ 8** workers over a shared cursor. |
