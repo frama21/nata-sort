@@ -22,14 +22,14 @@ const Toast = ({ status }: { status: StatusItem }) => {
 
   return (
     <div
-      className="pointer-events-auto flex max-w-full items-start gap-2 rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm shadow-e1 animate-fade-in"
+      className="pointer-events-auto flex max-w-full items-center gap-2 rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm shadow-e1 animate-fade-in"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
     >
       {/* Status colour lives on the icon only; the message stays foreground. */}
-      <span aria-hidden className="mt-0.5 shrink-0">
+      <span aria-hidden className="grid shrink-0 place-items-center">
         {status.type === "loading" && <Spinner aria-hidden role="presentation" />}
         {status.type === "success" && <CheckCircle2 className="size-4 text-success" />}
         {status.type === "error" && <XCircle className="size-4 text-destructive" />}

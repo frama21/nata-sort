@@ -253,7 +253,7 @@ export const EditorView = ({ fs }: EditorViewProps) => {
       {!isDesktop && (
         <>
           <Dialog open={sheet === "folders"} onOpenChange={open => !open && setSheet(null)}>
-            <DialogContent side="left" className="h-full content-start gap-3 overflow-y-auto p-3 pt-12">
+            <DialogContent side="left" className="h-full content-start gap-3 overflow-y-auto p-3 pt-18">
               <DialogHeader className="sr-only">
                 <DialogTitle>{t("folder.title")}</DialogTitle>
               </DialogHeader>
@@ -261,7 +261,7 @@ export const EditorView = ({ fs }: EditorViewProps) => {
             </DialogContent>
           </Dialog>
           <Dialog open={sheet === "info"} onOpenChange={open => !open && setSheet(null)}>
-            <DialogContent side="bottom" className="max-h-[85dvh] content-start gap-3 overflow-y-auto p-3 pt-12">
+            <DialogContent side="bottom" className="max-h-[85dvh] content-start gap-3 overflow-y-auto p-3 pt-18">
               <DialogHeader className="sr-only">
                 <DialogTitle>{t("editor.infoPanel")}</DialogTitle>
               </DialogHeader>

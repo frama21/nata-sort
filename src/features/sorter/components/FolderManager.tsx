@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Trash2, FolderOpen, Scissors, Copy, Undo2, SkipForward, FolderPlus } from "lucide-react"
+import { Plus, Trash2, FolderOpen, Scissors, Copy, Undo2, SkipForward } from "lucide-react"
 
 import { Card, CardContent } from "@/shared/components/ui/card"
 import { Input } from "@/shared/components/ui/input"
@@ -168,10 +168,8 @@ export const FolderManager = ({
 
         {/* Folder list */}
         {folders.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border-strong py-6 text-center text-muted-foreground">
-            <FolderPlus className="size-6 opacity-70" />
-            <p className="text-xs">{t("folder.empty")}</p>
-          </div>
+          // Plain text on purpose: a dashed box with an icon reads as a drop zone for uploading.
+          <p className="px-1 py-2 text-center text-xs leading-5 text-muted-foreground">{t("folder.empty")}</p>
         ) : (
           <ul className="flex flex-col gap-2.5" aria-label={t("folder.listAria")}>
             {folders.map(folder => (

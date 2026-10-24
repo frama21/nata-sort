@@ -90,7 +90,8 @@ const DIALOG_SIDES = {
   center:
     "m-auto max-w-[calc(100%-2rem)] rounded-lg open:animate-pop-in sm:max-w-lg max-sm:mb-0 max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-xl",
   // Drawer / sheet: the same native <dialog>, docked to an edge.
-  left: "mr-auto ml-0 h-dvh max-h-dvh w-[280px] max-w-[85vw] rounded-none border-y-0 border-l-0 open:animate-slide-in-left",
+  // Full width on phones; a 360px drawer once there is room beside the page.
+  left: "mr-auto ml-0 h-dvh max-h-dvh w-full max-w-full rounded-none border-0 open:animate-slide-in-left sm:w-[360px]",
   bottom:
     "mt-auto mb-0 max-h-[85dvh] max-w-full rounded-t-xl rounded-b-none border-b-0 open:animate-slide-in-bottom"
 } as const
