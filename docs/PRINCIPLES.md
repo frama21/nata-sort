@@ -192,7 +192,7 @@ See [SECURITY.md](SECURITY.md) for the complete posture and audit results.
 - **Screen-reader affordances.** `aria-label`s on navigation and folder-action buttons, labelled `radiogroup`s for theme and language, and a visible focus ring (`focus-visible` / `outline-ring/50`) make state legible to assistive tech and keyboard users alike.
 - **Responsive by construction.** Desktop uses a 12-column grid (viewer 8 cols + sticky sidebar 4 cols); mobile stacks to a single column with a fixed bottom `MobileActionBar` (prev/next + one colored button per folder) and swipe navigation (50 px threshold). One codebase serves both.
 - **Light/dark theming with system awareness.** `ThemeProvider` (default dark, `storageKey "nata-sort-theme"`) plus a toggle and system option; tokens are defined in OKLCH in [`src/app/styles/globals.css`](../src/app/styles/globals.css) for both `:root` and `.dark`.
-- **Localized UI.** The interface copy is Indonesian (`lang="id"`), including status toasts and the PWA manifest name "NATA — Sortir Foto & Video Lokal." (Code, comments, README, and CHANGELOG remain English — see [Coding conventions](#coding-conventions).)
+- **Localized UI.** The interface is English by default (`lang="en"`, with Indonesian selectable in Settings), and the PWA manifest name is "NATA — Local Photo & Video Sorter." (Code, comments, README, and CHANGELOG remain English — see [Coding conventions](#coding-conventions).)
 
 ---
 

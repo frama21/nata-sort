@@ -754,7 +754,7 @@ flowchart LR
 
 - `pnpm run build` = `tsc -b && vite build`. Type errors fail the build.
 - **PWA**: `registerType: "prompt"` with `injectRegister: false` — `src/shared/stores/pwa.store.ts` registers `/sw.js` with the native `navigator.serviceWorker` API after page load (no inline `<script>`, no `workbox-window`). A new SW waits (no `skipWaiting`/`clientsClaim`) until the user presses **Reload** in `UpdateBanner`. Workbox precaches `**/*.{js,css,html,wasm,svg,png,ico,woff2}` (not `screenshots/**`) with `maximumFileSizeToCacheInBytes: 4 MB` (to cover the ~1.3 MB libraw WASM), `cleanupOutdatedCaches`, and `navigateFallback: /index.html` (denied for `/assets/*` and file-like paths).
-- **Manifest**: standalone display, theme/background `#1C1C1C`, 192 & 512 + maskable icons, two screenshots, `launch_handler: navigate-existing`, Indonesian name `"NATA — Sortir Foto & Video Lokal"`, `lang: "id"`.
+- **Manifest**: standalone display, theme/background `#1C1C1C`, 192 & 512 + maskable icons, two screenshots, `launch_handler: navigate-existing`, English name `"NATA — Local Photo & Video Sorter"`, `lang: "en"`.
 - **Entry** (`main.tsx`): `registerPwa()` then `StrictMode → ErrorBoundary → ThemeProvider (defaultTheme dark, storageKey "nata-sort-theme") → App`.
 
 ---

@@ -46,7 +46,7 @@
 | Atribut             | Nilai                                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------------------- |
 | Nama brand          | **NATA**                                                                                                      |
-| Judul aplikasi/PWA  | "NATA — Sortir Foto & Video Lokal"                                                                            |
+| Judul aplikasi/PWA  | "NATA — Local Photo & Video Sorter"                                                                            |
 | Nama paket          | `nata-sort` (juga nama image/container Docker)                                                                |
 | Nama folder/remote  | `nata-photo` (lokal) dan `frama21/photo-sorter` (URL GitHub yang masih dipakai di `security.txt`)             |
 | Bahasa antarmuka    | **Inggris dan Indonesia** (i18next, `en.json`/`id.json`); default Inggris, pilihan disimpan; `<html lang>` mengikuti bahasa |

@@ -265,7 +265,7 @@ See [§6](#6-project-persistence--database) for the full state & persistence mod
 
 ### 5.10 PWA & offline
 
-- **FR-PWA-1.** The app is an installable PWA (standalone display, Indonesian manifest name *"NATA — Sortir Foto & Video Lokal"*, theme/background colour `#1C1C1C`, 192 & 512 px and maskable icons, install-dialog screenshots, `launch_handler: navigate-existing`).
+- **FR-PWA-1.** The app is an installable PWA (standalone display, English manifest name *"NATA — Local Photo & Video Sorter"*, theme/background colour `#1C1C1C`, 192 & 512 px and maskable icons, install-dialog screenshots, `launch_handler: navigate-existing`).
 - **FR-PWA-2.** A Workbox service worker precaches JS/CSS/HTML/WASM and other assets for offline use, with `maximumFileSizeToCacheInBytes` of 4 MB to cover the ~1.3 MB `libraw` WASM.
 - **FR-PWA-3.** Update strategy is `prompt`: a new SW waits, an update bar offers **Reload** / **Later**, and nothing reloads without the user. Reload is disabled while a save is running; only the clicked tab reloads, once.
 - **FR-PWA-4.** The service worker is registered by [pwa.store.ts](../src/shared/stores/pwa.store.ts) after the page loads, using the native API — no inline registration script is injected, preserving the strict CSP.
