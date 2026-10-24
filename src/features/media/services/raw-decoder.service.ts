@@ -93,6 +93,60 @@ const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
   })
 
 /**
+ * Read the *real* pixel dimensions of a RAW file.
+ *
+ * ExifReader (and most EXIF libs) return the dimensions of the tiny embedded
+ * thumbnail IFD for RAW formats — e.g. a Nikon NEF reports 160×120 — because the
+ * true sensor size lives in a SubIFD they don't chase.
+ *
+ * Instead we read the intrinsic size of the *largest embedded JPEG preview*,
+ * which every camera writes at (essentially) full resolution. This is a pure
+ * `createImageBitmap` decode with NO libraw worker, so it never contends with an
+ * in-flight RAW preview decode — the reason a worker-based read was unreliable
+ * when a photo was opened (decode + dimensions racing for the same wasm worker).
+ * @param file RAW file to inspect.
+ * @returns The dimensions, or `null` if the RAW has no decodable embedded JPEG.
+ */
+export const getRawDimensions = async (file: File): Promise<{ width: number; height: number } | null> => {
+  try {
+    if (typeof createImageBitmap !== "function") return null
+    const data = new Uint8Array(await file.arrayBuffer())
+
+    // Collect SOI offsets (a JPEG starts with FF D8 FF ...).
+    const sois: number[] = []
+    for (let i = 0; i + 2 < data.length; i++) {
+      if (data[i] === 0xff && data[i + 1] === 0xd8 && data[i + 2] === 0xff) sois.push(i)
+    }
+    if (sois.length === 0) return null
+
+    // Largest byte-spans first — the full-res preview is the biggest JPEG.
+    const candidates = sois
+      .map((start, idx) => {
+        const next = idx + 1 < sois.length ? sois[idx + 1] : data.length
+        return { start, end: Math.min(next, start + MAX_CANDIDATE_BYTES) }
+      })
+      .sort((a, b) => b.end - b.start - (a.end - a.start))
+
+    // Return the embedded JPEG with the largest area that actually decodes.
+    let best: { width: number; height: number } | null = null
+    for (const c of candidates.slice(0, 6)) {
+      const blob = new Blob([data.slice(c.start, c.end)], { type: "image/jpeg" })
+      try {
+        const bitmap = await createImageBitmap(blob)
+        const { width, height } = bitmap
+        bitmap.close()
+        if (!best || width * height > best.width * best.height) best = { width, height }
+      } catch {
+        // Not a decodable JPEG at this offset — skip.
+      }
+    }
+    return best
+  } catch {
+    return null
+  }
+}
+
+/**
  * Decode a RAW file to a URL the browser can display.
  * @param file RAW file to decode.
  * @returns An object URL for the preview, or `null` on failure.

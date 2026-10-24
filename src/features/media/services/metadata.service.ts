@@ -4,14 +4,23 @@ import mediaInfoFactory from "mediainfo.js"
 
 import type { PhotoMetadata } from "../types/media.types"
 import { getFileFormatInfo } from "../config/file-formats"
+import { getRawDimensions } from "./raw-decoder.service"
 
 /**
- * Extract metadata dari image (EXIF) atau video (mediainfo.js)
+ * Extract metadata from an image (EXIF) or video (mediainfo.js).
+ *
+ * `deep` controls the accurate-but-expensive RAW dimension pass: for RAW files,
+ * EXIF only exposes the embedded thumbnail's size (e.g. 160×120 for a Nikon
+ * NEF), so we ask libraw for the true sensor dimensions. That spins up a wasm
+ * worker, so the bulk folder scan calls with deep=false (it only needs capture
+ * dates), and the on-demand pass for the viewed photo calls with deep=true.
  * @param file Image or video file to read.
+ * @param deep Run the libraw pass for true RAW dimensions.
  * @returns The extracted metadata, with defaults if extraction fails.
  */
-export const extractMetadata = async (file: File): Promise<PhotoMetadata> => {
-  const isVideo = getFileFormatInfo(file.name)?.category === "video"
+export const extractMetadata = async (file: File, deep = false): Promise<PhotoMetadata> => {
+  const format = getFileFormatInfo(file.name)
+  const isVideo = format?.category === "video"
   const defaultMetadata: PhotoMetadata = {
     fileSize: file.size,
     megapixels: 0,
@@ -22,9 +31,23 @@ export const extractMetadata = async (file: File): Promise<PhotoMetadata> => {
   try {
     if (isVideo) {
       return await extractVideoMetadata(file, defaultMetadata)
-    } else {
-      return await extractImageMetadata(file, defaultMetadata)
     }
+    const meta = await extractImageMetadata(file, defaultMetadata)
+
+    // RAW: EXIF gave us the thumbnail's size — replace it with libraw's real
+    // sensor dimensions when we're allowed to do the expensive pass.
+    if (deep && format?.category === "raw") {
+      const dims = await getRawDimensions(file)
+      if (dims) {
+        return {
+          ...meta,
+          dimensions: dims,
+          megapixels: megapixelsFrom(dims.width, dims.height)
+        }
+      }
+    }
+
+    return meta
   } catch (err) {
     console.warn("Failed to extract metadata:", err)
     return defaultMetadata
