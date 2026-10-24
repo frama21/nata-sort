@@ -1,4 +1,4 @@
-# Photo Sorter — security contact (RFC 9116)
+# NATA — security contact (RFC 9116)
 # Report vulnerabilities privately; please do not open a public issue.
 
 Contact: https://github.com/frama21/photo-sorter/security/advisories/new
