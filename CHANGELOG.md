@@ -6,6 +6,46 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **A real boot screen.** While the app loads you now see the NATA mark over an indeterminate
+  progress bar, instead of a blank page and a small spinner. It is part of `index.html` (inline
+  styles, so it paints before the bundle) and `BootSplash` continues it once React takes over, so it
+  does not blink. It fades in after 120 ms, so a fast or cached load never flashes it. Reduced motion
+  turns the sliding bar into a pulse.
+- **Welcome to workspace transition.** Opening a folder no longer snaps from the start screen to the
+  sorter: the start screen lifts away (fade, 16 px up, slight shrink) while the folders panel and
+  the details panel glide in from their edges and the canvas rises in, staggered (460 ms). The start
+  screen stays mounted but inert for 300 ms, so nothing is clickable mid-transition. The phone
+  action bar slides up. Reduced motion makes it instant.
+- **Closing a project animates too.** **Close project** first plays the opening in reverse: the
+  folders and details panels slide back out to their edges and the canvas sinks and fades (280 ms),
+  then the start screen rises in. The workspace is inert while it leaves, so a second click or a stray
+  key does nothing. Reduced motion closes at once.
+- **Exit animations.** Dialogs, drawers and sheets fade and slide out (and the backdrop with them)
+  instead of vanishing; toasts slide out before they are removed.
+- **No blank frame between photos.** Stepping to another photo keeps the previous one on screen,
+  with a "Loading…" chip if the next takes more than a beat (RAW decoding, large files), and fades the
+  new photo in over it. Thumbnails fade in as they load. The viewer used to go blank or show a
+  skeleton, then pop the image in.
+- **Sort feedback.** The sort badge on the viewer and on thumbnails pops in; new folder rows and
+  Recent Log entries rise in; Single and Grid fade in when you switch; the filmstrip glides to the
+  current photo (instant on first show and under reduced motion).
+- **Closing the tab is guarded while a write is in flight.** A `beforeunload` warning appears only
+  while a project write or a copy/move is actually running; a saved session closes without a prompt.
+- **A viewer error with Try again.** A photo or video that cannot be decoded now shows "This file
+  could not be displayed" with a **Try again** button (it was a broken image or an endless spinner).
+  A RAW whose preview failed has the same button; its decode used to be attempted only once.
+- **Thumbnails load with a skeleton** and fall back to the format placeholder when the image cannot
+  be decoded, instead of showing a blank or broken square.
+- **Empty folder message.** Opening a folder with no supported photos now says so (and does not
+  announce "Project loaded"); the message has a close button. Unreadable files are skipped with a
+  notice instead of aborting the whole open.
+- **Empty Recent Log** shows a hint instead of disappearing, so the Info panel no longer jumps when
+  the first photo is sorted. Selection changes are announced to screen readers.
+- **Haptic tick on supported devices.** A short vibration confirms a sort (a pattern marks a failure)
+  where `navigator.vibrate` exists (Chrome on Android); it does nothing elsewhere and under reduced
+  motion.
+- **Faster first load.** The lazy `SorterPage` chunk is now preloaded from `index.html` instead of
+  being discovered after the entry script runs (lab, Fast 3G, cold cache: LCP about 3.85 s to 2.97 s).
 - **Close project.** While a project is open the top bar shows a **Close project** button (icon
   only on phones). It returns to the start screen; progress is already saved in the folder.
 - **Recent projects on the start screen.** Folders you opened are listed with their name, photo
@@ -21,8 +61,27 @@ All notable changes to this project are documented in this file.
   list is virtualized with `@tanstack/react-virtual`, and the tab loads lazily on first open, so
   the CHANGELOG text and the library stay out of the initial bundle.
 
+### Changed
+
+- **Motion feels fluid, not abrupt.** Durations are a little longer (120/180/280 ms), entrances use a spring-out curve (`--ease-out`) and exits an accelerating one
+  (`--ease-in`). Only `opacity` and `transform` animate, and reduced motion still zeroes them.
+
 ### Fixed
 
+- **Side panels were clipped on short screens.** On a desktop window with little height, the
+  Sort Folders, Photo Info, Recent Log and Statistics cards were squeezed to fit and their content
+  (and buttons such as Undo) was cut off. The panels now keep each card's height and scroll.
+- **Start screen heading order.** "Recent projects" was an `h3` straight under the page `h1`; it is
+  now an `h2`.
+- **A failed sort skipped the photo.** After a failed copy/move the viewer moved on to the next photo;
+  it now stays on the failed one so it can be retried.
+- **A folder that could not be deleted was reported as deleted.** The "deleted" toast and the list
+  update now follow a successful removal only.
+- **Spinners froze under reduced motion**, which looks like a hang. They now pulse instead of rotating.
+- **Browser-unsupported message was hard-coded Indonesian.** It now uses the translated text.
+- **Ctrl+Z twice in a row could undo the same step twice**, and a thrown error during sort or undo
+  surfaced as an unhandled rejection. Both now show a failure toast.
+- **"Project loaded" was announced twice** (by the database layer before the scan, and after it).
 - **A sort that fired twice ran twice.** Key auto-repeat or a double tap on a folder button copied or
   moved the same photo again: Copy logged two operations (and the second undo failed), Cut ended
   in a failed state. A photo already being sorted is now skipped, for single and batch sorts.

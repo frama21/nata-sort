@@ -12,7 +12,7 @@
 2. **Neutral means neutral** — chrome greys are pure (R = G = B). Dark is the default theme.
 3. **One accent, used sparingly** — primary action, selection ring, progress, focus-adjacent state. Hover is grey, never accent.
 4. **Readable for hours** — body 14 px, nothing below 12 px, tabular numbers for every figure, no monospace.
-5. **Calm motion** — short fades and 2–4 % scale; only `opacity`/`transform` animate; reduced motion is honoured.
+5. **Calm, fluid motion** — things ease in and ease out (dialogs, sheets and toasts animate on exit too); a photo never blinks to blank between steps; short fades and 2–4 % scale; only `opacity`/`transform` animate; reduced motion is honoured.
 6. **Accessible and bilingual** — keyboard, ARIA, a visible focus ring, EN + ID copy that fits at +40 % length.
 
 ## 2. Tokens
@@ -34,7 +34,7 @@ Defined once in [`src/app/styles/tokens.css`](../src/app/styles/tokens.css) (`.d
 
 - **Type**: Inter Variable (400–700), body 14/20, label 13.5, caption 12 (minimum), `display` 28/34 (currently unused: the welcome screen shows the logo instead of a headline).
 - **Shape**: radius 6 / 8 / 12 / 16; `--shadow-e1` (popover, toast), `--shadow-e2` (dialog). Panels are flat.
-- **Motion**: `--dur-fast` 100 ms, `--dur-base` 160 ms, `--dur-slow` 240 ms, `--ease: cubic-bezier(.2,0,0,1)`; press scales to 0.97.
+- **Motion**: `--dur-fast` 120 ms, `--dur-base` 180 ms, `--dur-slow` 280 ms, `--dur-xl` 460 ms (the welcome-to-workspace transition only); `--ease: cubic-bezier(.2,0,0,1)` for state changes, `--ease-out: cubic-bezier(.16,1,.3,1)` for entrances (spring-out feel), `--ease-in: cubic-bezier(.4,0,1,1)` for exits; press scales to 0.97. Entrance keyframes (`rise`, `page-enter`, `pop-in`, `slide-in-bottom`) live in `globals.css`.
 - **Focus**: `box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer)` on `:focus-visible`, on every element.
 - **Contrast**: `pnpm check:contrast` recomputes the WCAG 2.2 pairs (text ≥ 4.5, UI ≥ 3) in both themes and fails on any hex/rgb/hsl/oklch literal in components. The teal keeps ≥ 4.5:1 on `surface-1`, white/dark text ≥ 4.5:1 on top of it, and ≥ 3:1 on `canvas`, and sits ~180° away from `--danger` so a primary button never reads as destructive.
 
@@ -70,10 +70,14 @@ The wordmark is a custom lowercase "nata" built as outlines (no font). Both live
 App icons are an ink `#111111` tile (22 % radius) with the mark; the maskable icon is full-bleed with the mark inside the 80 % safe zone; `public/favicon.svg` enlarges the mark in the tile so the piece survives 16 px.
 Kit, colours and usage rules: [`docs/brand/`](brand/README.md).
 
+**Boot screen.** While the app loads, the NATA mark sits over an indeterminate linear bar (teal, sliding). `index.html` carries a static copy with its own inline `<style>` (the CSP allows inline styles, not scripts) so it paints before the bundle; it fades in after 120 ms, so a warm load that mounts sooner never shows it. `BootSplash` (`shared/components/brand`) renders the same markup as the route `HydrateFallback`, without the delay, so the handoff does not blink. The `.boot*` rules live only in `index.html`. Under reduced motion the bar pulses instead of sliding.
+
+**Motion patterns.** Dialogs, drawers and sheets animate out as well as in (CSS transitions with `@starting-style`, Chromium 117+; elsewhere the close is instant). Toasts slide in and out. The viewer keeps the previous photo on screen, with a delayed "Loading…" chip, until the next one is decoded, then fades it in over the old one; thumbnails fade in on load. Opening a project lifts the start screen away (it stays mounted but inert for 300 ms) while the side panels slide in from their edges and the canvas rises, staggered. Closing it plays the reverse (panels slide out, the canvas sinks) for 280 ms before the project closes, with the workspace inert meanwhile. A sort pops the result badge; new folder rows and log entries rise in; Single and Grid fade in on switch; the filmstrip glides to the current photo when stepping.
+
 ## 6. Accessibility floor (WCAG 2.2 AA)
 
 Two-tone focus ring everywhere; colour never carries meaning alone (state = icon/dot + word); targets ≥ 24 px (44 px on touch); every drag has a non-drag alternative;
-`prefers-reduced-motion` zeroes the duration tokens and stops loops; `<html lang>` follows the UI language; the viewport allows zoom.
+`prefers-reduced-motion` zeroes the duration tokens and stops loops (loading spinners become a slow opacity pulse so "working" stays visible); `<html lang>` follows the UI language; the viewport allows zoom.
 Not yet built (from the RONA brief): an in-app "Reduce motion" switch and an accent picker — NATA has no settings dialog.
 
 ## 7. Voice

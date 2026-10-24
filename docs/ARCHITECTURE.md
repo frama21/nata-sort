@@ -483,11 +483,13 @@ Beyond the initial capture-date pass, full metadata is extracted **lazily** for 
 
 ## 13. Build & bundling
 
-The build is **Vite 8 (rolldown)** with three plugins ([vite.config.ts](../vite.config.ts)):
+The build is **Vite 8 (rolldown)** with three plugins plus a small inline one ([vite.config.ts](../vite.config.ts)):
 
 - **`@vitejs/plugin-react`** — React 19 + fast refresh.
 - **`@tailwindcss/vite`** — Tailwind CSS v4.
 - **`vite-plugin-pwa`** (Workbox) — the offline service worker.
+- **Boot splash** — `index.html` ships an inline `<style>` and a static `.boot` block inside `#root`; React replaces it on first render, and `RouteLoading` (the `HydrateFallback`) renders the same markup through `BootSplash`, so the loading screen is continuous from first paint.
+- **`preload-sorter-page`** (inline) — `/` is the only page and its chunk is lazy, so the plugin adds `<link rel="modulepreload">` for `SorterPage` and its imports to `index.html`; the chunk downloads in parallel with the entry instead of after it runs. Same-origin, so no CSP change.
 
 **Aliasing**: `@` → `src`. **Build script**: `tsc -b && vite build` → `/app/dist`. Output is **content-hashed** assets under `/assets/*` (immutable, cache-forever) plus non-hashed entry files (`index.html`, `sw.js`, manifest, icons) that must always revalidate — the static server enforces exactly this split (see [§14](#14-deployment-architecture)).
 

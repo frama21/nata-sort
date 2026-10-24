@@ -742,7 +742,7 @@ Komponen hanya memakai token (tanpa literal warna); `pnpm check:contrast` menghi
 
 ### 14.4 State UI
 
-Kosong (mark + "Mulai menata foto" + satu tombol "Pilih Folder Foto"; blok naik berurutan), memuat (tombol `loading`, toast "Membaca…"), gambar, video, mendekode RAW, preview tidak tersedia, semua tersortir (alert `success`), error (alert `destructive`), error fatal (ErrorBoundary), 404 ("Halaman tidak ditemukan").
+Kosong (mark + "Mulai menata foto" + satu tombol "Pilih Folder Foto"; blok naik berurutan), memuat (tombol `loading`, toast "Membaca…"), gambar, video, mendekode RAW (foto sebelumnya bertahan dengan chip "Memuat…" sampai foto berikut siap, lalu foto baru fade-in di atasnya), preview tidak tersedia, semua tersortir (alert `success`), error (alert `destructive`), error fatal (ErrorBoundary), 404 ("Halaman tidak ditemukan"). Saat aplikasi dimuat: layar boot (mark NATA di atas bar progres linear indeterminate; salinan statis di `index.html` dengan `<style>` inline, dilanjutkan `BootSplash` sebagai `HydrateFallback`). Dialog, sheet, dan toast beranimasi masuk **dan** keluar.
 
 ### 14.5 Komponen UI in-house (`shared/components/ui`)
 
