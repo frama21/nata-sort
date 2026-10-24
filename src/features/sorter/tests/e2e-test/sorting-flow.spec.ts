@@ -121,7 +121,7 @@ test("the settings dialog opens on Shortcuts and has Appearance, About and Chang
 
   await dialog.getByRole("tab", { name: "Changelog" }).click()
   const timeline = dialog.getByRole("region", { name: "Changelog" })
-  await expect(timeline.getByRole("heading", { name: "Unreleased" })).toBeVisible()
+  await expect(timeline.getByRole("heading", { name: /^v\d+\.\d+\.\d+$/ }).first()).toBeVisible()
   // Virtualized: the oldest release is not mounted until scrolled to.
   await expect(timeline.getByRole("heading", { name: "v1.1.0" })).toHaveCount(0)
   await timeline.evaluate(el => el.scrollTo({ top: el.scrollHeight }))

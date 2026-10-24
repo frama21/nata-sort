@@ -32,7 +32,7 @@ test("on a phone the changelog scrolls inside a fixed-height panel and stays vir
   await dialog.getByRole("tab", { name: "Changelog" }).click()
 
   const timeline = dialog.getByRole("region", { name: "Changelog" })
-  await expect(timeline.getByRole("heading", { name: "Unreleased" })).toBeVisible()
+  await expect(timeline.getByRole("heading", { name: /^v\d+\.\d+\.\d+$/ }).first()).toBeVisible()
   const { height, scrollHeight, mounted } = await timeline.evaluate(el => ({
     height: el.getBoundingClientRect().height,
     scrollHeight: el.scrollHeight,

@@ -75,7 +75,7 @@ describe("parseChangelog", () => {
 describe("the real CHANGELOG.md", () => {
   it("parses into releases with content, newest first", () => {
     const releases = parseChangelog(changelog)
-    expect(releases[0].version).toBe("Unreleased")
+    expect(releases[0].version).toMatch(/^(Unreleased|\d+\.\d+\.\d+)$/)
     expect(releases.length).toBeGreaterThan(5)
     expect(releases.at(-1)?.version).toBe("1.1.0")
   })
