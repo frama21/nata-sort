@@ -48,6 +48,7 @@ const LIBRAW_TIMEOUT_MS = 20000
  * and leaves the decode promise pending forever (the RAW spinner hangs).
  * Re-bind the handler to the correct keys, and reject on worker errors, so the
  * promise always settles.
+ * @param raw A LibRaw instance whose worker should be patched.
  */
 const patchLibRawWorker = (raw: unknown): void => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,7 +71,12 @@ const patchLibRawWorker = (raw: unknown): void => {
   }
 }
 
-/** Reject if a promise doesn't settle within `ms`. */
+/**
+ * Reject if a promise doesn't settle within `ms`.
+ * @param promise Promise to wait for.
+ * @param ms Timeout in milliseconds.
+ * @returns A promise that rejects if `ms` elapses first.
+ */
 const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
   new Promise<T>((resolve, reject) => {
     const id = setTimeout(() => reject(new Error("libraw decode timed out")), ms)
@@ -88,6 +94,8 @@ const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
 
 /**
  * Decode a RAW file to a URL the browser can display.
+ * @param file RAW file to decode.
+ * @returns An object URL for the preview, or `null` on failure.
  */
 export const decodeRawImage = async (file: File): Promise<string | null> => {
   try {
@@ -119,6 +127,8 @@ export const decodeRawImage = async (file: File): Promise<string | null> => {
  * embedded JPEG preview and re-encode it small. Skips the slow/flaky libraw
  * sensor decode entirely, so many thumbnails can be decoded in the background.
  * Returns null when the RAW has no embedded preview.
+ * @param file RAW file to decode.
+ * @returns A small preview data URL, or `null` if none was found.
  */
 export const decodeRawThumbnail = async (file: File): Promise<string | null> => {
   try {
@@ -133,6 +143,8 @@ export const decodeRawThumbnail = async (file: File): Promise<string | null> => 
  * Extract the camera's embedded thumbnail/preview via LibRaw. This works across
  * RAW formats (JPEG or bitmap previews) even when the raw byte-scan finds
  * nothing, and it's cheap — no demosaicing of the full sensor.
+ * @param raw An opened LibRaw instance.
+ * @returns A preview data URL, or `null` if LibRaw has none.
  */
 const libRawThumbnail = async (raw: InstanceType<typeof LibRaw>): Promise<string | null> => {
   try {
@@ -157,6 +169,8 @@ const libRawThumbnail = async (raw: InstanceType<typeof LibRaw>): Promise<string
 /**
  * Decode a RAW with libraw-wasm. Tries the embedded thumbnail/preview first
  * (fast & reliable), then falls back to a full sensor decode.
+ * @param file RAW file to decode.
+ * @returns A preview data URL, or `null` on failure.
  */
 const decodeWithLibRaw = async (file: File): Promise<string | null> => {
   let raw: InstanceType<typeof LibRaw> | null = null
@@ -215,6 +229,9 @@ const decodeWithLibRaw = async (file: File): Promise<string | null> => {
 /**
  * Re-encode a decoded bitmap to a small, bounded JPEG data URL so we never cache
  * the original (possibly tens-of-MB) source slice.
+ * @param bitmap Decoded bitmap.
+ * @param maxDim Longest side of the output, in pixels.
+ * @returns A JPEG data URL, or `null` if encoding failed.
  */
 const bitmapToDataUrl = (bitmap: ImageBitmap, maxDim = MAX_PREVIEW_DIM): string | null => {
   try {
@@ -240,6 +257,9 @@ const bitmapToDataUrl = (bitmap: ImageBitmap, maxDim = MAX_PREVIEW_DIM): string 
  * which finds the real EOI itself and ignores trailing bytes. This avoids
  * truncating the preview — the failure mode of a hand-rolled EOI scan on formats
  * like Sony ARW. Only candidates that actually decode are returned.
+ * @param file RAW file to scan.
+ * @param maxDim Longest side of the output, in pixels.
+ * @returns The widest embedded preview as a data URL, or `null`.
  */
 const extractEmbeddedPreview = async (
   file: File,
@@ -300,6 +320,10 @@ const extractEmbeddedPreview = async (
 
 /**
  * Convert RGB(A)/grayscale pixel data to a data URL via Canvas.
+ * @param pixelData RGB, RGBA, or grayscale samples.
+ * @param width Image width in pixels.
+ * @param height Image height in pixels.
+ * @returns A data URL, or `null` if the canvas is unavailable.
  */
 const rgbToDataUrl = (pixelData: Uint8Array, width: number, height: number): string | null => {
   try {
@@ -349,6 +373,8 @@ const rgbToDataUrl = (pixelData: Uint8Array, width: number, height: number): str
 /**
  * Check whether the decoded RGB data is essentially all white (255) — a sign
  * that the libraw decode failed. Samples are spread across the whole buffer.
+ * @param data Decoded RGB samples.
+ * @returns `true` if the sampled pixels are all white.
  */
 const checkIfAllWhite = (data: Uint8Array): boolean => {
   if (data.length === 0) return true

@@ -23,6 +23,7 @@ interface UseZoomPanOptions {
  * Attach `bindContainer` as the element's `ref` (a callback ref — it wires the
  * non-passive wheel listener), spread `handlers`, apply `transform`, and put
  * `touchAction` on the element's style.
+ * @returns The container ref callback, event handlers, and style values to apply.
  */
 export const useZoomPan = ({ resetKey, onSwipeLeft, onSwipeRight }: UseZoomPanOptions) => {
   const [scale, setScale] = useState(1)

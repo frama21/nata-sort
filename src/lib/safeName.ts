@@ -19,7 +19,11 @@ const ILLEGAL_NAME_CHARS = /[\\/:*?"<>|]/
 
 const MAX_NAME_LENGTH = 200
 
-/** True if the string contains any ASCII control character (U+0000–U+001F). */
+/**
+ * True if the string contains any ASCII control character (U+0000–U+001F).
+ * @param s String to inspect.
+ * @returns `true` if a control character is present.
+ */
 const hasControlChar = (s: string): boolean => {
   for (let i = 0; i < s.length; i++) {
     if (s.charCodeAt(i) < 0x20) return true
@@ -32,6 +36,8 @@ export type NameValidation = { ok: true; name: string } | { ok: false; reason: s
 /**
  * Validate a user-entered folder name. Returns the trimmed name on success or
  * a human-readable (Indonesian) reason on failure.
+ * @param raw Untrusted name as typed by the user.
+ * @returns The trimmed name, or the reason it was rejected.
  */
 export const validateFolderName = (raw: string): NameValidation => {
   const name = raw.trim()

@@ -59,6 +59,8 @@ const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
  * Initialize or load project database.
  * - If the DB exists and is valid: load and return it.
  * - Otherwise: create a fresh database file.
+ * @param dirHandle Handle of the opened project folder.
+ * @returns The loaded or freshly created project state.
  */
 export const initProjectDatabase = async (dirHandle: FileSystemDirectoryHandle): Promise<CompleteProjectState> =>
   enqueue(async () => {
@@ -101,6 +103,10 @@ export const initProjectDatabase = async (dirHandle: FileSystemDirectoryHandle):
  * `errorMessage` is provided it surfaces a status toast (and clears the loading
  * toast); omitting `errorMessage` means "fail silently" — used by the debounced
  * metadata-cache write so a transient error never spams the user.
+ * @param dirHandle Handle of the opened project folder.
+ * @param patch Receives the current state and returns the next one.
+ * @param errorMessage Toast text shown if the write fails.
+ * @returns Resolves when the write has finished.
  */
 const mutateDatabase = async (
   dirHandle: FileSystemDirectoryHandle,
@@ -129,6 +135,8 @@ const mutateDatabase = async (
 /**
  * Update database after one or more sort operations. Pass no `operations` to
  * persist a mapping-only change (e.g. undo) without logging a sort.
+ * @param dirHandle Handle of the opened project folder.
+ * @returns Resolves when the write has finished.
  */
 export const updateDatabaseAfterOperation = async (
   dirHandle: FileSystemDirectoryHandle,
@@ -169,6 +177,9 @@ export const updateDatabaseAfterOperation = async (
 
 /**
  * Update database after folder change (add/remove).
+ * @param dirHandle Handle of the opened project folder.
+ * @param folders Current sort folders.
+ * @returns Resolves when the write has finished.
  */
 export const updateDatabaseFolders = async (
   dirHandle: FileSystemDirectoryHandle,
@@ -190,6 +201,9 @@ export const updateDatabaseFolders = async (
 
 /**
  * Update database after mode change.
+ * @param dirHandle Handle of the opened project folder.
+ * @param moveMode The new copy/cut mode.
+ * @returns Resolves when the write has finished.
  */
 export const updateDatabaseMode = async (
   dirHandle: FileSystemDirectoryHandle,
@@ -198,6 +212,9 @@ export const updateDatabaseMode = async (
 
 /**
  * Persist the lazily-extracted metadata cache (debounced by the caller).
+ * @param dirHandle Handle of the opened project folder.
+ * @param metadataCache Metadata keyed by file name.
+ * @returns Resolves when the write has finished.
  */
 export const updateDatabaseMetadata = async (
   dirHandle: FileSystemDirectoryHandle,
@@ -224,6 +241,10 @@ const isValidState = (state: unknown): state is CompleteProjectState => {
  * Copy a plain string-keyed record into a fresh null-prototype object, dropping
  * prototype-polluting keys and any value that fails `valueOk`, capped at `max`
  * entries.
+ * @param input Untrusted value to copy from.
+ * @param valueOk Type guard every kept value must pass.
+ * @param max Maximum number of entries to keep.
+ * @returns A null-prototype record of the valid entries.
  */
 const safeRecord = <T>(input: unknown, valueOk: (v: unknown) => v is T, max: number): Record<string, T> => {
   const out: Record<string, T> = Object.create(null)
@@ -242,6 +263,8 @@ const safeRecord = <T>(input: unknown, valueOk: (v: unknown) => v is T, max: num
  * Normalize a validated-but-untrusted project state: strip pollution vectors,
  * bound every collection, and coerce scalar fields to safe defaults. Runs on
  * every load so nothing downstream has to re-check the file's contents.
+ * @param s State that already passed the shape check.
+ * @returns A bounded, pollution-free copy of the state.
  */
 const sanitizeState = (s: CompleteProjectState): CompleteProjectState => ({
   ...s,
@@ -268,6 +291,8 @@ const sanitizeState = (s: CompleteProjectState): CompleteProjectState => ({
 /**
  * Load project state from database file. Returns null (and warns the user) for
  * a missing, corrupt, or incompatible-version file — never throws.
+ * @param dirHandle Handle of the opened project folder.
+ * @returns The saved state, or `null` if it is missing or unusable.
  */
 const loadProjectState = async (dirHandle: FileSystemDirectoryHandle): Promise<CompleteProjectState | null> => {
   let content: string

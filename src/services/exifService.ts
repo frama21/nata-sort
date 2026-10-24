@@ -7,6 +7,8 @@ import { getFileFormatInfo } from "@/config/fileFormats"
 
 /**
  * Extract metadata dari image (EXIF) atau video (mediainfo.js)
+ * @param file Image or video file to read.
+ * @returns The extracted metadata, with defaults if extraction fails.
  */
 export const extractMetadata = async (file: File): Promise<PhotoMetadata> => {
   const isVideo = getFileFormatInfo(file.name)?.category === "video"
@@ -33,7 +35,11 @@ export const extractMetadata = async (file: File): Promise<PhotoMetadata> => {
 // of pulling a potentially huge (RAW/TIFF) file fully into memory.
 const MAX_HEADER_BYTES = 2 * 1024 * 1024 // 2 MB
 
-/** First positive number from a value that may be a number, string, or array. */
+/**
+ * First positive number from a value that may be a number, string, or array.
+ * @param v Value that may be a number, string, or array.
+ * @returns The first positive number, or `undefined`.
+ */
 const toNum = (v: any): number | undefined => {
   if (v == null) return undefined
   const raw = Array.isArray(v) ? v[0] : v
@@ -41,11 +47,20 @@ const toNum = (v: any): number | undefined => {
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
-/** Megapixels rounded to 1 decimal place, or 0 when dimensions are unknown. */
+/**
+ * Megapixels rounded to 1 decimal place, or 0 when dimensions are unknown.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @returns Megapixels to one decimal, or 0.
+ */
 const megapixelsFrom = (width: number, height: number): number =>
   width && height ? Math.round(((width * height) / 1_000_000) * 10) / 10 : 0
 
-/** First non-empty trimmed string from the given values. */
+/**
+ * First non-empty trimmed string from the given values.
+ * @param vals Candidate values, in priority order.
+ * @returns The first non-empty trimmed string, or `undefined`.
+ */
 const str = (...vals: any[]): string | undefined => {
   for (const v of vals) {
     if (typeof v === "string" && v.trim()) return v.trim()
@@ -53,7 +68,11 @@ const str = (...vals: any[]): string | undefined => {
   return undefined
 }
 
-/** First tag description (ExifReader tags expose a `description` field). */
+/**
+ * First tag description (ExifReader tags expose a `description` field).
+ * @param tags ExifReader tags, in priority order.
+ * @returns The first non-empty tag description, or `undefined`.
+ */
 const desc = (...tags: any[]): string | undefined => {
   for (const t of tags) {
     const d = t?.description
@@ -187,6 +206,8 @@ export const formatFileSize = (bytes: number): string => {
  * Handles: "2023:01:02 13:04:05" (EXIF), "2023-01-02 13:04:05",
  * "UTC 2023-01-02 13:04:05" (mediainfo), ISO 8601 with "T", and date-only.
  * Returns null when unparseable.
+ * @param raw Date text from EXIF or mediainfo.
+ * @returns The parsed date, or `null` if it is invalid.
  */
 const parseFlexibleDate = (raw: string): Date | null => {
   let s = raw.trim()
@@ -217,6 +238,8 @@ const parseFlexibleDate = (raw: string): Date | null => {
 /**
  * Convert a capture-date string to a timestamp (ms), or null if unparseable.
  * Used to order photos chronologically.
+ * @param dateStr Capture-date text, if known.
+ * @returns Milliseconds since the epoch, or `null`.
  */
 export const parseCaptureDate = (dateStr: string | undefined): number | null => {
   if (!dateStr) return null
@@ -240,14 +263,22 @@ export const formatDate = (dateStr: string | undefined): string => {
   return dateObj ? formatDateObject(dateObj) : "-"
 }
 
-/** Format a millisecond timestamp (e.g. File.lastModified) for display. */
+/**
+ * Format a millisecond timestamp (e.g. File.lastModified) for display.
+ * @param ms Milliseconds since the epoch.
+ * @returns Display text, or an empty string if unknown.
+ */
 export const formatTimestamp = (ms: number | undefined): string => {
   if (!ms) return "-"
   const d = new Date(ms)
   return isNaN(d.getTime()) ? "-" : formatDateObject(d)
 }
 
-/** Format a duration (seconds) as h:mm:ss or m:ss. */
+/**
+ * Format a duration (seconds) as h:mm:ss or m:ss.
+ * @param seconds Duration in seconds.
+ * @returns Text such as "1:05" or "1:02:03".
+ */
 export const formatDuration = (seconds: number | undefined): string => {
   if (!seconds || seconds <= 0) return "-"
   const total = Math.round(seconds)
@@ -259,7 +290,11 @@ export const formatDuration = (seconds: number | undefined): string => {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`
 }
 
-/** Format a bitrate (bits per second) as Mbps/kbps. */
+/**
+ * Format a bitrate (bits per second) as Mbps/kbps.
+ * @param bps Bitrate in bits per second.
+ * @returns Text such as "19.5 Mbps" or "640 kbps".
+ */
 export const formatBitrate = (bps: number | undefined): string => {
   if (!bps || bps <= 0) return "-"
   if (bps >= 1_000_000) return `${(bps / 1_000_000).toFixed(1)} Mbps`

@@ -238,7 +238,11 @@ for (const format of Object.values(PHOTO_FORMATS)) {
   }
 }
 
-/** Lower-cased file extension including the leading dot, e.g. ".jpg". */
+/**
+ * Lower-cased file extension including the leading dot, e.g. ".jpg".
+ * @param filename File name, with or without a path.
+ * @returns The lower-cased extension, e.g. ".jpg".
+ */
 const getExtension = (filename: string): string => filename.toLowerCase().slice(filename.lastIndexOf("."))
 
 export const isSupportedImage = (filename: string): boolean => ALL_EXTENSIONS.includes(getExtension(filename))
