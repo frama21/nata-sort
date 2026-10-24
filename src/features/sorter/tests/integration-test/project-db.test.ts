@@ -8,7 +8,7 @@ import {
   updateDatabaseFolders
 } from "../../services/project-db.service"
 
-const DB = "photo-sorter-db.json"
+const DB = "nata-sort-db.json"
 
 const validState = (overrides: Record<string, unknown> = {}) => ({
   version: "2.0",

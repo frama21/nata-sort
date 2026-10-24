@@ -20,7 +20,7 @@ const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undef
 export const ThemeProvider = ({
   children,
   defaultTheme = "system",
-  storageKey = "vite-ui-theme"
+  storageKey = "nata-sort-theme"
 }: ThemeProviderProps) => {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme) || defaultTheme)
 

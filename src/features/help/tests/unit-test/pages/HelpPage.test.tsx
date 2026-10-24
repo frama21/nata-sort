@@ -19,6 +19,6 @@ describe("HelpPage", () => {
 
   it("names the state file the sorter actually writes", () => {
     render(<HelpPage />)
-    expect(screen.getByText(/photo-sorter-db\.json/)).toBeInTheDocument()
+    expect(screen.getByText(/nata-sort-db\.json/)).toBeInTheDocument()
   })
 })

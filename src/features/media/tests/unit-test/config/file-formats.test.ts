@@ -8,7 +8,7 @@ describe("file format registry", () => {
     expect(getFileFormatInfo(name)).not.toBeNull()
   })
 
-  it.each(["notes.txt", "archive.zip", "noextension", "photo-sorter-db.json"])("ignores %s", name => {
+  it.each(["notes.txt", "archive.zip", "noextension", "nata-sort-db.json"])("ignores %s", name => {
     expect(isSupportedImage(name)).toBe(false)
     expect(getFileFormatInfo(name)).toBeNull()
   })

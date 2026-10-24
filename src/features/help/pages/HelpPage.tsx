@@ -11,7 +11,7 @@ const SECTIONS = [
   },
   {
     title: "Penyimpanan progres",
-    body: "Folder sortir, pemetaan foto, mode salin/pindah, dan log operasi disimpan di file photo-sorter-db.json di dalam folder yang Anda buka. Hapus file itu untuk memulai dari awal."
+    body: "Folder sortir, pemetaan foto, mode salin/pindah, dan log operasi disimpan di file nata-sort-db.json di dalam folder yang Anda buka. Hapus file itu untuk memulai dari awal."
   },
   {
     title: "Keamanan file",

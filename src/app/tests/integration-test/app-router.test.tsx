@@ -26,7 +26,7 @@ describe("app router", () => {
   it("lazy-loads the feature page for the current path and sets the title", async () => {
     renderAt("/help", [pageRoute("/", "Home"), pageRoute("/help", "Help page", { title: "Bantuan" })])
     expect(await screen.findByRole("heading", { name: "Help page" })).toBeInTheDocument()
-    expect(document.title).toBe("Bantuan — Photo Sorter")
+    expect(document.title).toBe("Bantuan — NATA")
   })
 
   it("lists routes that ask for navigation, in order", async () => {
@@ -60,7 +60,7 @@ describe("app router", () => {
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent("chunk failed to load")
     // The app shell around the route is still rendered.
-    expect(screen.getByRole("heading", { name: "Photo Sorter" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "NATA" })).toBeInTheDocument()
     expect(consoleError).toHaveBeenCalled()
   })
 })

@@ -3,7 +3,7 @@ import { addStatus, clearStatus } from "@/shared/stores/status.store"
 import type { PhotoMetadata } from "@/features/media"
 import type { ProjectState, SortFolder, SortedMapping, MoveMode, SortOperation } from "../types/sorter.types"
 
-const DB_FILENAME = "photo-sorter-db.json"
+const DB_FILENAME = "nata-sort-db.json"
 // Bumped to 2.0: sortedPhotos is now keyed by file name (not array index) and
 // SortOperation is a slim, handle-free record. Older 1.0 databases are not
 // compatible and will start fresh (with a visible warning).

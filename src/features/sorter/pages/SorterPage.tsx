@@ -127,7 +127,7 @@ export const SorterPage = () => {
             <EmptyTitle>Mulai Sortir Foto</EmptyTitle>
             <EmptyDescription>
               Pilih folder lokal. Folder sortir akan otomatis dibuat di dalamnya. State tersimpan otomatis di file{" "}
-              <code className="px-2 rounded">photo-sorter-db.json</code>.
+              <code className="px-2 rounded">nata-sort-db.json</code>.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent className="flex-row justify-center gap-2">

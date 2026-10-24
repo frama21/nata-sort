@@ -42,7 +42,7 @@ const tree = (page: Page) =>
     const list = async (dir: FileSystemDirectoryHandle): Promise<unknown[]> => {
       const out: unknown[] = []
       for await (const [name, handle] of dir as unknown as AsyncIterable<[string, FileSystemHandle]>) {
-        if (name === "photo-sorter-db.json") continue
+        if (name === "nata-sort-db.json") continue
         out.push(handle.kind === "directory" ? { [name]: await list(handle as FileSystemDirectoryHandle) } : name)
       }
       return out.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
