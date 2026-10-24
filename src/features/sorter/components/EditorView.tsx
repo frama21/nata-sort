@@ -205,13 +205,14 @@ export const EditorView = ({ fs }: EditorViewProps) => {
                 totalPhotos={totalPhotos}
                 currentFolder={fs.getCurrentFolder()}
                 rawPreviewUrl={currentRawPreview}
-                isDecodingRaw={fs.isDecodingRaw}
+                rawFailed={currentPhoto ? fs.rawFailedKeys.has(currentPhoto.key) : false}
                 prevUrl={previewUrlAt(fs.currentIndex - 1)}
                 nextUrl={previewUrlAt(fs.currentIndex + 1)}
                 onNavigate={fs.navigatePhoto}
                 onJumpUnsorted={fs.jumpToNextUnsorted}
                 onUndo={fs.undoLastOperation}
                 onPreviewError={fs.recreatePreviewUrl}
+                onRetryRaw={fs.retryRawDecode}
                 onAssign={(index, shortcut) => {
                   const key = shortcut.toLowerCase()
                   const folder = fs.folders.find(f => f.shortcut?.toLowerCase() === key)

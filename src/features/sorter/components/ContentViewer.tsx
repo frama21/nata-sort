@@ -1,6 +1,16 @@
 import { useEffect, useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { ChevronLeft, ChevronRight, Check, AlertCircle, FileImage, ZoomIn, ZoomOut, Maximize } from "lucide-react"
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  AlertCircle,
+  FileImage,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  RefreshCw
+} from "lucide-react"
 
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/components/ui/empty"
 import { Spinner } from "@/shared/components/ui/spinner"
@@ -19,7 +29,8 @@ interface ContentViewerProps {
   totalPhotos: number
   currentFolder: { name: string; color: string } | null
   rawPreviewUrl: string | null
-  isDecodingRaw: boolean
+  /** True when this RAW's preview could not be decoded (so "pending" and "failed" can be told apart). */
+  rawFailed: boolean
   /** Preview URLs of the neighbouring photos (null when none or not a plain image), decoded ahead of time. */
   prevUrl: string | null
   nextUrl: string | null
@@ -28,6 +39,8 @@ interface ContentViewerProps {
   onJumpUnsorted: () => void
   onUndo: () => void
   onPreviewError: (photoKey: string) => void
+  /** Retries a RAW decode that failed. */
+  onRetryRaw: (photoKey: string) => void
 }
 
 export const ContentViewer = ({
@@ -36,14 +49,15 @@ export const ContentViewer = ({
   totalPhotos,
   currentFolder,
   rawPreviewUrl,
-  isDecodingRaw,
+  rawFailed,
   prevUrl,
   nextUrl,
   onNavigate,
   onAssign,
   onJumpUnsorted,
   onUndo,
-  onPreviewError
+  onPreviewError,
+  onRetryRaw
 }: ContentViewerProps) => {
   const { t } = useTranslation()
 
@@ -58,6 +72,11 @@ export const ContentViewer = ({
   }, [prevUrl, nextUrl])
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgRetries, setImgRetries] = useState(0)
+  // Set once the automatic retries are used up (or a video cannot play); shows the error with a manual retry.
+  const [loadFailed, setLoadFailed] = useState(false)
+  // The last photo that finished showing. It stays on screen, under a loading chip, while the next one
+  // loads or decodes, and the new photo fades in over it (no blank or skeleton flash between photos).
+  const [shown, setShown] = useState<{ key: string; url: string } | null>(null)
   const [trackedKey, setTrackedKey] = useState(photo?.key)
   const imgRef = useRef<HTMLImageElement | null>(null)
   const [loupe, setLoupe] = useState<{
@@ -75,13 +94,26 @@ export const ContentViewer = ({
     setTrackedKey(photo?.key)
     setImgLoaded(false)
     setImgRetries(0)
+    setLoadFailed(false)
     setLoupe(null)
+    if (photo?.format.category === "video") setShown(null) // nothing to hold under a video
   }
 
   const isRaw = photo?.format.category === "raw"
   const hasPreview = Boolean(photo?.url) || rawPreviewUrl !== null
   const displayUrl = photo?.url || rawPreviewUrl
   const isVideo = photo?.format.category === "video"
+  // A RAW with no preview yet that has not failed is still being decoded.
+  const rawPending = isRaw && !hasPreview && !rawFailed
+  const held = !isVideo && shown && shown.key !== photo?.key ? shown : null
+
+  const retryLoad = () => {
+    if (!photo) return
+    setLoadFailed(false)
+    setImgLoaded(false)
+    setImgRetries(0)
+    onPreviewError(photo.key) // fresh object URL forces a re-decode
+  }
 
   const {
     bindContainer,
@@ -170,7 +202,7 @@ export const ContentViewer = ({
   }
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface-raised lg:flex-1">
+    <section className="flex min-h-0 animate-fade-in flex-col overflow-hidden rounded-lg border border-border bg-surface-raised lg:flex-1">
       <div className="relative flex min-h-0 flex-1 flex-col select-none">
         <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3">
           <span className="min-w-0 flex-1 truncate text-sm font-medium" title={photo.name}>
@@ -179,7 +211,11 @@ export const ContentViewer = ({
           {/* Sort status above the file type, both on the right. */}
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             {currentFolder ? (
-              <Badge className={cn("max-w-40 text-white", currentFolder.color)}>
+              // Keyed by folder so the badge pops when a sort lands (or changes) on this photo.
+              <Badge
+                key={currentFolder.name}
+                className={cn("max-w-40 animate-pop-in text-white", currentFolder.color)}
+              >
                 <Check className="w-3 h-3" />
                 <span className="truncate">{currentFolder.name}</span>
               </Badge>
@@ -192,41 +228,93 @@ export const ContentViewer = ({
 
         {/* Image */}
         <div className="flex min-h-0 flex-1 items-center justify-center bg-canvas">
-          {hasPreview ? (
-            isVideo ? (
-              <video
-                key={photo.key}
-                src={displayUrl!}
-                className="max-h-[75vh] w-full object-contain lg:max-h-full"
-                controls
-              />
-            ) : (
-              <div
-                ref={bindContainer}
-                className={cn(
-                  "relative flex h-full min-h-[40dvh] w-full items-center justify-center overflow-hidden",
-                  isZoomed ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
-                )}
-                style={{ touchAction: touchAction }}
-                {...zoomHandlers}
-              >
-                {!imgLoaded && (
-                  <div className="absolute inset-0 skeleton rounded-none flex items-center justify-center">
-                    <Spinner className="size-8 opacity-70" />
-                  </div>
-                )}
+          {hasPreview && loadFailed ? (
+            <Empty className="h-[50dvh]" role="alert">
+              <EmptyHeader>
+                <EmptyMedia variant="icon" className="w-16 h-16 border-2">
+                  <AlertCircle className="size-12" />
+                </EmptyMedia>
+                <EmptyTitle>{t("viewer.loadFailed")}</EmptyTitle>
+                <EmptyDescription>{t("viewer.loadFailedHint")}</EmptyDescription>
+              </EmptyHeader>
+              {!isRaw && (
+                <Button variant="outline" onClick={retryLoad}>
+                  <RefreshCw />
+                  {t("common.retry")}
+                </Button>
+              )}
+            </Empty>
+          ) : hasPreview && isVideo ? (
+            <video
+              key={photo.key}
+              src={displayUrl!}
+              className="max-h-[75vh] w-full object-contain lg:max-h-full"
+              controls
+              onError={() => setLoadFailed(true)}
+            />
+          ) : hasPreview || (held && rawPending) ? (
+            <div
+              ref={bindContainer}
+              className={cn(
+                "relative flex h-full min-h-[40dvh] w-full items-center justify-center overflow-hidden",
+                isZoomed ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
+              )}
+              style={{ touchAction: touchAction }}
+              {...zoomHandlers}
+            >
+              {/* Previous photo, kept visible until this one is ready and has faded in over it. */}
+              {held && (
+                <img
+                  src={held.url}
+                  alt=""
+                  aria-hidden
+                  draggable={false}
+                  className="absolute inset-0 m-auto max-h-[75vh] w-full object-contain lg:max-h-full"
+                  onError={() => setShown(null)} // its blob URL was revoked
+                />
+              )}
+              {/* First photo: nothing to hold, so a skeleton marks the space instead. */}
+              {!held && !imgLoaded && (
+                <div className="absolute inset-0 skeleton rounded-none flex items-center justify-center">
+                  <Spinner className="size-8 opacity-70" />
+                </div>
+              )}
+              {/* Delayed, so a photo that is ready within a beat never flashes it. */}
+              {held && !imgLoaded && (
+                <div
+                  role="status"
+                  className="absolute top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-surface-raised px-3 py-1.5 text-xs shadow-e1 [animation-delay:150ms] animate-fade-in"
+                >
+                  <Spinner className="size-3.5" />
+                  {rawPending ? t("viewer.decodingRaw") : t("common.loading")}
+                </div>
+              )}
+              {hasPreview && (
                 <img
                   ref={imgRef}
                   key={photo.key}
                   src={displayUrl!}
                   alt={photo.name || t("viewer.photoPreviewAlt")}
-                  className="max-h-[75vh] w-full object-contain will-change-transform lg:max-h-full"
+                  className={cn(
+                    "max-h-[75vh] w-full object-contain will-change-transform lg:max-h-full",
+                    // Hidden until decoded, then fades in over the held photo.
+                    imgLoaded ? "animate-fade-in" : "opacity-0"
+                  )}
                   style={{ transform: transform }}
                   draggable={false}
                   decoding="async"
                   onMouseMove={updateLoupe}
                   onMouseLeave={hideLoupe}
-                  onLoad={() => setImgLoaded(true)}
+                  onLoad={e => {
+                    // `load` can fire before the bitmap is decoded; start the fade only once it can paint,
+                    // or it would finish on a blank image and the photo would pop in.
+                    const img = e.currentTarget
+                    void img
+                      .decode()
+                      .catch(() => {})
+                      .finally(() => img.isConnected && setImgLoaded(true))
+                  }}
+                  onAnimationEnd={() => displayUrl && setShown({ key: photo.key, url: displayUrl })}
                   onError={() => {
                     // Some large images fail the first decode; recreate the
                     // object URL and retry instead of needing a manual reload.
@@ -234,31 +322,34 @@ export const ContentViewer = ({
                       setImgRetries(r => r + 1)
                       onPreviewError(photo.key)
                     } else {
-                      setImgLoaded(true) // give up: hide the spinner
+                      setShown(null)
+                      setLoadFailed(true)
                     }
                   }}
                 />
+              )}
 
-                {/* Desktop hover loupe (magnifier). Hidden on touch + while transform-zoomed. */}
-                {loupe && displayUrl && !isZoomed && (
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none fixed z-30 hidden overflow-hidden rounded-full border-2 border-white shadow-e2 md:block"
-                    style={{
-                      width: LOUPE_SIZE,
-                      height: LOUPE_SIZE,
-                      left: loupe.cx - LOUPE_SIZE / 2,
-                      top: loupe.cy - LOUPE_SIZE / 2,
-                      backgroundColor: "var(--surface-2)",
-                      backgroundImage: `url("${displayUrl}")`,
-                      backgroundRepeat: "no-repeat",
-                      backgroundSize: `${loupe.w * LOUPE_ZOOM}px ${loupe.h * LOUPE_ZOOM}px`,
-                      backgroundPosition: `${-(loupe.x * LOUPE_ZOOM - LOUPE_SIZE / 2)}px ${-(loupe.y * LOUPE_ZOOM - LOUPE_SIZE / 2)}px`
-                    }}
-                  />
-                )}
+              {/* Desktop hover loupe (magnifier). Hidden on touch + while transform-zoomed. */}
+              {loupe && displayUrl && !isZoomed && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none fixed z-30 hidden overflow-hidden rounded-full border-2 border-white shadow-e2 md:block"
+                  style={{
+                    width: LOUPE_SIZE,
+                    height: LOUPE_SIZE,
+                    left: loupe.cx - LOUPE_SIZE / 2,
+                    top: loupe.cy - LOUPE_SIZE / 2,
+                    backgroundColor: "var(--surface-2)",
+                    backgroundImage: `url("${displayUrl}")`,
+                    backgroundRepeat: "no-repeat",
+                    backgroundSize: `${loupe.w * LOUPE_ZOOM}px ${loupe.h * LOUPE_ZOOM}px`,
+                    backgroundPosition: `${-(loupe.x * LOUPE_ZOOM - LOUPE_SIZE / 2)}px ${-(loupe.y * LOUPE_ZOOM - LOUPE_SIZE / 2)}px`
+                  }}
+                />
+              )}
 
-                {/* Zoom controls */}
+              {/* Zoom controls */}
+              {hasPreview && (
                 <div
                   className="absolute right-3 bottom-3 flex gap-1 rounded-md border border-border bg-surface-raised p-1 shadow-e1"
                   onMouseDown={e => e.stopPropagation()}
@@ -301,9 +392,9 @@ export const ContentViewer = ({
                     </Button>
                   </WithTooltip>
                 </div>
-              </div>
-            )
-          ) : isRaw && isDecodingRaw ? (
+              )}
+            </div>
+          ) : rawPending ? (
             <div className="skeleton relative flex h-[50dvh] w-full items-center justify-center rounded-none">
               <div className="flex flex-col items-center gap-3 text-center">
                 <Spinner className="size-6 text-muted-foreground" />
@@ -322,6 +413,12 @@ export const ContentViewer = ({
                 <EmptyTitle>{photo.format.label}</EmptyTitle>
                 <EmptyDescription>{t("viewer.previewUnavailable")}</EmptyDescription>
               </EmptyHeader>
+              {isRaw && (
+                <Button variant="outline" onClick={() => onRetryRaw(photo.key)}>
+                  <RefreshCw />
+                  {t("common.retry")}
+                </Button>
+              )}
             </Empty>
           )}
         </div>
