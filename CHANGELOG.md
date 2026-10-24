@@ -23,6 +23,9 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **Service worker error in `pnpm dev`.** The console showed "The script has an unsupported MIME type
+  ('text/html')" because the dev server has no `/sw.js` and answered with `index.html`. The service
+  worker is now registered in production builds only (production serves `sw.js` as JavaScript).
 - **Toast alignment on touch screens.** The icon and message sat at the top while the close button
   (44 px on touch) was centered, leaving them about 8 px off. The row is now vertically centered.
 - **Top bar wordmark on phones.** The "nata" wordmark next to the mark is no longer hidden below
@@ -40,6 +43,15 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **Status indicator in the top bar.** File activity (sorting, undo, saving, reading a project) now
+  reports in an indicator left of Close project instead of toasts and the footer: a spinner while
+  reading or saving, a green check when saved, a red cross when it failed, beside the message
+  ("Moving x…", "x done", idle "Saved"). Desktop always shows the message; on phones the icon stays
+  and the message appears and disappears. A failure stays until clicked or the next operation
+  starts. "Saving…" now reflects real project writes. The footer's "Saved" is gone (it keeps the
+  counts); folder, shortcut, validation and recents messages stay toasts. On phones the "nata"
+  wordmark slides up and fades out while the indicator has a message, so a long message such as
+  "Project loaded successfully" fits, and slides back down when the message clears.
 - **One Settings dialog.** The top bar now has a single help icon ("Help & settings") that opens
   **Settings** on the **Shortcuts** tab. Tabs: Shortcuts, Appearance (theme Light/Dark and
   language English/Bahasa Indonesia, moved out of the top bar), About (app, version, open project,
@@ -54,6 +66,8 @@ All notable changes to this project are documented in this file.
   button no longer sits against the content.
 - **Sort Folders empty state** is plain muted text instead of a dashed box with a folder icon,
   which looked like an upload drop zone.
+- **Viewer header** is one row: the file name on the left (one line, truncated), and on the right
+  the sort status above the file type (e.g. "good" over "Sony RAW").
 - **Start screen** is quieter: the top bar drops to just the help button, with no logo,
   background or border (it returns once a project is open); the headline text is replaced by the
   NATA mark over the wordmark; and the copy now says what the app does ("Sort photos and videos

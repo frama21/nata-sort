@@ -48,7 +48,7 @@ Folder colours are Tailwind palette classes stored in the project file (schema `
 | Left | 248 px folders panel (`nav`) | sheet (opened by *Folders*) |
 | Centre | canvas: view toggle, viewer / grid, filmstrip | one column |
 | Right | 320 px details panel (`aside`): info, log, stats | bottom sheet (opened by *Info*) |
-| Bottom | 28 px status bar: save state dot + word, counts | 72 px action bar (prev, one button per folder, next) |
+| Bottom | 28 px status bar: counts only (photos, left, selected) | 72 px action bar (prev, one button per folder, next) |
 
 Each desktop panel scrolls on its own. Panels render in exactly one place (`useMediaQuery`), so ids and shortcut recording never double up.
 Landmarks: `banner`, `navigation`, `main`, `complementary`; a skip link comes first, and a route change moves focus to `main`.
@@ -56,7 +56,9 @@ Landmarks: `banner`, `navigation`, `main`, `complementary`; a skip link comes fi
 ## 4. Components (`src/shared/components/ui/`)
 
 Button (`default` = the one primary action, `secondary`, `ghost`, `outline`, `destructive`, `link`; `loading`), Input, Tabs (segmented), Badge, Card, Dialog (`side="center" | "left" | "bottom"`, native `<dialog>`), Tooltip, Progress, Alert (`success`, `destructive`), Kbd, Empty, Skeleton (shimmer after 150 ms). Controls are 32 px with a mouse and 44 px on touch via `pointer-coarse:`.
-Toasts (`StatusIndicator`): bottom-right (top-centre on phones), two live regions (polite, assertive for errors), never take focus, pause on hover/focus, errors stay until dismissed, a duplicate is shown once.
+Activity indicator (`ActivityIndicator`, top bar left of Close project): spinner while reading or saving, green check when saved, red cross when failed, next to the message ("Moving x…", "x done", idle "Saved"). Desktop always shows the message; phones keep the icon and show the message only while there is one (a success clears after 3 s), and the top bar wordmark slides up and fades out meanwhile to make room (it returns when the message clears). A failure stays until clicked or until the next operation starts. Sort, undo, save and project-reading messages (status icon `file`/`db`) use it instead of toasts.
+
+Toasts (`StatusIndicator`, everything else: folder validation, folder created/deleted, shortcut changes, recents): bottom-right (top-centre on phones), two live regions (polite, assertive for errors), never take focus, pause on hover/focus, errors stay until dismissed, a duplicate is shown once.
 Destructive or leave-the-page confirmations are in-app dialogs, never `window.confirm`.
 
 ## 5. Brand
