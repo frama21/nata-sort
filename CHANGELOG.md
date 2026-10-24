@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [2.4.0] - 2026-10-24
 
 ### Added
 
@@ -74,6 +74,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **Page title, description, `<html lang>` and the PWA manifest are English by default**
+  ("NATA — Local Photo & Video Sorter"), matching the app's English default language.
 - **Deployment is back on nginx, configured entirely in the `Dockerfile`.** The `server/` folder
   (Express + helmet + compression) is deleted; the repo's only deploy files are `Dockerfile` and
   `docker-compose.yml`. Node now appears once, as `node:24-alpine` in the build stage (pnpm 12.8.1
