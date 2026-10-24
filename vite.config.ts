@@ -42,11 +42,11 @@ export default defineConfig({
       injectRegister: false,
       manifest: {
         id: "/",
-        name: "NATA — Sortir Foto & Video Lokal",
+        name: "NATA — Local Photo & Video Sorter",
         short_name: "NATA",
         description:
-          "Sortir foto dan video lokal ke folder dengan cepat lewat shortcut keyboard. Berjalan sepenuhnya di browser tanpa upload.",
-        lang: "id",
+          "Sort local photos and videos into folders fast with keyboard shortcuts. Runs entirely in your browser, with no uploads.",
+        lang: "en",
         start_url: "/",
         scope: "/",
         display: "standalone",

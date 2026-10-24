@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test"
 // the sorting flow itself is covered by unit and integration tests.
 test("shows the start screen with the folder picker", async ({ page }) => {
   await page.goto("/")
-  await expect(page).toHaveTitle("NATA — Sortir Foto & Video Lokal")
+  await expect(page).toHaveTitle("NATA — Local Photo & Video Sorter")
   await expect(page.getByRole("heading", { name: "NATA", level: 1 })).toBeAttached()
   await expect(page.getByRole("button", { name: "Choose Photo Folder" })).toBeEnabled()
 })
