@@ -22,7 +22,7 @@ Version 2.0.1 · Last updated 2026-07-14 · Status: Living document
 Please report security issues **privately** — do not open a public GitHub issue.
 
 - **Preferred:** open a private advisory at
-  <https://github.com/frama21/photo-sorter/security/advisories/new>.
+  <https://github.com/frama21/nata-sort/security/advisories/new>.
 - A machine-readable contact is published per [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116) at
   [`/.well-known/security.txt`](../public/.well-known/security.txt).
 
