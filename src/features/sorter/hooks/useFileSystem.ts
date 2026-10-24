@@ -18,6 +18,7 @@ import {
   updateDatabaseMode,
   updateDatabaseMetadata
 } from "../services/project-db.service"
+import { getRecentProject, saveRecentProject } from "../services/recent-projects.service"
 
 import type {
   PhotoFile,
@@ -74,7 +75,13 @@ export interface FileSystemHook {
   /** Keys of the currently multi-selected photos. */
   selectedKeys: Set<string>
 
+  /** Name of the open project folder, or null when none is open. */
+  projectName: string | null
   loadDirectory: () => Promise<void>
+  /** Reopens a folder from the recent-projects list (asks for access again if needed). */
+  openRecentProject: (id: string) => Promise<void>
+  /** Closes the open project and returns to the start screen. Progress is already saved. */
+  closeProject: () => void
   addFolder: (name: string) => Promise<void>
   removeFolder: (folderId: string) => Promise<void>
   /** Set (or clear, with null) a folder's sort-shortcut key, with validation. */
@@ -110,6 +117,7 @@ export const useFileSystem = (): FileSystemHook => {
   const [moveMode, setMoveModeState] = useState<MoveMode>("copy") // DEFAULT: COPY
   const [operations, setOperations] = useState<SortOperation[]>([])
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([])
+  const [projectName, setProjectName] = useState<string | null>(null)
 
   // RAW preview state
   const [rawPreviewUrls, setRawPreviewUrls] = useState<Map<string, string>>(new Map())
@@ -185,180 +193,241 @@ export const useFileSystem = (): FileSystemHook => {
   }, [persistMetadata])
 
   // === DIRECTORY LOADING ===
-  const loadDirectory = useCallback(async () => {
-    addStatus({
-      type: "loading",
-      message: t("toast.loadingProject"),
-      icon: "folder"
-    })
+  /** Opens the folder returned by `pickDirectory`, replacing any open project. */
+  const openProject = useCallback(
+    async (pickDirectory: () => Promise<FileSystemDirectoryHandle>) => {
+      addStatus({
+        type: "loading",
+        message: t("toast.loadingProject"),
+        icon: "folder"
+      })
 
-    try {
-      if (!("showDirectoryPicker" in window)) {
-        addStatus({
-          type: "error",
-          message: t("toast.browserUnsupported"),
-          icon: "folder"
-        })
-        throw new Error("Browser tidak mendukung File System Access API. Gunakan Chrome/Edge/Opera terbaru.")
-      }
+      try {
+        const dirHandle = await pickDirectory()
 
-      const dirHandle = await window.showDirectoryPicker()
+        // Reloading a (possibly different) folder: drop the previous session.
+        revokeAllUrls()
+        rawDecodeQueueRef.current.clear()
+        failedRawDecodesRef.current.clear()
+        metaQueueRef.current.clear()
+        rawDimsDoneRef.current.clear()
+        setUndoStack([])
+        setSelectedKeys(new Set())
+        selectionAnchorRef.current = null
 
-      // Reloading a (possibly different) folder: drop the previous session.
-      revokeAllUrls()
-      rawDecodeQueueRef.current.clear()
-      failedRawDecodesRef.current.clear()
-      metaQueueRef.current.clear()
-      rawDimsDoneRef.current.clear()
-      setUndoStack([])
-      setSelectedKeys(new Set())
-      selectionAnchorRef.current = null
+        rootDirHandleRef.current = dirHandle
+        setProjectName(dirHandle.name)
+        setIsLoading(true)
+        setError(null)
+        setOperations([])
 
-      rootDirHandleRef.current = dirHandle
-      setIsLoading(true)
-      setError(null)
-      setOperations([])
+        // === INIT DATABASE: Auto-create if not exists ===
+        const dbState = await initProjectDatabase(dirHandle)
+        const cachedMeta = dbState.metadataCache ?? {}
+        metadataCacheRef.current = { ...cachedMeta }
 
-      // === INIT DATABASE: Auto-create if not exists ===
-      const dbState = await initProjectDatabase(dirHandle)
-      const cachedMeta = dbState.metadataCache ?? {}
-      metadataCacheRef.current = { ...cachedMeta }
+        const imageFiles: PhotoFile[] = []
+        let index = 0
 
-      const imageFiles: PhotoFile[] = []
-      let index = 0
+        // Scan directory for images (top level only).
+        for await (const entry of dirHandle.values()) {
+          if (entry.kind === "file" && isSupportedImage(entry.name)) {
+            const file = await entry.getFile()
+            const formatInfo = getFileFormatInfo(entry.name)!
+            const canPreview = isPreviewable(entry.name)
+            const key = entry.name
 
-      // Scan directory for images (top level only).
-      for await (const entry of dirHandle.values()) {
-        if (entry.kind === "file" && isSupportedImage(entry.name)) {
-          const file = await entry.getFile()
-          const formatInfo = getFileFormatInfo(entry.name)!
-          const canPreview = isPreviewable(entry.name)
-          const key = entry.name
-
-          // Use cached metadata if present; otherwise a lightweight placeholder.
-          const cached = cachedMeta[key]
-          const metadata: PhotoMetadata = cached ?? {
-            fileSize: file.size,
-            megapixels: 0,
-            dimensions: { width: 0, height: 0 },
-            isVideo: formatInfo.category === "video"
-          }
-
-          imageFiles.push({
-            id: index++,
-            key,
-            name: entry.name,
-            handle: entry,
-            file,
-            url: canPreview ? URL.createObjectURL(file) : null,
-            size: file.size,
-            format: formatInfo,
-            metadata
-          })
-        }
-      }
-
-      // === EXTRACT CAPTURE DATES (concurrent) to order photos chronologically ===
-      // Only files without cached metadata are read (header-only), and the cache
-      // makes subsequent opens of the same folder instant.
-      const cache = metadataCacheRef.current
-      const total = imageFiles.length
-      let processed = 0
-      let cursor = 0
-      const worker = async () => {
-        while (cursor < imageFiles.length) {
-          const p = imageFiles[cursor++]
-          if (!cache[p.key]) {
-            try {
-              cache[p.key] = await extractMetadata(p.file)
-            } catch {
-              // Leave uncached — ordering falls back to the file's mtime.
+            // Use cached metadata if present; otherwise a lightweight placeholder.
+            const cached = cachedMeta[key]
+            const metadata: PhotoMetadata = cached ?? {
+              fileSize: file.size,
+              megapixels: 0,
+              dimensions: { width: 0, height: 0 },
+              isVideo: formatInfo.category === "video"
             }
-          }
-          processed++
-          if (processed === total || processed % 8 === 0) {
-            addStatus({
-              type: "loading",
-              message: t("toast.readingDates", { processed, total }),
-              icon: "file"
+
+            imageFiles.push({
+              id: index++,
+              key,
+              name: entry.name,
+              handle: entry,
+              file,
+              url: canPreview ? URL.createObjectURL(file) : null,
+              size: file.size,
+              format: formatInfo,
+              metadata
             })
           }
         }
-      }
-      await Promise.all(Array.from({ length: Math.min(METADATA_CONCURRENCY, total || 1) }, () => worker()))
 
-      // Sort by capture date (oldest first); fall back to file mtime.
-      const sortTs = (p: PhotoFile) => parseCaptureDate(cache[p.key]?.dateTaken) ?? p.file.lastModified
-      imageFiles.sort((a, b) => sortTs(a) - sortTs(b) || a.key.localeCompare(b.key))
-
-      const nextMetaMap = new Map<string, PhotoMetadata>()
-      for (const p of imageFiles) {
-        const meta = cache[p.key]
-        if (meta) {
-          nextMetaMap.set(p.key, meta)
-          p.metadata = meta
+        // === EXTRACT CAPTURE DATES (concurrent) to order photos chronologically ===
+        // Only files without cached metadata are read (header-only), and the cache
+        // makes subsequent opens of the same folder instant.
+        const cache = metadataCacheRef.current
+        const total = imageFiles.length
+        let processed = 0
+        let cursor = 0
+        const worker = async () => {
+          while (cursor < imageFiles.length) {
+            const p = imageFiles[cursor++]
+            if (!cache[p.key]) {
+              try {
+                cache[p.key] = await extractMetadata(p.file)
+              } catch {
+                // Leave uncached — ordering falls back to the file's mtime.
+              }
+            }
+            processed++
+            if (processed === total || processed % 8 === 0) {
+              addStatus({
+                type: "loading",
+                message: t("toast.readingDates", { processed, total }),
+                icon: "file"
+              })
+            }
+          }
         }
-      }
+        await Promise.all(Array.from({ length: Math.min(METADATA_CONCURRENCY, total || 1) }, () => worker()))
 
-      setPhotos(imageFiles)
-      setMetadataByKey(nextMetaMap)
+        // Sort by capture date (oldest first); fall back to file mtime.
+        const sortTs = (p: PhotoFile) => parseCaptureDate(cache[p.key]?.dateTaken) ?? p.file.lastModified
+        imageFiles.sort((a, b) => sortTs(a) - sortTs(b) || a.key.localeCompare(b.key))
 
-      // Persist the freshly-extracted metadata so future opens are instant.
-      // Fire-and-forget: the write is queued and its errors are handled inside.
-      void updateDatabaseMetadata(dirHandle, cache)
-
-      // === RESTORE STATE from database ===
-      const restoredFolders: SortFolder[] = []
-      folderDirHandlesRef.current.clear()
-      for (const folder of dbState.folders) {
-        try {
-          const folderHandle = await dirHandle.getDirectoryHandle(folder.name)
-          restoredFolders.push({ ...folder, dirHandle: folderHandle })
-          folderDirHandlesRef.current.set(folder.id, folderHandle)
-        } catch {
-          addStatus({
-            type: "error",
-            message: t("toast.folderNotFound", { name: folder.name }),
-            icon: "folder"
-          })
-          console.warn(`[Hook] Folder ${folder.name} not found, skipping`)
+        const nextMetaMap = new Map<string, PhotoMetadata>()
+        for (const p of imageFiles) {
+          const meta = cache[p.key]
+          if (meta) {
+            nextMetaMap.set(p.key, meta)
+            p.metadata = meta
+          }
         }
-      }
 
-      setFolders(restoredFolders)
+        setPhotos(imageFiles)
+        setMetadataByKey(nextMetaMap)
+        void saveRecentProject(dirHandle, imageFiles.length)
 
-      // Drop mappings that point at folders that no longer exist.
-      const validFolderIds = new Set(restoredFolders.map(f => f.id))
-      const restoredSorted: SortedMapping = {}
-      for (const [photoKey, folderId] of Object.entries(dbState.sortedPhotos)) {
-        if (validFolderIds.has(folderId)) restoredSorted[photoKey] = folderId
-      }
-      setSortedPhotos(restoredSorted)
-      setMoveModeState(dbState.moveMode)
-      setCurrentIndex(Math.min(dbState.currentIndex, Math.max(imageFiles.length - 1, 0)))
-      setOperations(dbState.operations ?? [])
+        // Persist the freshly-extracted metadata so future opens are instant.
+        // Fire-and-forget: the write is queued and its errors are handled inside.
+        void updateDatabaseMetadata(dirHandle, cache)
 
-      setIsLoading(false)
+        // === RESTORE STATE from database ===
+        const restoredFolders: SortFolder[] = []
+        folderDirHandlesRef.current.clear()
+        for (const folder of dbState.folders) {
+          try {
+            const folderHandle = await dirHandle.getDirectoryHandle(folder.name)
+            restoredFolders.push({ ...folder, dirHandle: folderHandle })
+            folderDirHandlesRef.current.set(folder.id, folderHandle)
+          } catch {
+            addStatus({
+              type: "error",
+              message: t("toast.folderNotFound", { name: folder.name }),
+              icon: "folder"
+            })
+            console.warn(`[Hook] Folder ${folder.name} not found, skipping`)
+          }
+        }
 
-      addStatus({
-        type: "success",
-        message: t("toast.projectLoaded"),
-        icon: "folder"
-      })
-    } catch (err) {
-      if (err instanceof Error && err.name !== "AbortError") {
-        setError(err.message)
+        setFolders(restoredFolders)
+
+        // Drop mappings that point at folders that no longer exist.
+        const validFolderIds = new Set(restoredFolders.map(f => f.id))
+        const restoredSorted: SortedMapping = {}
+        for (const [photoKey, folderId] of Object.entries(dbState.sortedPhotos)) {
+          if (validFolderIds.has(folderId)) restoredSorted[photoKey] = folderId
+        }
+        setSortedPhotos(restoredSorted)
+        setMoveModeState(dbState.moveMode)
+        setCurrentIndex(Math.min(dbState.currentIndex, Math.max(imageFiles.length - 1, 0)))
+        setOperations(dbState.operations ?? [])
+
+        setIsLoading(false)
+
         addStatus({
-          type: "error",
-          message: t("toast.projectLoadFailed"),
+          type: "success",
+          message: t("toast.projectLoaded"),
           icon: "folder"
         })
+      } catch (err) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          setError(err.message)
+          addStatus({
+            type: "error",
+            message: t("toast.projectLoadFailed"),
+            icon: "folder"
+          })
+        }
+        setIsLoading(false)
+      } finally {
+        clearStatus()
       }
-      setIsLoading(false)
-    } finally {
-      clearStatus()
-    }
-  }, [revokeAllUrls])
+    },
+    [revokeAllUrls]
+  )
+
+  const loadDirectory = useCallback(
+    () =>
+      openProject(async () => {
+        if (!("showDirectoryPicker" in window)) {
+          addStatus({
+            type: "error",
+            message: t("toast.browserUnsupported"),
+            icon: "folder"
+          })
+          throw new Error("Browser tidak mendukung File System Access API. Gunakan Chrome/Edge/Opera terbaru.")
+        }
+        return window.showDirectoryPicker()
+      }),
+    [openProject]
+  )
+
+  const openRecentProject = useCallback(
+    (id: string) =>
+      openProject(async () => {
+        const recent = await getRecentProject(id)
+        if (!recent) throw new Error(t("toast.recentMissing"))
+        // Stored handles lose access between sessions; this runs inside the click that
+        // opened the project, so the browser may show its permission prompt.
+        const options = { mode: "readwrite" } as const
+        if ((await recent.handle.queryPermission(options)) !== "granted") {
+          if ((await recent.handle.requestPermission(options)) !== "granted") {
+            throw new Error(t("toast.recentPermissionDenied"))
+          }
+        }
+        return recent.handle
+      }),
+    [openProject]
+  )
+
+  // === CLOSE PROJECT: drop the session; progress is already in the project DB ===
+  const closeProject = useCallback(() => {
+    persistMetadata.flush()
+    const handle = rootDirHandleRef.current
+    if (handle) void saveRecentProject(handle, photos.length)
+
+    revokeAllUrls()
+    rawDecodeQueueRef.current.clear()
+    failedRawDecodesRef.current.clear()
+    metaQueueRef.current.clear()
+    rawDimsDoneRef.current.clear()
+    metadataCacheRef.current = {}
+    folderDirHandlesRef.current.clear()
+    rootDirHandleRef.current = null
+    selectionAnchorRef.current = null
+
+    setPhotos([])
+    setCurrentIndex(0)
+    setFolders([])
+    setSortedPhotos({})
+    setMoveModeState("copy")
+    setOperations([])
+    setUndoStack([])
+    setSelectedKeys(new Set())
+    setMetadataByKey(new Map())
+    setIsDecodingRaw(false)
+    setError(null)
+    setProjectName(null)
+  }, [persistMetadata, revokeAllUrls, photos.length])
 
   // === LAZY METADATA: extract for current photo (+ neighbors) on demand ===
   useEffect(() => {
@@ -995,7 +1064,10 @@ export const useFileSystem = (): FileSystemHook => {
     metadataByKey,
     canUndo: undoStack.length > 0,
     selectedKeys,
+    projectName,
     loadDirectory,
+    openRecentProject,
+    closeProject,
     addFolder,
     removeFolder,
     setFolderShortcut,

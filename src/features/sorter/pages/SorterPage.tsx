@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { useBlocker } from "react-router"
 import { AlertTriangleIcon } from "lucide-react"
@@ -5,6 +6,7 @@ import { AlertTriangleIcon } from "lucide-react"
 import { Alert, AlertTitle } from "@/shared/components/ui/alert"
 import { Button } from "@/shared/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import { useProjectStore } from "@/shared/stores/project.store"
 
 import { EditorView } from "../components/EditorView"
 import { WelcomeView } from "../components/WelcomeView"
@@ -15,6 +17,14 @@ export const SorterPage = () => {
   const { t } = useTranslation()
   const fs = useFileSystem()
   const totalPhotos = fs.photos.length
+
+  // Tell the top bar a project is open so it can offer "Close project".
+  const { projectName, closeProject } = fs
+  useEffect(() => {
+    if (totalPhotos === 0 || !projectName) return
+    useProjectStore.getState().open(projectName, closeProject)
+    return () => useProjectStore.getState().clear()
+  }, [totalPhotos, projectName, closeProject])
 
   // Directory handles live only in memory, so leaving this page ends the session.
   // Progress is already saved to the folder; still, confirm (in-app) before navigating away.
@@ -32,7 +42,11 @@ export const SorterPage = () => {
       )}
 
       {totalPhotos === 0 ? (
-        <WelcomeView isLoading={fs.isLoading} onLoadDirectory={fs.loadDirectory} />
+        <WelcomeView
+          isLoading={fs.isLoading}
+          onLoadDirectory={fs.loadDirectory}
+          onOpenRecent={fs.openRecentProject}
+        />
       ) : (
         <EditorView fs={fs} />
       )}

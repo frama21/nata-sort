@@ -4,6 +4,11 @@ declare global {
   interface Window {
     showDirectoryPicker(): Promise<FileSystemDirectoryHandle>
   }
+  // File System Access permission API (Chromium); not part of lib.dom.
+  interface FileSystemHandle {
+    queryPermission(descriptor?: { mode?: "read" | "readwrite" }): Promise<PermissionState>
+    requestPermission(descriptor?: { mode?: "read" | "readwrite" }): Promise<PermissionState>
+  }
 }
 
 export interface PhotoFile {
