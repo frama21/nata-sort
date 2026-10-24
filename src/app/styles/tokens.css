@@ -1,0 +1,87 @@
+/*
+ * NATA design tokens ("Calm Light"). Neutrals, semantic colours, shape, motion and
+ * focus follow docs/UI-Design.md; the accent is NATA's own teal. Components never
+ * carry colour literals: they read these tokens (guarded by `pnpm check:contrast`).
+ * Dark is the default theme (`.dark` on <html>); light is the `:root` default here.
+ */
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: #f3f3f3;
+    --surface-1: #fafafa;
+    --surface-2: #ffffff;
+    --surface-3: #ededed;
+    --skeleton-base: #dcdcdc;
+    --skeleton-hi: #f0f0f0;
+    --canvas: #e6e6e6;
+    --border: #dadada;
+    --border-strong: #8c8c8c;
+    --fg: #1d1d1d;
+    --fg-muted: #5a5a5a;
+    --fg-subtle: #6b6b6b;
+
+    /* Brand: logo colours only (never text). */
+    --brand-ink: #111111;
+    --brand-accent: #14b8a6;
+    --brand-paper: #f4f4f5;
+
+    --accent: #0a6a6d;
+    --accent-fg: #ffffff;
+    --accent-soft: color-mix(in oklab, var(--accent) 14%, var(--surface-1));
+    --success: #1b7a4b;
+    --warning: #8a5a00;
+    --danger: #c2302a;
+    --danger-fg: #ffffff;
+    --focus-outer: #111111;
+    --focus-inner: #ffffff;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --shadow-e1: 0 4px 16px rgb(0 0 0 / 0.12);
+    --shadow-e2: 0 12px 32px rgb(0 0 0 / 0.18);
+    --dur-fast: 100ms;
+    --dur-base: 160ms;
+    --dur-slow: 240ms;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
+    --font-sans: "Inter Variable", Inter, system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+    --bg: #1c1c1c;
+    --surface-1: #232323;
+    --surface-2: #2c2c2c;
+    --surface-3: #363636;
+    --skeleton-base: #2e2e2e;
+    --skeleton-hi: #454545;
+    --canvas: #141414;
+    --border: #3b3b3b;
+    --border-strong: #7a7a7a;
+    --fg: #ededed;
+    --fg-muted: #a8a8a8;
+    --fg-subtle: #939393;
+
+    --accent: #4fd1c5;
+    --accent-fg: #06201f;
+    --accent-soft: color-mix(in oklab, var(--accent) 20%, var(--surface-1));
+    --success: #4cc38a;
+    --warning: #e5b04a;
+    --danger: #ff7a72;
+    --danger-fg: #1c1c1c;
+    --focus-outer: #ffffff;
+    --focus-inner: #0b0b0b;
+
+    --shadow-e1: 0 4px 16px rgb(0 0 0 / 0.28);
+    --shadow-e2: 0 12px 32px rgb(0 0 0 / 0.4);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --dur-fast: 0.01ms;
+      --dur-base: 0.01ms;
+      --dur-slow: 0.01ms;
+    }
+  }
+}

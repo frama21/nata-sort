@@ -17,12 +17,24 @@ type ThemeProviderState = {
 // outside a <ThemeProvider>.
 const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined)
 
+const THEMES: readonly Theme[] = ["dark", "light", "system"]
+
+/** Stored value if valid, otherwise the default; storage may be blocked or hold junk. */
+const readTheme = (key: string, fallback: Theme): Theme => {
+  try {
+    const stored = localStorage.getItem(key)
+    return THEMES.find(t => t === stored) ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
 export const ThemeProvider = ({
   children,
-  defaultTheme = "system",
+  defaultTheme = "dark",
   storageKey = "nata-sort-theme"
 }: ThemeProviderProps) => {
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme) || defaultTheme)
+  const [theme, setTheme] = useState<Theme>(() => readTheme(storageKey, defaultTheme))
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -42,7 +54,11 @@ export const ThemeProvider = ({
   const value = {
     theme,
     setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme)
+      try {
+        localStorage.setItem(storageKey, theme)
+      } catch {
+        // Storage unavailable: the choice still applies for this session.
+      }
       setTheme(theme)
     }
   }

@@ -25,11 +25,12 @@ export default defineConfig({
         scope: "/",
         display: "standalone",
         orientation: "any",
-        theme_color: "#0a0f1a",
-        background_color: "#0a0f1a",
+        theme_color: "#1C1C1C",
+        background_color: "#1C1C1C",
         icons: [
           { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" }
+          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/pwa-maskable-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
         ]
       },
       workbox: {
