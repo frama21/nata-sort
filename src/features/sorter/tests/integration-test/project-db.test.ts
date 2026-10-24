@@ -8,7 +8,7 @@ import {
   updateDatabaseFolders
 } from "../../services/project-db.service"
 
-const DB = "nata-sort-db.json"
+const DB = "nata-photo-db.json"
 
 const validState = (overrides: Record<string, unknown> = {}) => ({
   version: "2.0",
@@ -53,12 +53,12 @@ describe("project database (service + folder handle)", () => {
   })
 
   it.each([
-    ["corrupt JSON", "{not json", "Database rusak, dibuat ulang"],
-    ["an invalid shape", JSON.stringify({ hello: "world" }), "Format database tidak valid, dibuat ulang"],
+    ["corrupt JSON", "{not json", "Database corrupt, rebuilt"],
+    ["an invalid shape", JSON.stringify({ hello: "world" }), "Invalid database format, rebuilt"],
     [
       "an old version",
       JSON.stringify(validState({ version: "1.0" })),
-      "Database versi 1.0 tidak kompatibel, dibuat ulang"
+      "Database version 1.0 incompatible, rebuilt"
     ]
   ])("resets and warns the user on %s", async (_, content, message) => {
     const dir = new MemoryDirectoryHandle()
@@ -69,6 +69,17 @@ describe("project database (service + folder handle)", () => {
     expect(state.folders).toEqual([])
     expect(useStatusStore.getState().statuses.map(s => s.message)).toContain(message)
     expect((await readDb(dir)).version).toBe("2.0")
+  })
+
+  it.each(["nata-sort-db.json", "photo-sorter-db.json"])("migrates progress from the older %s", async legacy => {
+    const dir = new MemoryDirectoryHandle()
+    dir.addFile(legacy, JSON.stringify(validState()))
+
+    const state = await initProjectDatabase(dir.asHandle())
+
+    expect(state.folders.map(f => f.name)).toEqual(["Keep"])
+    await updateDatabaseFolders(dir.asHandle(), [])
+    expect(await readDb(dir)).toMatchObject({ version: "2.0", folders: [] }) // re-saved under the current name
   })
 
   it("strips prototype-pollution keys and coerces unsafe scalars on load", async () => {
@@ -85,7 +96,7 @@ describe("project database (service + folder handle)", () => {
     expect(state.folders).toHaveLength(1)
     expect(state.moveMode).toBe("copy")
     expect(state.currentIndex).toBe(0)
-    expect(lastStatus()).toBe("Project dimuat")
+    expect(lastStatus()).toBe("Project loaded successfully")
   })
 
   it("serializes concurrent writes so no update is lost", async () => {

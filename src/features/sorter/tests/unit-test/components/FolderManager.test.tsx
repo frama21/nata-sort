@@ -20,6 +20,7 @@ const setup = (folders: SortFolder[] = []) => {
     moveMode: "copy" as const,
     onAdd: vi.fn(async () => {}),
     onRemove: vi.fn(async () => {}),
+    onSetShortcut: vi.fn(async () => {}),
     onAssign: vi.fn(async () => {}),
     onMoveModeChange: vi.fn(),
     currentIndex: 3,
@@ -44,7 +45,7 @@ describe("FolderManager", () => {
 
   it("disables the add button until a name is typed", async () => {
     const { user } = setup()
-    const add = screen.getByRole("button", { name: "Tambah folder" })
+    const add = screen.getByRole("button", { name: "Add folder" })
     expect(add).toBeDisabled()
     await user.type(screen.getByLabelText(/Folder/), "x")
     expect(add).toBeEnabled()
@@ -53,10 +54,10 @@ describe("FolderManager", () => {
   it("sorts the current photo into a folder and removes folders", async () => {
     const { props, user } = setup([folder("f1", "Keep", "1")])
 
-    await user.click(screen.getByRole("button", { name: "Sortir" }))
+    await user.click(screen.getByRole("button", { name: "Sort" }))
     expect(props.onAssign).toHaveBeenCalledWith(3, "f1")
 
-    await user.click(screen.getByRole("button", { name: "Hapus folder Keep" }))
+    await user.click(screen.getByRole("button", { name: "Delete folder Keep" }))
     expect(props.onRemove).toHaveBeenCalledWith("f1")
   })
 

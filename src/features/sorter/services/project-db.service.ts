@@ -1,9 +1,13 @@
 import { addStatus, clearStatus } from "@/shared/stores/status.store"
+import { t } from "@/shared/i18n"
 
 import type { PhotoMetadata } from "@/features/media"
 import type { ProjectState, SortFolder, SortedMapping, MoveMode, SortOperation } from "../types/sorter.types"
 
-const DB_FILENAME = "nata-sort-db.json"
+const DB_FILENAME = "nata-photo-db.json"
+// Pre-rebrand database filenames (newest first). Read as a fallback so users who sorted
+// under an old name keep their project state; the next write re-saves it under DB_FILENAME.
+const LEGACY_DB_FILENAMES = ["nata-sort-db.json", "photo-sorter-db.json"]
 // Bumped to 2.0: sortedPhotos is now keyed by file name (not array index) and
 // SortOperation is a slim, handle-free record. Older 1.0 databases are not
 // compatible and will start fresh (with a visible warning).
@@ -67,7 +71,7 @@ export const initProjectDatabase = async (dirHandle: FileSystemDirectoryHandle):
   enqueue(async () => {
     const existing = await loadProjectState(dirHandle)
     if (existing) {
-      addStatus({ type: "success", message: "Project dimuat", icon: "db" })
+      addStatus({ type: "success", message: t("toast.projectLoaded"), icon: "db" })
       return existing
     }
 
@@ -91,7 +95,7 @@ export const initProjectDatabase = async (dirHandle: FileSystemDirectoryHandle):
     await writeDatabaseFile(dirHandle, freshState)
     addStatus({
       type: "success",
-      message: "Database project baru dibuat",
+      message: t("toast.dbCreated"),
       icon: "db"
     })
     return freshState
@@ -173,7 +177,7 @@ export const updateDatabaseAfterOperation = async (
         }
       }
     },
-    "Gagal menyimpan data"
+    t("toast.dbSaveFailed")
   )
 
 /**
@@ -197,7 +201,7 @@ export const updateDatabaseFolders = async (
         createdAt: f.createdAt
       }))
     }),
-    "Gagal update folder"
+    t("toast.dbFoldersFailed")
   )
 
 /**
@@ -209,7 +213,7 @@ export const updateDatabaseFolders = async (
 export const updateDatabaseMode = async (
   dirHandle: FileSystemDirectoryHandle,
   moveMode: MoveMode
-): Promise<void> => mutateDatabase(dirHandle, () => ({ moveMode }), "Gagal update mode")
+): Promise<void> => mutateDatabase(dirHandle, () => ({ moveMode }), t("toast.dbModeFailed"))
 
 /**
  * Persist the lazily-extracted metadata cache (debounced by the caller).
@@ -296,15 +300,16 @@ const sanitizeState = (s: CompleteProjectState): CompleteProjectState => ({
  * @returns The saved state, or `null` if it is missing or unusable.
  */
 const loadProjectState = async (dirHandle: FileSystemDirectoryHandle): Promise<CompleteProjectState | null> => {
-  let content: string
-  try {
-    const fileHandle = await dirHandle.getFileHandle(DB_FILENAME)
-    const file = await fileHandle.getFile()
-    content = await file.text()
-  } catch {
-    // No database yet — normal on first open.
-    return null
+  let content: string | null = null
+  for (const name of [DB_FILENAME, ...LEGACY_DB_FILENAMES]) {
+    try {
+      content = await (await (await dirHandle.getFileHandle(name)).getFile()).text()
+      break
+    } catch {
+      // Not found under this name — try the next. Absent all, it's a first open.
+    }
   }
+  if (content === null) return null
 
   let parsed: unknown
   try {
@@ -312,7 +317,7 @@ const loadProjectState = async (dirHandle: FileSystemDirectoryHandle): Promise<C
   } catch (err) {
     addStatus({
       type: "error",
-      message: "Database rusak, dibuat ulang",
+      message: t("toast.dbCorrupt"),
       icon: "db"
     })
     console.error("[DB] Corrupt JSON, ignoring:", err)
@@ -322,7 +327,7 @@ const loadProjectState = async (dirHandle: FileSystemDirectoryHandle): Promise<C
   if (!isValidState(parsed)) {
     addStatus({
       type: "error",
-      message: "Format database tidak valid, dibuat ulang",
+      message: t("toast.dbInvalid"),
       icon: "db"
     })
     console.warn("[DB] Invalid state shape, ignoring")
@@ -332,7 +337,7 @@ const loadProjectState = async (dirHandle: FileSystemDirectoryHandle): Promise<C
   if (parsed.version !== DB_VERSION) {
     addStatus({
       type: "error",
-      message: `Database versi ${parsed.version} tidak kompatibel, dibuat ulang`,
+      message: t("toast.dbIncompatible", { version: String(parsed.version) }),
       icon: "db"
     })
     console.warn(`[DB] Version mismatch (${parsed.version} != ${DB_VERSION}), resetting`)

@@ -5,8 +5,8 @@ import { expect, test } from "@playwright/test"
 test("shows the start screen with the folder picker", async ({ page }) => {
   await page.goto("/")
   await expect(page).toHaveTitle("NATA — Sortir Foto & Video Lokal")
-  await expect(page.getByText("Mulai Sortir Foto")).toBeVisible()
-  await expect(page.getByRole("button", { name: "Pilih Folder Foto" })).toBeEnabled()
+  await expect(page.getByText("Start organizing photos")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Choose Photo Folder" })).toBeEnabled()
 })
 
 test("the theme toggle switches between dark and light", async ({ page }) => {
